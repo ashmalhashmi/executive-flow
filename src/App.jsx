@@ -6,12 +6,14 @@ import DashboardOverview from './pages/DashboardOverview';
 import ExecutiveCalendar from './pages/ExecutiveCalendar';
 import SouvenirLog from './pages/SouvenirLog';
 import ExpenditureLog from './pages/ExpenditureLog';
+import SyncBackup from './pages/SyncBackup';
 
 const VIEWS = {
   dashboard: DashboardOverview,
   calendar: ExecutiveCalendar,
   souvenirs: SouvenirLog,
   expenditure: ExpenditureLog,
+  sync: SyncBackup,
 };
 
 export default function App() {

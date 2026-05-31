@@ -1,18 +1,31 @@
 {
   "name": "Executive Flow",
-  "short_name": "ExecFlow",
-  "description": "Executive Flow calendar and souvenir tracking dashboard",
+  "short_name": "Executive Flow",
+  "description": "Executive Flow calendar, souvenir and expenditure dashboard",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#09090b",
   "theme_color": "#09090b",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/vite.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

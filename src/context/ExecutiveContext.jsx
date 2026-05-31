@@ -15,6 +15,7 @@ import {
   isWeeklySummaryEnabled,
 } from '../utils/dates';
 import { clearReminderFired } from '../utils/reminders';
+import { buildAppSnapshot } from '../utils/backup';
 
 const MEETINGS_STORAGE_KEY = 'executive_flow_meetings';
 const SOUVENIRS_STORAGE_KEY = 'executive_flow_souvenirs';
@@ -314,6 +315,22 @@ export function ExecutiveProvider({ children }) {
     return { totalSpent, closingBalance };
   }, [expenditureState]);
 
+  const importAppData = useCallback((data) => {
+    setMeetings(Array.isArray(data.meetings) ? data.meetings : []);
+    setSouvenirs(Array.isArray(data.souvenirs) ? data.souvenirs : []);
+    setExpenditureState({
+      openingBalance: Number(data.expenditure?.openingBalance) || 0,
+      expenditures: Array.isArray(data.expenditure?.expenditures)
+        ? data.expenditure.expenditures
+        : [],
+    });
+  }, []);
+
+  const getAppSnapshot = useCallback(
+    () => buildAppSnapshot({ meetings, souvenirs, expenditureState }),
+    [meetings, souvenirs, expenditureState],
+  );
+
   const value = useMemo(
     () => ({
       meetings,
@@ -338,6 +355,9 @@ export function ExecutiveProvider({ children }) {
       addExpenditure,
       removeExpenditure,
       expenditureSummary,
+      importAppData,
+      getAppSnapshot,
+      expenditureState,
     }),
     [
       meetings,
@@ -359,6 +379,8 @@ export function ExecutiveProvider({ children }) {
       addExpenditure,
       removeExpenditure,
       expenditureSummary,
+      importAppData,
+      getAppSnapshot,
     ],
   );
 

@@ -3,6 +3,7 @@ import {
   Calendar,
   Gift,
   Wallet,
+  CloudUpload,
 } from 'lucide-react';
 
 /** Sidebar navigation tabs — id maps to active view in App */
@@ -30,5 +31,11 @@ export const NAV_ITEMS = [
     label: 'Expenditure Log',
     description: 'Opening balance · PKR expenses',
     icon: Wallet,
+  },
+  {
+    id: 'sync',
+    label: 'Sync & Backup',
+    description: 'Laptop ↔ mobile · cloud',
+    icon: CloudUpload,
   },
 ];
