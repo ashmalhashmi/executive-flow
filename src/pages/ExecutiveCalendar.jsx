@@ -8,7 +8,8 @@ import { getTodayISO } from '../utils/dates';
 import { parseISO } from '../utils/calendar';
 
 export default function ExecutiveCalendar() {
-  const { meetings, addMeeting, addSouvenirsFromPresentation } = useExecutive();
+  const { meetings, addMeeting, cancelMeeting, addSouvenirsFromPresentation } =
+    useExecutive();
   const today = getTodayISO();
   const todayParts = parseISO(today);
 
@@ -85,6 +86,7 @@ export default function ExecutiveCalendar() {
             selectedDate={selectedDate}
             appointments={dayAppointments}
             onScheduleClick={() => setModalOpen(true)}
+            onCancelMeeting={cancelMeeting}
           />
           <MeetingSouvenirPanel
             selectedDate={selectedDate}

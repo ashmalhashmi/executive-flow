@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   Calendar,
   Gift,
+  Wallet,
 } from 'lucide-react';
 
 /** Sidebar navigation tabs — id maps to active view in App */
@@ -23,5 +24,11 @@ export const NAV_ITEMS = [
     label: 'Souvenir Log',
     description: 'Meeting souvenir records',
     icon: Gift,
+  },
+  {
+    id: 'expenditure',
+    label: 'Expenditure Log',
+    description: 'Opening balance · PKR expenses',
+    icon: Wallet,
   },
 ];

@@ -1,4 +1,4 @@
-import { Plus, Clock } from 'lucide-react';
+import { Plus, Clock, X } from 'lucide-react';
 import GlassCard from '../ui/GlassCard';
 import StatusBadge from '../ui/StatusBadge';
 import { formatDisplayDate, formatDisplayTime, getRelativeDayLabel } from '../../utils/dates';
@@ -7,6 +7,7 @@ export default function DayAppointmentsPanel({
   selectedDate,
   appointments,
   onScheduleClick,
+  onCancelMeeting,
 }) {
   const sorted = [...appointments].sort((a, b) => a.time.localeCompare(b.time));
 
@@ -54,7 +55,30 @@ export default function DayAppointmentsPanel({
                     {formatDisplayTime(apt.time)}
                   </p>
                 </div>
-                <StatusBadge status={apt.status} />
+                <div className="flex shrink-0 items-center gap-2">
+                  <StatusBadge status={apt.status} />
+                  {onCancelMeeting && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `"${apt.title}" cancel karein? Yeh appointment list se hat jayegi.`,
+                          )
+                        ) {
+                          onCancelMeeting(apt.id);
+                        }
+                      }}
+                      className="rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-300 hover:bg-red-500/20"
+                      aria-label={`Cancel ${apt.title}`}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <X className="h-3.5 w-3.5" />
+                        Cancel
+                      </span>
+                    </button>
+                  )}
+                </div>
               </div>
               {apt.agenda && (
                 <p className="mt-2 line-clamp-2 text-xs text-zinc-500">{apt.agenda}</p>

@@ -14,9 +14,27 @@ import {
   getYearMonth,
   isWeeklySummaryEnabled,
 } from '../utils/dates';
+import { clearReminderFired } from '../utils/reminders';
 
 const MEETINGS_STORAGE_KEY = 'executive_flow_meetings';
 const SOUVENIRS_STORAGE_KEY = 'executive_flow_souvenirs';
+const EXPENDITURE_STORAGE_KEY = 'executive_flow_expenditure';
+
+function loadExpenditureState() {
+  try {
+    const raw = localStorage.getItem(EXPENDITURE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        openingBalance: Number(parsed.openingBalance) || 0,
+        expenditures: Array.isArray(parsed.expenditures) ? parsed.expenditures : [],
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return { openingBalance: 0, expenditures: [] };
+}
 
 function loadMeetings() {
   try {
@@ -51,6 +69,13 @@ export function ExecutiveProvider({ children }) {
   useEffect(() => {
     localStorage.setItem(SOUVENIRS_STORAGE_KEY, JSON.stringify(souvenirs));
   }, [souvenirs]);
+
+  const [expenditureState, setExpenditureState] = useState(loadExpenditureState);
+
+  useEffect(() => {
+    localStorage.setItem(EXPENDITURE_STORAGE_KEY, JSON.stringify(expenditureState));
+  }, [expenditureState]);
+
   const [inventory] = useState(INVENTORY_ITEMS);
 
   const stats = useMemo(() => {
@@ -188,6 +213,12 @@ export function ExecutiveProvider({ children }) {
     return meeting;
   }, []);
 
+  /** My Calendar appointment cancel — list se hata dein */
+  const cancelMeeting = useCallback((meetingId) => {
+    clearReminderFired(meetingId);
+    setMeetings((prev) => prev.filter((m) => m.id !== meetingId));
+  }, []);
+
   /** Merge Google Calendar events (skip duplicates) */
   const importGoogleMeetings = useCallback((events) => {
     let imported = 0;
@@ -246,11 +277,49 @@ export function ExecutiveProvider({ children }) {
     [],
   );
 
+  const setExpenditureOpeningBalance = useCallback((amount) => {
+    setExpenditureState((prev) => ({
+      ...prev,
+      openingBalance: Math.max(0, Number(amount) || 0),
+    }));
+  }, []);
+
+  const addExpenditure = useCallback(({ description, amount, date }) => {
+    const entry = {
+      id: `exp-${Date.now()}`,
+      description,
+      amount: Number(amount) || 0,
+      date: date || getTodayISO(),
+    };
+    setExpenditureState((prev) => ({
+      ...prev,
+      expenditures: [entry, ...prev.expenditures],
+    }));
+    return entry;
+  }, []);
+
+  const removeExpenditure = useCallback((id) => {
+    setExpenditureState((prev) => ({
+      ...prev,
+      expenditures: prev.expenditures.filter((e) => e.id !== id),
+    }));
+  }, []);
+
+  const expenditureSummary = useMemo(() => {
+    const totalSpent = expenditureState.expenditures.reduce(
+      (sum, e) => sum + (Number(e.amount) || 0),
+      0,
+    );
+    const closingBalance = expenditureState.openingBalance - totalSpent;
+    return { totalSpent, closingBalance };
+  }, [expenditureState]);
+
   const value = useMemo(
     () => ({
       meetings,
       setMeetings,
       addMeeting,
+      cancelMeeting,
       souvenirs,
       setSouvenirs,
       addSouvenir,
@@ -263,10 +332,17 @@ export function ExecutiveProvider({ children }) {
       monthlySouvenirSummary,
       weeklySouvenirSummary,
       importGoogleMeetings,
+      expenditureOpeningBalance: expenditureState.openingBalance,
+      expenditures: expenditureState.expenditures,
+      setExpenditureOpeningBalance,
+      addExpenditure,
+      removeExpenditure,
+      expenditureSummary,
     }),
     [
       meetings,
       addMeeting,
+      cancelMeeting,
       souvenirs,
       addSouvenir,
       addSouvenirsFromPresentation,
@@ -278,6 +354,11 @@ export function ExecutiveProvider({ children }) {
       monthlySouvenirSummary,
       weeklySouvenirSummary,
       importGoogleMeetings,
+      expenditureState,
+      setExpenditureOpeningBalance,
+      addExpenditure,
+      removeExpenditure,
+      expenditureSummary,
     ],
   );
 
