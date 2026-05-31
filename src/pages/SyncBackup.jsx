@@ -8,6 +8,7 @@ import {
   LogIn,
   LogOut,
   Smartphone,
+  Mail,
 } from 'lucide-react';
 import { useExecutive } from '../context/ExecutiveContext';
 import { useCloudSync } from '../hooks/useCloudSync';
@@ -25,6 +26,8 @@ export default function SyncBackup() {
   const fileRef = useRef(null);
   const [importPreview, setImportPreview] = useState(null);
   const [localMessage, setLocalMessage] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [authMessage, setAuthMessage] = useState('');
 
   const cloud = useCloudSync({
     getAppSnapshot,
@@ -165,7 +168,7 @@ export default function SyncBackup() {
               Step 2 — Cloud Sync (Supabase, auto)
             </h3>
             <p className="mt-2 text-sm text-zinc-500">
-              Google login ke baad laptop aur mobile same data share karenge — internet chahiye.
+              Email magic link ya Google se login — laptop aur mobile same data share karenge.
             </p>
 
             {!cloud.supabaseConfigured ? (
@@ -221,14 +224,37 @@ export default function SyncBackup() {
                 </div>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => cloud.signInWithGoogle()}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-zinc-900 hover:bg-zinc-100"
-              >
-                <LogIn className="h-4 w-4" />
-                Sign in with Google
-              </button>
+              <div className="mt-4 space-y-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <input
+                    type="email"
+                    placeholder="your@email.com"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const res = await cloud.signInWithEmail(loginEmail);
+                      setAuthMessage(res.ok ? res.message : res.error);
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm text-zinc-200 hover:bg-white/5"
+                  >
+                    <Mail className="h-4 w-4" />
+                    Email Magic Link
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => cloud.signInWithGoogle()}
+                  className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-zinc-900 hover:bg-zinc-100"
+                >
+                  <LogIn className="h-4 w-4" />
+                  Sign in with Google
+                </button>
+                {authMessage && <p className="text-xs text-zinc-400">{authMessage}</p>}
+              </div>
             )}
           </div>
         </div>

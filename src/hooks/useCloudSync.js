@@ -113,6 +113,21 @@ export function useCloudSync({
     return { ok: true };
   }, []);
 
+  const signInWithEmail = useCallback(async (email) => {
+    if (!supabaseConfigured || !supabase) {
+      return { ok: false, error: 'Supabase configure nahi hai' };
+    }
+    const trimmed = email?.trim();
+    if (!trimmed) return { ok: false, error: 'Email likhein' };
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: trimmed,
+      options: { emailRedirectTo: window.location.origin },
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, message: 'Email par magic link bhej diya — link se login karein' };
+  }, []);
+
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -152,6 +167,7 @@ export function useCloudSync({
     syncMessage,
     lastSyncedAt,
     signInWithGoogle,
+    signInWithEmail,
     signOut,
     pullFromCloud,
     pushToCloud,
