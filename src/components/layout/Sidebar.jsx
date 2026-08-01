@@ -1,5 +1,6 @@
 import { Sparkles, X } from 'lucide-react';
 import { NAV_ITEMS } from '../../constants/navigation';
+import { prefetchTab } from '../../utils/tabImports';
 
 /**
  * Sticky glassmorphism sidebar — desktop always visible, mobile as slide-over drawer.
@@ -60,6 +61,8 @@ export default function Sidebar({ activeTab, onTabChange, isOpen, onClose }) {
                 <li key={id}>
                   <button
                     type="button"
+                    onPointerEnter={() => prefetchTab(id)}
+                    onFocus={() => prefetchTab(id)}
                     onClick={() => {
                       onTabChange(id);
                       onClose?.();

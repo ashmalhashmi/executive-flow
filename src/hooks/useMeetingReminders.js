@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useExecutive } from '../context/ExecutiveContext';
+import { useMeetingsExecutive } from '../context/ExecutiveContext';
 import { playAlarmSound, unlockAudio } from '../utils/alarmSound';
 import {
   isReminderEligible,
@@ -29,7 +29,7 @@ function showBrowserNotification(meeting) {
 }
 
 export function useMeetingReminders() {
-  const { meetings } = useExecutive();
+  const { meetings } = useMeetingsExecutive();
   const [activeReminder, setActiveReminder] = useState(null);
   const timersRef = useRef([]);
   const firedSessionRef = useRef(new Set());

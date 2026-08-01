@@ -13,15 +13,370 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>Executive Flow</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+
+    <!-- Self-hosted Inter — no Google Fonts round-trip -->
+    <link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/inter-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/fonts/inter.css" />
+
+    <!-- Resource hints: APIs (Supabase injected at build) -->
+    <!-- RESOURCE_HINTS -->
+
+    <!-- modulepreload + CSS preload injected at build -->
+    <!-- BUILD_PRELOADS -->
+
+  <style>
+      html {
+        overflow-x: clip;
+        height: 100%;
+        background: #09090b;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: clip;
+        color: #f4f4f5;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        background-color: #09090b;
+        background-image:
+          radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.15), transparent),
+          radial-gradient(ellipse 60% 40% at 100% 100%, rgba(14, 165, 233, 0.08), transparent);
+      }
+      #root {
+        min-height: 100dvh;
+        width: 100%;
+      }
+      @keyframes boot-shimmer {
+        0%,
+        100% {
+          opacity: 0.35;
+        }
+        50% {
+          opacity: 0.7;
+        }
+      }
+      .app-boot {
+        min-height: 100dvh;
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: clip;
+      }
+      .app-boot-sidebar {
+        display: none;
+      }
+      @media (min-width: 1024px) {
+        .app-boot-sidebar {
+          display: flex;
+          flex-direction: column;
+          position: fixed;
+          inset: 0 auto 0 0;
+          z-index: 50;
+          width: 18rem;
+          border-right: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(9, 9, 11, 0.82);
+          backdrop-filter: blur(24px);
+          padding: 1.5rem 1.25rem;
+        }
+        .app-boot-brand {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding-bottom: 1.5rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .app-boot-logo {
+          width: 2.5rem;
+          height: 2.5rem;
+          border-radius: 0.75rem;
+          border: 1px solid rgba(129, 140, 248, 0.3);
+          background: rgba(99, 102, 241, 0.2);
+        }
+        .app-boot-brand-title {
+          margin: 0;
+          font-size: 1.125rem;
+          font-weight: 600;
+          color: #fff;
+        }
+        .app-boot-brand-sub {
+          margin: 0.125rem 0 0;
+          font-size: 0.75rem;
+          color: #71717a;
+        }
+        .app-boot-nav {
+          margin-top: 1rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.375rem;
+        }
+        .app-boot-nav-item {
+          height: 2.5rem;
+          border-radius: 0.75rem;
+          background: rgba(255, 255, 255, 0.04);
+        }
+        .app-boot-nav-item-active {
+          background: rgba(99, 102, 241, 0.18);
+          border: 1px solid rgba(99, 102, 241, 0.25);
+        }
+      }
+      .app-boot-mheader {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(9, 9, 11, 0.9);
+        padding: calc(0.75rem + env(safe-area-inset-top, 0px)) 1rem 0.75rem;
+        backdrop-filter: blur(24px);
+        position: sticky;
+        top: 0;
+        z-index: 30;
+      }
+      @media (min-width: 1024px) {
+        .app-boot-mheader {
+          display: none;
+        }
+      }
+      .app-boot-menu-btn,
+      .app-boot-menu-spacer {
+        width: 2.5rem;
+        height: 2.5rem;
+        flex-shrink: 0;
+        border-radius: 0.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .app-boot-mtitle {
+        flex: 1;
+        margin: 0;
+        text-align: center;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #fff;
+      }
+      .app-boot-body {
+        padding: 0.75rem 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px));
+      }
+      @media (min-width: 640px) {
+        .app-boot-body {
+          padding: 2rem 1.5rem calc(2rem + env(safe-area-inset-bottom, 0px));
+        }
+      }
+      @media (min-width: 1024px) {
+        .app-boot-body {
+          margin-left: 18rem;
+          max-width: 72rem;
+          padding: 2rem 2rem calc(2rem + env(safe-area-inset-bottom, 0px));
+        }
+      }
+      .app-boot-dheader {
+        display: none;
+        margin-bottom: 2rem;
+      }
+      @media (min-width: 1024px) {
+        .app-boot-dheader {
+          display: block;
+        }
+      }
+      .app-boot-kicker {
+        margin: 0;
+        font-size: 0.75rem;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(129, 140, 248, 0.9);
+      }
+      .app-boot-title {
+        margin: 0.25rem 0 0;
+        font-size: 1.875rem;
+        font-weight: 600;
+        letter-spacing: -0.025em;
+        color: #fff;
+      }
+      .app-boot-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+      }
+      .app-boot-card {
+        border-radius: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+        padding: 1.5rem;
+      }
+      @media (min-width: 640px) {
+        .app-boot-card {
+          padding: 2rem;
+        }
+      }
+      .app-boot-card-hero {
+        border-color: rgba(14, 165, 233, 0.2);
+        background: linear-gradient(
+          to bottom right,
+          rgba(14, 165, 233, 0.1),
+          rgba(255, 255, 255, 0.05),
+          transparent
+        );
+      }
+      .app-boot-label {
+        margin: 0;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(125, 211, 252, 0.9);
+      }
+      .app-boot-label-indigo {
+        color: #fff;
+        letter-spacing: normal;
+        text-transform: none;
+        font-size: 0.875rem;
+      }
+      .app-boot-sub {
+        margin: 0.25rem 0 0;
+        font-size: 0.75rem;
+        color: #71717a;
+      }
+      .app-boot-line {
+        height: 0.75rem;
+        margin-top: 1rem;
+        border-radius: 0.375rem;
+        background: rgba(255, 255, 255, 0.08);
+        animation: boot-shimmer 1.4s ease-in-out infinite;
+      }
+      .app-boot-line-lg {
+        height: 1.125rem;
+        width: 72%;
+        margin-top: 1.25rem;
+      }
+      .app-boot-line-sm {
+        width: 42%;
+        margin-top: 0.5rem;
+      }
+      .app-boot-rows {
+        margin-top: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      .app-boot-row {
+        border-radius: 0.75rem;
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        background: rgba(99, 102, 241, 0.05);
+        padding: 0.875rem 1rem;
+      }
+      .app-boot-row-line {
+        height: 0.75rem;
+        border-radius: 0.375rem;
+        background: rgba(255, 255, 255, 0.08);
+        animation: boot-shimmer 1.4s ease-in-out infinite;
+      }
+      .app-boot-row-line.short {
+        width: 55%;
+        margin-top: 0.5rem;
+        height: 0.625rem;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="app-boot" aria-busy="true" aria-label="Loading Executive Flow">
+        <aside class="app-boot-sidebar" aria-hidden="true">
+          <div class="app-boot-brand">
+            <div class="app-boot-logo"></div>
+            <div>
+              <p class="app-boot-brand-title">Executive Flow</p>
+              <p class="app-boot-brand-sub">AI Executive Assistant</p>
+            </div>
+          </div>
+          <nav class="app-boot-nav" aria-hidden="true">
+            <div class="app-boot-nav-item app-boot-nav-item-active"></div>
+            <div class="app-boot-nav-item"></div>
+            <div class="app-boot-nav-item"></div>
+            <div class="app-boot-nav-item"></div>
+          </nav>
+        </aside>
+
+        <header class="app-boot-mheader" aria-hidden="true">
+          <div class="app-boot-menu-btn"></div>
+          <h1 class="app-boot-mtitle">Dashboard</h1>
+          <div class="app-boot-menu-spacer"></div>
+        </header>
+
+        <div class="app-boot-body">
+          <header class="app-boot-dheader">
+            <p class="app-boot-kicker">Executive Flow</p>
+            <h2 class="app-boot-title">Dashboard</h2>
+          </header>
+
+          <div class="app-boot-stack">
+            <section class="app-boot-card app-boot-card-hero" aria-hidden="true">
+              <p class="app-boot-label">Meetings Today · Executive Flow Calendar</p>
+              <div class="app-boot-line app-boot-line-lg"></div>
+              <div class="app-boot-line app-boot-line-sm"></div>
+            </section>
+
+            <section class="app-boot-card" aria-hidden="true">
+              <p class="app-boot-label app-boot-label-indigo">Weekly Summary</p>
+              <p class="app-boot-sub">Executive Flow Calendar · agle 7 din</p>
+              <div class="app-boot-rows">
+                <div class="app-boot-row">
+                  <div class="app-boot-row-line"></div>
+                  <div class="app-boot-row-line short"></div>
+                </div>
+                <div class="app-boot-row">
+                  <div class="app-boot-row-line"></div>
+                  <div class="app-boot-row-line short"></div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var BOOT_TIMEOUT_MS = 8000;
+
+        function showRecoveryBar() {
+          if (document.getElementById('ef-boot-recovery')) return;
+          var boot = document.querySelector('.app-boot');
+          if (!boot || !boot.isConnected) return;
+
+          var bar = document.createElement('div');
+          bar.id = 'ef-boot-recovery';
+          bar.style.cssText =
+            'position:fixed;inset:auto 0 0 0;padding:1rem 1.25rem calc(1rem + env(safe-area-inset-bottom));background:#18181b;border-top:1px solid rgba(255,255,255,.12);z-index:9999;text-align:center;font-family:system-ui,sans-serif;font-size:14px;color:#e4e4e7;line-height:1.5;';
+          bar.innerHTML =
+            'App load nahi ho rahi. Neeche wala button sirf cache clear karta hai — aapka data phone memory mein safe rehta hai. ' +
+            '<strong>Chrome Settings se "Clear site data" mat karein.</strong> ' +
+            '<button type="button" id="ef-boot-recovery-btn" style="display:block;margin:10px auto 0;padding:10px 20px;border-radius:10px;border:none;background:#6366f1;color:#fff;font-weight:600;font-size:14px;">Refresh app</button>';
+
+          document.body.appendChild(bar);
+          document.getElementById('ef-boot-recovery-btn').addEventListener('click', function () {
+            var btn = document.getElementById('ef-boot-recovery-btn');
+            if (btn) btn.textContent = 'Refreshing…';
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                return Promise.all(regs.map(function (r) { return r.unregister(); }));
+              }).then(function () {
+                if ('caches' in window) {
+                  return caches.keys().then(function (keys) {
+                    return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                  });
+                }
+              }).finally(function () { window.location.reload(); });
+            } else {
+              window.location.reload();
+            }
+          });
+        }
+
+        setTimeout(showRecoveryBar, BOOT_TIMEOUT_MS);
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

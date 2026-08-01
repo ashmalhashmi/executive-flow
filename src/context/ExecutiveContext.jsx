@@ -1,25 +1,122 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  INITIAL_MEETINGS,
-  INITIAL_SOUVENIRS,
   INVENTORY_ITEMS,
 } from '../data/mockData';
 import {
   addDaysISO,
-  formatDisplayDate,
   getCurrentMonthLabel,
-  getCurrentWeekRangeISO,
-  getNextWeekEndLabel,
   getTodayISO,
   getYearMonth,
-  isWeeklySummaryEnabled,
+  normalizeMeetingForCalendar,
 } from '../utils/dates';
 import { clearReminderFired } from '../utils/reminders';
 import { buildAppSnapshot } from '../utils/backup';
+import {
+  loadMorningBoardSettings,
+  saveMorningBoardSettings,
+} from '../utils/morningBoardSettings';
+import {
+  loadWeeklyExpenditureEmailSettings,
+  saveWeeklyExpenditureEmailSettings,
+} from '../utils/weeklyExpenditureEmailSettings';
+import { nextOrderNumber, normalizeOrders } from '../utils/orderNumber';
+import { generateDispatchNumber, normalizeDakList } from '../utils/dakEntries';
+import { normalizeTaskList } from '../utils/taskEntries';
+import { normalizeCaptureList } from '../utils/captureEntries';
+import {
+  dedupeContactList,
+  findDuplicateContact,
+  normalizeContactList,
+  prepareContactStore,
+  standardizeContactRecord,
+} from '../utils/contactEntries';
+import { computeExpenditureBalance } from '../utils/expenditureAnalytics';
+import { schedulePersist } from '../utils/persistStorage';
+import {
+  AppMetaContext,
+  ContactsContext,
+  DakContext,
+  ExpenditureContext,
+  MeetingsContext,
+  OrdersContext,
+  SouvenirsContext,
+  TasksContext,
+  CaptureContext,
+} from './executiveDomains';
 
 const MEETINGS_STORAGE_KEY = 'executive_flow_meetings';
 const SOUVENIRS_STORAGE_KEY = 'executive_flow_souvenirs';
 const EXPENDITURE_STORAGE_KEY = 'executive_flow_expenditure';
+const ORDERS_STORAGE_KEY = 'executive_flow_orders';
+const DAK_STORAGE_KEY = 'executive_flow_dak';
+const TASKS_STORAGE_KEY = 'executive_flow_tasks';
+const CAPTURE_STORAGE_KEY = 'executive_flow_captures';
+const CONTACTS_STORAGE_KEY = 'executive_flow_contacts';
+
+function loadContacts() {
+  try {
+    const raw = localStorage.getItem(CONTACTS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return normalizeContactList(parsed);
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+function loadTaskEntries() {
+  try {
+    const raw = localStorage.getItem(TASKS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return normalizeTaskList(parsed);
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+function loadCaptureEntries() {
+  try {
+    const raw = localStorage.getItem(CAPTURE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return normalizeCaptureList(parsed);
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+function loadDakEntries() {
+  try {
+    const raw = localStorage.getItem(DAK_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return normalizeDakList(parsed);
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+function loadOrders() {
+  try {
+    const raw = localStorage.getItem(ORDERS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? normalizeOrders(parsed) : [];
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
 
 function loadExpenditureState() {
   try {
@@ -28,23 +125,29 @@ function loadExpenditureState() {
       const parsed = JSON.parse(raw);
       return {
         openingBalance: Number(parsed.openingBalance) || 0,
+        openingBalanceDate: String(parsed.openingBalanceDate ?? '').trim(),
         expenditures: Array.isArray(parsed.expenditures) ? parsed.expenditures : [],
       };
     }
   } catch {
     /* ignore */
   }
-  return { openingBalance: 0, expenditures: [] };
+  return { openingBalance: 0, openingBalanceDate: '', expenditures: [] };
 }
 
 function loadMeetings() {
   try {
     const raw = localStorage.getItem(MEETINGS_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed)
+        ? parsed.map((m) => normalizeMeetingForCalendar(m))
+        : [];
+    }
   } catch {
     /* ignore */
   }
-  return INITIAL_MEETINGS;
+  return [];
 }
 
 function loadSouvenirs() {
@@ -54,28 +157,73 @@ function loadSouvenirs() {
   } catch {
     /* ignore */
   }
-  return INITIAL_SOUVENIRS;
+  return [];
 }
 
 const ExecutiveContext = createContext(null);
 
 export function ExecutiveProvider({ children }) {
+  useEffect(() => {
+    localStorage.removeItem('executive_flow_habits');
+  }, []);
+
   const [meetings, setMeetings] = useState(loadMeetings);
 
   useEffect(() => {
-    localStorage.setItem(MEETINGS_STORAGE_KEY, JSON.stringify(meetings));
+    schedulePersist(MEETINGS_STORAGE_KEY, meetings);
   }, [meetings]);
   const [souvenirs, setSouvenirs] = useState(loadSouvenirs);
 
   useEffect(() => {
-    localStorage.setItem(SOUVENIRS_STORAGE_KEY, JSON.stringify(souvenirs));
+    schedulePersist(SOUVENIRS_STORAGE_KEY, souvenirs);
   }, [souvenirs]);
 
   const [expenditureState, setExpenditureState] = useState(loadExpenditureState);
 
   useEffect(() => {
-    localStorage.setItem(EXPENDITURE_STORAGE_KEY, JSON.stringify(expenditureState));
+    schedulePersist(EXPENDITURE_STORAGE_KEY, expenditureState);
   }, [expenditureState]);
+
+  const [orders, setOrders] = useState(loadOrders);
+
+  useEffect(() => {
+    schedulePersist(ORDERS_STORAGE_KEY, orders);
+  }, [orders]);
+
+  const [dakEntries, setDakEntries] = useState(loadDakEntries);
+
+  useEffect(() => {
+    schedulePersist(DAK_STORAGE_KEY, dakEntries);
+  }, [dakEntries]);
+
+  const [taskEntries, setTaskEntries] = useState(loadTaskEntries);
+
+  useEffect(() => {
+    schedulePersist(TASKS_STORAGE_KEY, taskEntries);
+  }, [taskEntries]);
+
+  const [captureEntries, setCaptureEntries] = useState(loadCaptureEntries);
+
+  useEffect(() => {
+    schedulePersist(CAPTURE_STORAGE_KEY, captureEntries);
+  }, [captureEntries]);
+
+  const [contacts, setContacts] = useState(loadContacts);
+
+  useEffect(() => {
+    schedulePersist(CONTACTS_STORAGE_KEY, contacts);
+  }, [contacts]);
+
+  const [dataRevision, setDataRevision] = useState(0);
+  const skipRevisionBump = useRef(true);
+
+  useEffect(() => {
+    if (skipRevisionBump.current) {
+      skipRevisionBump.current = false;
+      return;
+    }
+    setDataRevision((v) => v + 1);
+  }, [meetings, souvenirs, expenditureState, orders, dakEntries, taskEntries, captureEntries, contacts]);
 
   const [inventory] = useState(INVENTORY_ITEMS);
 
@@ -149,43 +297,6 @@ export function ExecutiveProvider({ children }) {
     };
   }, [souvenirs]);
 
-  /** Is hafte (Mon–Sun) — sirf Sunday ko dashboard par enable */
-  const weeklySouvenirSummary = useMemo(() => {
-    const { weekStart, weekEnd } = getCurrentWeekRangeISO();
-    const enabled = isWeeklySummaryEnabled();
-
-    const weekItems = souvenirs.filter(
-      (s) =>
-        s.source === 'calendar-meeting' &&
-        s.dateDistributed >= weekStart &&
-        s.dateDistributed <= weekEnd,
-    );
-
-    const qtyByItem = {};
-    weekItems.forEach((s) => {
-      qtyByItem[s.itemName] = (qtyByItem[s.itemName] || 0) + s.quantity;
-    });
-
-    const topItems = Object.entries(qtyByItem)
-      .map(([name, qty]) => ({ name, qty }))
-      .sort((a, b) => b.qty - a.qty)
-      .slice(0, 5);
-
-    const meetingCount = new Set(
-      weekItems.map((s) => s.presentationBatchId || s.meetingId).filter(Boolean),
-    ).size;
-
-    return {
-      enabled,
-      nextEnableLabel: getNextWeekEndLabel(),
-      weekLabel: `${formatDisplayDate(weekStart)} – ${formatDisplayDate(weekEnd)}`,
-      totalQty: weekItems.reduce((sum, s) => sum + s.quantity, 0),
-      totalEntries: weekItems.length,
-      meetingCount,
-      topItems,
-    };
-  }, [souvenirs]);
-
   const upcomingMeetings = useMemo(() => {
     const today = getTodayISO();
     return [...meetings]
@@ -204,6 +315,7 @@ export function ExecutiveProvider({ children }) {
       title: payload.title.trim(),
       date: payload.date,
       time: payload.time,
+      location: (payload.location || '').trim(),
       agenda: (payload.agenda || '').trim(),
       attendees: payload.attendees,
       automateReminders: payload.automateReminders ?? false,
@@ -218,6 +330,29 @@ export function ExecutiveProvider({ children }) {
   const cancelMeeting = useCallback((meetingId) => {
     clearReminderFired(meetingId);
     setMeetings((prev) => prev.filter((m) => m.id !== meetingId));
+  }, []);
+
+  /** Calendar meeting edit — date/time change par reminder dubara allow */
+  const updateMeeting = useCallback((meetingId, payload) => {
+    clearReminderFired(meetingId);
+    setMeetings((prev) =>
+      prev.map((m) =>
+        m.id !== meetingId
+          ? m
+          : {
+              ...m,
+              title: payload.title.trim(),
+              date: payload.date,
+              time: payload.time,
+              location: (payload.location || '').trim(),
+              agenda: (payload.agenda || '').trim(),
+              attendees: Array.isArray(payload.attendees) ? payload.attendees : [],
+              automateReminders: payload.automateReminders ?? m.automateReminders,
+              scheduledViaCalendar:
+                payload.scheduledViaCalendar ?? m.scheduledViaCalendar ?? true,
+            },
+      ),
+    );
   }, []);
 
   /** Merge Google Calendar events (skip duplicates) */
@@ -255,42 +390,337 @@ export function ExecutiveProvider({ children }) {
     return entry;
   }, []);
 
-  /** Calendar meeting — text se parse karke har item alag Souvenir Log row */
+  /** Calendar meeting — exact user detail text, one log row per save */
   const addSouvenirsFromPresentation = useCallback(
-    ({ meetingId, meetingTitle, date, rawText, items }) => {
-      const batchId = `batch-${Date.now()}`;
-      const entries = items.map((item, index) => ({
-        id: `souv-${batchId}-${index}`,
-        itemName: item.label,
-        quantity: item.quantity,
-        recipientName: `Presented at meeting`,
-        dateDistributed: date,
-        status: 'Delivered',
-        source: 'calendar-meeting',
+    ({ meetingId, meetingTitle, date, rawText }) => {
+      const entry = {
+        id: `souv-${Date.now()}`,
         meetingId,
         meetingTitle,
-        presentationBatchId: batchId,
-        rawPresentationText: index === 0 ? rawText : undefined,
-      }));
-      setSouvenirs((prev) => [...entries, ...prev]);
-      return entries;
+        dateDistributed: date,
+        detail: rawText.trim(),
+        source: 'calendar-meeting',
+      };
+      setSouvenirs((prev) => [entry, ...prev]);
+      return entry;
     },
     [],
   );
 
-  const setExpenditureOpeningBalance = useCallback((amount) => {
+  /** Souvenir Log row delete — single entry ya purani batch */
+  const removeSouvenirLogEntry = useCallback((rowId) => {
+    setSouvenirs((prev) =>
+      prev.filter(
+        (s) => s.id !== rowId && s.presentationBatchId !== rowId,
+      ),
+    );
+  }, []);
+
+  const addOrder = useCallback(({ item, quantity, vendor, placedDate }) => {
+    let created;
+    setOrders((prev) => {
+      const order = {
+        id: `ord-${Date.now()}`,
+        orderNumber: nextOrderNumber(prev),
+        item: item.trim(),
+        quantity: Number(quantity) || 0,
+        vendor: vendor.trim(),
+        placedDate: placedDate || getTodayISO(),
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      };
+      created = order;
+      return [order, ...prev];
+    });
+    return created;
+  }, []);
+
+  const updateOrder = useCallback((orderId, { item, quantity, vendor, placedDate }) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id !== orderId
+          ? o
+          : {
+              ...o,
+              item: item.trim(),
+              quantity: Number(quantity) || 0,
+              vendor: vendor.trim(),
+              placedDate: placedDate || o.placedDate,
+            },
+      ),
+    );
+  }, []);
+
+  const markOrderReceived = useCallback((orderId) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? { ...o, status: 'received', receivedAt: new Date().toISOString() }
+          : o,
+      ),
+    );
+  }, []);
+
+  const cancelOrder = useCallback((orderId) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: 'cancelled' } : o)),
+    );
+  }, []);
+
+  const removeOrder = useCallback((orderId) => {
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+  }, []);
+
+  const addDakEntry = useCallback((payload) => {
+    let created;
+    setDakEntries((prev) => {
+      const active = prev.filter((d) => d.status !== 'cancelled');
+      const entry = {
+        id: `dak-${Date.now()}`,
+        fileId: generateDispatchNumber(active),
+        externalDispatchNo: String(payload.externalDispatchNo ?? '').trim(),
+        receivedDate: String(payload.receivedDate ?? '').trim(),
+        forwardedDate: payload.forwardedDate,
+        designation: payload.designation.trim(),
+        subject: payload.subject.trim(),
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      created = entry;
+      return [entry, ...prev];
+    });
+    return created;
+  }, []);
+
+  const updateDakEntry = useCallback((dakId, payload) => {
+    setDakEntries((prev) =>
+      prev.map((d) =>
+        d.id !== dakId
+          ? d
+          : {
+              ...d,
+              externalDispatchNo: String(payload.externalDispatchNo ?? '').trim(),
+              receivedDate: String(payload.receivedDate ?? '').trim(),
+              forwardedDate: payload.forwardedDate,
+              designation: payload.designation.trim(),
+              subject: payload.subject.trim(),
+              updatedAt: new Date().toISOString(),
+            },
+      ),
+    );
+  }, []);
+
+  const cancelDakEntry = useCallback((dakId) => {
+    setDakEntries((prev) =>
+      prev.map((d) =>
+        d.id === dakId
+          ? { ...d, status: 'cancelled', updatedAt: new Date().toISOString() }
+          : d,
+      ),
+    );
+  }, []);
+
+  const addTaskEntry = useCallback((payload) => {
+    let created;
+    const entry = {
+      id: `task-${Date.now()}`,
+      title: payload.title.trim(),
+      date: payload.date,
+      time: payload.time,
+      status: 'active',
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setTaskEntries((prev) => {
+      created = entry;
+      return [entry, ...prev];
+    });
+    return created;
+  }, []);
+
+  const updateTaskEntry = useCallback((taskId, payload) => {
+    setTaskEntries((prev) =>
+      prev.map((t) =>
+        t.id !== taskId
+          ? t
+          : {
+              ...t,
+              title: payload.title.trim(),
+              date: payload.date,
+              time: payload.time,
+              updatedAt: new Date().toISOString(),
+            },
+      ),
+    );
+  }, []);
+
+  const completeTaskEntry = useCallback((taskId) => {
+    const now = new Date().toISOString();
+    setTaskEntries((prev) =>
+      prev.map((t) =>
+        t.id === taskId
+          ? { ...t, status: 'done', completedAt: now, updatedAt: now }
+          : t,
+      ),
+    );
+  }, []);
+
+  const cancelTaskEntry = useCallback((taskId) => {
+    setTaskEntries((prev) =>
+      prev.map((t) =>
+        t.id === taskId
+          ? { ...t, status: 'cancelled', updatedAt: new Date().toISOString() }
+          : t,
+      ),
+    );
+  }, []);
+
+  const addCaptureEntry = useCallback((payload) => {
+    let created;
+    const entry = {
+      id: `capture-${Date.now()}`,
+      text: payload.text.trim(),
+      bucket: payload.bucket === 'now' ? 'now' : 'captured',
+      status: 'active',
+      completedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setCaptureEntries((prev) => {
+      created = entry;
+      return [entry, ...prev];
+    });
+    return created;
+  }, []);
+
+  const completeCaptureEntry = useCallback((captureId) => {
+    const now = new Date().toISOString();
+    setCaptureEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === captureId
+          ? { ...entry, status: 'done', completedAt: now, updatedAt: now }
+          : entry,
+      ),
+    );
+  }, []);
+
+  const moveCaptureEntry = useCallback((captureId, bucket) => {
+    setCaptureEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === captureId
+          ? {
+              ...entry,
+              bucket: bucket === 'now' ? 'now' : 'captured',
+              updatedAt: new Date().toISOString(),
+            }
+          : entry,
+      ),
+    );
+  }, []);
+
+  const removeCaptureEntry = useCallback((captureId) => {
+    setCaptureEntries((prev) => prev.filter((entry) => entry.id !== captureId));
+  }, []);
+
+  const clearDoneCaptures = useCallback(() => {
+    setCaptureEntries((prev) => prev.filter((entry) => entry.status !== 'done'));
+  }, []);
+
+  const addContact = useCallback((payload) => {
+    let created;
+    const entry = standardizeContactRecord({
+      id: `contact-${Date.now()}`,
+      ...payload,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    if (!entry) return null;
+
+    setContacts((prev) => {
+      if (findDuplicateContact(prev, entry)) {
+        created = null;
+        return prev;
+      }
+      created = entry;
+      return dedupeContactList([entry, ...prev]);
+    });
+    return created;
+  }, []);
+
+  const updateContact = useCallback((contactId, payload) => {
+    const next = standardizeContactRecord({
+      id: contactId,
+      ...payload,
+      status: 'active',
+      updatedAt: new Date().toISOString(),
+    });
+    if (!next) return false;
+
+    setContacts((prev) => {
+      if (findDuplicateContact(prev, next, contactId)) return prev;
+      return dedupeContactList(
+        prev.map((c) =>
+          c.id !== contactId
+            ? c
+            : {
+                ...c,
+                ...next,
+                createdAt: c.createdAt,
+              },
+        ),
+      );
+    });
+    return true;
+  }, []);
+
+  const removeContact = useCallback((contactId) => {
+    setContacts((prev) => prev.filter((c) => c.id !== contactId));
+  }, []);
+
+  const importContacts = useCallback((entries, mode = 'merge') => {
+    const normalized = normalizeContactList(entries);
+    if (!normalized.length) return { saved: 0, merged: 0 };
+
+    let saved = 0;
+    let merged = 0;
+    setContacts((prev) => {
+      const combined = mode === 'replace' ? normalized : [...normalized, ...prev];
+      const deduped = dedupeContactList(combined);
+      saved = deduped.length;
+      merged = combined.length - deduped.length;
+      return deduped;
+    });
+    return { saved, merged };
+  }, []);
+
+  const clearAllContacts = useCallback(() => {
+    setContacts([]);
+  }, []);
+
+  /** Contact Database tab — dedupe + format normalize on first open */
+  const reconcileContacts = useCallback(() => {
+    setContacts((prev) => prepareContactStore(prev));
+  }, []);
+
+  const setExpenditureOpeningBalance = useCallback((amount, date) => {
+    const effectiveDate = String(date ?? '').trim() || getTodayISO();
     setExpenditureState((prev) => ({
       ...prev,
       openingBalance: Math.max(0, Number(amount) || 0),
+      openingBalanceDate: effectiveDate,
     }));
   }, []);
 
-  const addExpenditure = useCallback(({ description, amount, date }) => {
+  const addExpenditure = useCallback(({ description, amount, date, category }) => {
     const entry = {
       id: `exp-${Date.now()}`,
       description,
       amount: Number(amount) || 0,
       date: date || getTodayISO(),
+      category: String(category || '').trim() || 'Other',
     };
     setExpenditureState((prev) => ({
       ...prev,
@@ -306,86 +736,287 @@ export function ExecutiveProvider({ children }) {
     }));
   }, []);
 
-  const expenditureSummary = useMemo(() => {
-    const totalSpent = expenditureState.expenditures.reduce(
-      (sum, e) => sum + (Number(e.amount) || 0),
-      0,
-    );
-    const closingBalance = expenditureState.openingBalance - totalSpent;
-    return { totalSpent, closingBalance };
-  }, [expenditureState]);
+  /** Remove log entries strictly before cutoff date (opening date). Returns count removed. */
+  const removeExpendituresBeforeDate = useCallback((cutoffDate) => {
+    const cut = String(cutoffDate ?? '').trim();
+    if (!cut) return 0;
+    let removed = 0;
+    setExpenditureState((prev) => {
+      const kept = prev.expenditures.filter((e) => {
+        if (e.date && e.date < cut) {
+          removed += 1;
+          return false;
+        }
+        return true;
+      });
+      return { ...prev, expenditures: kept };
+    });
+    return removed;
+  }, []);
+
+  const updateExpenditure = useCallback((id, { description, amount, date, category }) => {
+    setExpenditureState((prev) => ({
+      ...prev,
+      expenditures: prev.expenditures.map((e) =>
+        e.id === id
+          ? {
+              ...e,
+              description,
+              amount: Number(amount) || 0,
+              date: date || e.date,
+              category: String(category || '').trim() || 'Other',
+            }
+          : e,
+      ),
+    }));
+  }, []);
+
+  const expenditureSummary = useMemo(
+    () =>
+      computeExpenditureBalance({
+        openingBalance: expenditureState.openingBalance,
+        openingBalanceDate: expenditureState.openingBalanceDate,
+        expenditures: expenditureState.expenditures,
+      }),
+    [expenditureState],
+  );
 
   const importAppData = useCallback((data) => {
-    setMeetings(Array.isArray(data.meetings) ? data.meetings : []);
+    setMeetings(
+      Array.isArray(data.meetings)
+        ? data.meetings.map((m) => normalizeMeetingForCalendar(m))
+        : [],
+    );
     setSouvenirs(Array.isArray(data.souvenirs) ? data.souvenirs : []);
     setExpenditureState({
       openingBalance: Number(data.expenditure?.openingBalance) || 0,
+      openingBalanceDate: String(data.expenditure?.openingBalanceDate ?? '').trim(),
       expenditures: Array.isArray(data.expenditure?.expenditures)
         ? data.expenditure.expenditures
         : [],
     });
+    setOrders(Array.isArray(data.orders) ? data.orders : []);
+    setDakEntries(normalizeDakList(data.dak));
+    setTaskEntries(normalizeTaskList(data.tasks));
+    setCaptureEntries(normalizeCaptureList(data.captures));
+    setContacts(normalizeContactList(data.contacts));
+    if (data.settings?.morningMeetingBoard) {
+      saveMorningBoardSettings(data.settings.morningMeetingBoard);
+    }
+    if (data.settings?.weeklyExpenditureEmail) {
+      saveWeeklyExpenditureEmailSettings(data.settings.weeklyExpenditureEmail);
+    }
   }, []);
 
   const getAppSnapshot = useCallback(
-    () => buildAppSnapshot({ meetings, souvenirs, expenditureState }),
-    [meetings, souvenirs, expenditureState],
+    () =>
+      buildAppSnapshot({
+        meetings,
+        souvenirs,
+        expenditureState,
+        orders,
+        dakEntries,
+        taskEntries,
+        captureEntries,
+        contacts,
+        settings: {
+          morningMeetingBoard: loadMorningBoardSettings(),
+          weeklyExpenditureEmail: loadWeeklyExpenditureEmailSettings(),
+        },
+      }),
+    [meetings, souvenirs, expenditureState, orders, dakEntries, taskEntries, captureEntries, contacts],
   );
 
-  const value = useMemo(
+  const appMetaValue = useMemo(
+    () => ({
+      importAppData,
+      getAppSnapshot,
+      dataRevision,
+      inventory,
+    }),
+    [importAppData, getAppSnapshot, dataRevision, inventory],
+  );
+
+  const meetingsValue = useMemo(
     () => ({
       meetings,
       setMeetings,
       addMeeting,
       cancelMeeting,
-      souvenirs,
-      setSouvenirs,
-      addSouvenir,
-      addSouvenirsFromPresentation,
-      inventory,
+      updateMeeting,
+      importGoogleMeetings,
       stats,
       upcomingMeetings,
       meetingsNextWeek,
       calendarMeetingsNextWeek,
-      monthlySouvenirSummary,
-      weeklySouvenirSummary,
-      importGoogleMeetings,
-      expenditureOpeningBalance: expenditureState.openingBalance,
-      expenditures: expenditureState.expenditures,
-      setExpenditureOpeningBalance,
-      addExpenditure,
-      removeExpenditure,
-      expenditureSummary,
-      importAppData,
-      getAppSnapshot,
-      expenditureState,
     }),
     [
       meetings,
       addMeeting,
       cancelMeeting,
-      souvenirs,
-      addSouvenir,
-      addSouvenirsFromPresentation,
-      inventory,
+      updateMeeting,
+      importGoogleMeetings,
       stats,
       upcomingMeetings,
       meetingsNextWeek,
       calendarMeetingsNextWeek,
-      monthlySouvenirSummary,
-      weeklySouvenirSummary,
-      importGoogleMeetings,
+    ],
+  );
+
+  const expenditureValue = useMemo(
+    () => ({
+      expenditureOpeningBalance: expenditureState.openingBalance,
+      expenditureOpeningBalanceDate: expenditureState.openingBalanceDate,
+      expenditures: expenditureState.expenditures,
       expenditureState,
       setExpenditureOpeningBalance,
       addExpenditure,
       removeExpenditure,
+      removeExpendituresBeforeDate,
+      updateExpenditure,
       expenditureSummary,
-      importAppData,
-      getAppSnapshot,
+    }),
+    [
+      expenditureState,
+      setExpenditureOpeningBalance,
+      addExpenditure,
+      removeExpenditure,
+      removeExpendituresBeforeDate,
+      updateExpenditure,
+      expenditureSummary,
+    ],
+  );
+
+  const ordersValue = useMemo(
+    () => ({
+      orders,
+      addOrder,
+      updateOrder,
+      markOrderReceived,
+      cancelOrder,
+      removeOrder,
+    }),
+    [orders, addOrder, updateOrder, markOrderReceived, cancelOrder, removeOrder],
+  );
+
+  const dakValue = useMemo(
+    () => ({
+      dakEntries,
+      addDakEntry,
+      updateDakEntry,
+      cancelDakEntry,
+    }),
+    [dakEntries, addDakEntry, updateDakEntry, cancelDakEntry],
+  );
+
+  const tasksValue = useMemo(
+    () => ({
+      taskEntries,
+      addTaskEntry,
+      updateTaskEntry,
+      completeTaskEntry,
+      cancelTaskEntry,
+    }),
+    [taskEntries, addTaskEntry, updateTaskEntry, completeTaskEntry, cancelTaskEntry],
+  );
+
+  const captureValue = useMemo(
+    () => ({
+      captureEntries,
+      addCaptureEntry,
+      completeCaptureEntry,
+      moveCaptureEntry,
+      removeCaptureEntry,
+      clearDoneCaptures,
+    }),
+    [
+      captureEntries,
+      addCaptureEntry,
+      completeCaptureEntry,
+      moveCaptureEntry,
+      removeCaptureEntry,
+      clearDoneCaptures,
+    ],
+  );
+
+  const contactsValue = useMemo(
+    () => ({
+      contacts,
+      addContact,
+      updateContact,
+      removeContact,
+      importContacts,
+      clearAllContacts,
+      reconcileContacts,
+    }),
+    [contacts, addContact, updateContact, removeContact, importContacts, clearAllContacts, reconcileContacts],
+  );
+
+  const souvenirsValue = useMemo(
+    () => ({
+      souvenirs,
+      setSouvenirs,
+      addSouvenir,
+      addSouvenirsFromPresentation,
+      removeSouvenirLogEntry,
+      monthlySouvenirSummary,
+    }),
+    [
+      souvenirs,
+      addSouvenir,
+      addSouvenirsFromPresentation,
+      removeSouvenirLogEntry,
+      monthlySouvenirSummary,
+    ],
+  );
+
+  const legacyValue = useMemo(
+    () => ({
+      ...meetingsValue,
+      ...expenditureValue,
+      ...ordersValue,
+      ...dakValue,
+      ...tasksValue,
+      ...captureValue,
+      ...contactsValue,
+      ...souvenirsValue,
+      ...appMetaValue,
+    }),
+    [
+      meetingsValue,
+      expenditureValue,
+      ordersValue,
+      dakValue,
+      tasksValue,
+      captureValue,
+      contactsValue,
+      souvenirsValue,
+      appMetaValue,
     ],
   );
 
   return (
-    <ExecutiveContext.Provider value={value}>{children}</ExecutiveContext.Provider>
+    <AppMetaContext.Provider value={appMetaValue}>
+      <MeetingsContext.Provider value={meetingsValue}>
+        <ExpenditureContext.Provider value={expenditureValue}>
+          <OrdersContext.Provider value={ordersValue}>
+            <DakContext.Provider value={dakValue}>
+              <TasksContext.Provider value={tasksValue}>
+                <CaptureContext.Provider value={captureValue}>
+                  <ContactsContext.Provider value={contactsValue}>
+                    <SouvenirsContext.Provider value={souvenirsValue}>
+                      <ExecutiveContext.Provider value={legacyValue}>
+                        {children}
+                      </ExecutiveContext.Provider>
+                    </SouvenirsContext.Provider>
+                  </ContactsContext.Provider>
+                </CaptureContext.Provider>
+              </TasksContext.Provider>
+            </DakContext.Provider>
+          </OrdersContext.Provider>
+        </ExpenditureContext.Provider>
+      </MeetingsContext.Provider>
+    </AppMetaContext.Provider>
   );
 }
 
@@ -396,3 +1027,23 @@ export function useExecutive() {
   }
   return ctx;
 }
+
+function useDomainContext(ctx, name) {
+  const value = useContext(ctx);
+  if (!value) {
+    throw new Error(`${name} must be used within ExecutiveProvider`);
+  }
+  return value;
+}
+
+export const useMeetingsExecutive = () => useDomainContext(MeetingsContext, 'useMeetingsExecutive');
+export const useExpenditureExecutive = () =>
+  useDomainContext(ExpenditureContext, 'useExpenditureExecutive');
+export const useOrdersExecutive = () => useDomainContext(OrdersContext, 'useOrdersExecutive');
+export const useDakExecutive = () => useDomainContext(DakContext, 'useDakExecutive');
+export const useTasksExecutive = () => useDomainContext(TasksContext, 'useTasksExecutive');
+export const useCaptureExecutive = () => useDomainContext(CaptureContext, 'useCaptureExecutive');
+export const useContactsExecutive = () => useDomainContext(ContactsContext, 'useContactsExecutive');
+export const useSouvenirsExecutive = () =>
+  useDomainContext(SouvenirsContext, 'useSouvenirsExecutive');
+export const useAppMetaExecutive = () => useDomainContext(AppMetaContext, 'useAppMetaExecutive');

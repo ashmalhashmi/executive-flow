@@ -37,3 +37,11 @@ export function TextArea({ className = '', rows = 4, ...props }) {
     />
   );
 }
+
+export function SelectInput({ className = '', children, ...props }) {
+  return (
+    <select className={[inputClass, className].join(' ')} {...props}>
+      {children}
+    </select>
+  );
+}

@@ -97,7 +97,7 @@ export default function CustomCalendar({
       </div>
 
       <p className="mt-4 text-center text-xs text-zinc-600">
-        Din par click karein · appointment schedule karein
+        Din par click karein · dot = meeting scheduled · phir neeche Meeting Board
       </p>
     </GlassCard>
   );

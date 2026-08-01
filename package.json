@@ -5,23 +5,30 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/copy-inter-fonts.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "cap:sync": "npm run build && npx cap sync",
     "cap:android": "npx cap open android",
-    "cap:ios": "npx cap open ios"
+    "cap:ios": "npx cap open ios",
+    "kpi:compression": "node scripts/check-brotli.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^7.2.0",
     "@supabase/supabase-js": "^2.106.2",
+    "googleapis": "^173.0.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.511.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "web-vitals": "^5.3.0"
   },
   "devDependencies": {
     "@capacitor/android": "^7.2.0",
     "@capacitor/cli": "^7.2.0",
     "@capacitor/ios": "^7.2.0",
+    "@fontsource/inter": "^5.2.8",
     "@tailwindcss/vite": "^4.1.8",
     "@vitejs/plugin-react": "^4.5.0",
     "tailwindcss": "^4.1.8",

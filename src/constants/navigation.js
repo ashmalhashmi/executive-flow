@@ -3,6 +3,11 @@ import {
   Calendar,
   Gift,
   Wallet,
+  Package,
+  FileText,
+  CheckSquare,
+  Sparkles,
+  BookUser,
   CloudUpload,
 } from 'lucide-react';
 
@@ -31,6 +36,36 @@ export const NAV_ITEMS = [
     label: 'Expenditure Log',
     description: 'Opening balance · PKR expenses',
     icon: Wallet,
+  },
+  {
+    id: 'orders',
+    label: 'Order Log',
+    description: 'Vendor orders · received',
+    icon: Package,
+  },
+  {
+    id: 'dak',
+    label: 'Dak Issuance Log',
+    description: 'Subject · date · addressee — system assigns dispatch no.',
+    icon: FileText,
+  },
+  {
+    id: 'tasks',
+    label: 'Task Log',
+    description: 'Tasks · date & time · done',
+    icon: CheckSquare,
+  },
+  {
+    id: 'capture',
+    label: 'Capture',
+    description: 'Brain dump · inbox',
+    icon: Sparkles,
+  },
+  {
+    id: 'contacts',
+    label: 'Contact Database',
+    description: 'Naam · phone · email · fast lookup',
+    icon: BookUser,
   },
   {
     id: 'sync',

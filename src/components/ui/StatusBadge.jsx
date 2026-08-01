@@ -4,6 +4,8 @@ const STYLES = {
   Completed: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/25',
   Delivered: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25',
   Pending: 'bg-amber-500/15 text-amber-300 border-amber-500/25',
+  Cancelled: 'bg-rose-500/15 text-rose-300 border-rose-500/25',
+  Received: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25',
   Alert: 'bg-rose-500/15 text-rose-300 border-rose-500/25',
 };
 

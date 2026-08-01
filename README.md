@@ -43,3 +43,12 @@ src/
 ├── main.jsx
 └── index.css
 ```
+
+## Architecture storybook & how to play
+
+Domain map (rooms / bricks) → **[ARCHITECTURE.md](./ARCHITECTURE.md)**  
+**How to play** (Steps 1–2–3, where to click) → **[WORKFLOW.md](./WORKFLOW.md)**  
+**Pilot (try WORKFLOW in 20 min)** → **[docs/WORKFLOW_PILOT.md](./docs/WORKFLOW_PILOT.md)**  
+Agent / builder workflow → **[AGENTS.md](./AGENTS.md)**  
+Domain deep-dives → [`docs/domains/`](./docs/domains/) (Sync, Meetings, Expenditure)  
+Cursor/agent rules → `.cursor/rules/executive-flow-domains.mdc`

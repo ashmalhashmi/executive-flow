@@ -24,3 +24,14 @@ create policy "Users update own app data"
 -- Optional: index for admin queries
 create index if not exists user_app_data_updated_at_idx
   on public.user_app_data (updated_at desc);
+
+-- Real-time Pulse: enable Postgres Changes for instant multi-device updates
+-- Run once. If already added, ignore duplicate error.
+-- Dashboard → Database → Replication can also toggle this.
+do $$
+begin
+  alter publication supabase_realtime add table public.user_app_data;
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end $$;

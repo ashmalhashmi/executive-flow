@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Gift, Lock, CheckCircle2 } from 'lucide-react';
 import GlassCard from '../ui/GlassCard';
 import FormField, { TextArea } from '../ui/FormField';
-import { parseSouvenirPresentationText } from '../../utils/parseSouvenirText';
 import { formatDisplayTime } from '../../utils/dates';
 
 export default function MeetingSouvenirPanel({
@@ -30,16 +29,15 @@ export default function MeetingSouvenirPanel({
     setSaved(false);
   }, [selectedDate, meetingsOnDay]);
 
-  const parsed = useMemo(() => parseSouvenirPresentationText(rawText), [rawText]);
+  const canSave = rawText.trim().length > 0;
 
   const handleSave = () => {
-    if (!enabled || !selectedMeeting || parsed.length === 0) return;
+    if (!enabled || !selectedMeeting || !canSave) return;
     onSavePresentation({
       meetingId: selectedMeeting.id,
       meetingTitle: selectedMeeting.title,
       date: selectedDate,
       rawText: rawText.trim(),
-      items: parsed,
     });
     setRawText('');
     setSaved(true);
@@ -77,14 +75,13 @@ export default function MeetingSouvenirPanel({
         <div>
           <h3 className="text-sm font-semibold text-white">Souvenirs Presented</h3>
           <p className="mt-1 text-xs text-zinc-500">
-            Meeting ke baad kitne souvenirs diye — text mein likhein, system alag record
-            karega
+            Jo likhein wahi Souvenir Log aur Google Sheet mein save hoga
           </p>
         </div>
       </div>
 
       {meetingsOnDay.length > 1 && (
-        <FormField label="Meeting select karein" id="souv-meeting-pick" className="mb-4">
+        <FormField label="Meeting" id="souv-meeting-pick" className="mb-4">
           <select
             id="souv-meeting-pick"
             value={selectedMeeting?.id ?? ''}
@@ -101,46 +98,25 @@ export default function MeetingSouvenirPanel({
       )}
 
       <FormField
-        label="Kitne souvenirs present kiye?"
+        label="Detail"
         id="souv-presentation-text"
-        hint='Format: "Crystal Award: 2, Pen: 5" ya "2 portfolios, 3 pens"'
+        hint="Exact text likhein — parse nahi hoga, waisa hi save hoga"
       >
         <TextArea
           id="souv-presentation-text"
           rows={4}
           value={rawText}
           onChange={(e) => setRawText(e.target.value)}
-          placeholder="e.g. Executive Crystal Award: 2, Branded Portfolio: 1, Fountain Pen: 6"
+          placeholder="e.g. Crystal Award 2, Branded Portfolio 1, Fountain Pen 6"
           disabled={!enabled}
         />
       </FormField>
-
-      {parsed.length > 0 && (
-        <div className="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-emerald-400/90">
-            Parsed records (Souvenir Log mein save honge)
-          </p>
-          <ul className="space-y-1">
-            {parsed.map((item) => (
-              <li
-                key={item.label}
-                className="flex justify-between text-sm text-zinc-300"
-              >
-                <span>{item.label}</span>
-                <span className="tabular-nums font-medium text-emerald-300">
-                  {item.quantity}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={handleSave}
-          disabled={parsed.length === 0}
+          disabled={!canSave}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Gift className="h-4 w-4" />
