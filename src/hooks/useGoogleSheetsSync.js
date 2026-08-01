@@ -3,6 +3,7 @@ import {
   buildSheetsPayload,
   pushToGoogleSheets,
   sheetsConfigured,
+  sheetsPayloadFingerprint,
   sheetsSyncEnabled,
 } from '../utils/googleSheetsSync';
 import { cancelIdle, runWhenIdle } from '../utils/runWhenIdle';
@@ -20,6 +21,7 @@ export function useGoogleSheetsSync({ getAppSnapshot, dataRevision = 0, enabled 
   const syncingRef = useRef(false);
   const mountedRef = useRef(true);
   const snapshotRef = useRef(getAppSnapshot);
+  const lastFingerprintRef = useRef('');
   const [syncBootReady, setSyncBootReady] = useState(false);
 
   snapshotRef.current = getAppSnapshot;
@@ -38,19 +40,24 @@ export function useGoogleSheetsSync({ getAppSnapshot, dataRevision = 0, enabled 
     return () => clearTimeout(id);
   }, []);
 
-  const runSync = useCallback(async () => {
+  const runSync = useCallback(async ({ force = false } = {}) => {
     if (!sheetsConfigured || !enabled || syncingRef.current) {
       return { ok: false, skipped: true };
+    }
+
+    const snapshot = snapshotRef.current?.();
+    const fingerprint = sheetsPayloadFingerprint(snapshot?.data);
+    if (!force && fingerprint && fingerprint === lastFingerprintRef.current) {
+      return { ok: true, skipped: true, reason: 'unchanged' };
     }
 
     syncingRef.current = true;
     if (mountedRef.current) {
       setStatus('syncing');
-      setMessage('Google Sheet update ho rahi hai…');
+      setMessage('Google Sheet mirror update…');
     }
 
     try {
-      const snapshot = snapshotRef.current?.();
       const payload = buildSheetsPayload({
         meetings: snapshot?.data?.meetings ?? [],
         souvenirs: snapshot?.data?.souvenirs ?? [],
@@ -65,10 +72,11 @@ export function useGoogleSheetsSync({ getAppSnapshot, dataRevision = 0, enabled 
         contacts: snapshot?.data?.contacts ?? [],
       });
       await pushToGoogleSheets(payload);
+      lastFingerprintRef.current = fingerprint;
       if (!mountedRef.current) return { ok: true };
       setLastSyncedAt(new Date().toISOString());
       setStatus('idle');
-      setMessage('Google Sheet updated');
+      setMessage('Google Sheet mirrored (one correct copy)');
       return { ok: true };
     } catch (err) {
       if (!mountedRef.current) return { ok: false };
@@ -106,7 +114,7 @@ export function useGoogleSheetsSync({ getAppSnapshot, dataRevision = 0, enabled 
       status,
       message,
       lastSyncedAt,
-      syncNow: runSync,
+      syncNow: () => runSync({ force: true }),
     }),
     [status, message, lastSyncedAt, runSync],
   );

@@ -1,18 +1,10 @@
 /**
- * Executive Flow → Google Sheets auto backup (appendRow model)
- *
- * REDEPLOY after every update:
- * Extensions → Apps Script → paste this file (or scripts/apps-script/Code.gs)
- * Deploy → Manage deployments → Edit → New version → Deploy
- *
- * Tabs: Meetings, Souvenirs, Expenditure, Orders, Dak Issuance, Tasks, Contacts, Meta
- * Report tabs: Meetings Report, Souvenirs Report, … (QUERY + conditional formatting)
- * Also paste scripts/apps-script/SheetsPresentation.gs into the same Apps Script project.
- * New rows use appendRow(); existing Record IDs are updated in place.
+ * Executive Flow → Google Sheets backup (mirror / one correct copy).
+ * REDEPLOY after update: Deploy → Manage deployments → New version.
  */
-
-const SHEET_ID = 'PASTE_YOUR_SPREADSHEET_ID_HERE';
-const SHEETS_FORMAT_VERSION = 'append-v2-presentation';
+const SHEET_ID = '1Ga57vcq7mxTU5jTilKNJ09IY8JaacfeMC8tPMMp0Yog';
+const SHEETS_FORMAT_VERSION = 'mirror-v1';
+var EXPENDITURE_HEADER_ROW_ = 6;
 
 function ensureTabs_(ss) {
   var names = [
@@ -38,87 +30,57 @@ function ensureTabs_(ss) {
   });
 }
 
-function isLegacySrHeader_(row1) {
-  return String(row1[0] || '').trim() === 'Sr#';
-}
-
-function headerMatches_(row1, header) {
-  return header.every(function (h, i) {
-    return String(row1[i] || '').trim() === String(h).trim();
-  });
-}
-
-function ensureHeader_(sh, header) {
-  if (sh.getLastRow() === 0) {
-    sh.appendRow(header);
-    return 1;
+function dedupeRowsById_(rows, idColIndex) {
+  var seen = {};
+  var out = [];
+  for (var i = (rows || []).length - 1; i >= 0; i--) {
+    var row = rows[i];
+    var id = String((row && row[idColIndex]) || '').trim();
+    if (!id || seen[id]) continue;
+    seen[id] = true;
+    out.unshift(row.slice());
   }
-  var row1 = sh.getRange(1, 1, 1, header.length).getValues()[0];
-  if (!headerMatches_(row1, header)) {
-    sh.getRange(1, 1, 1, header.length).setValues([header]);
-  }
-  return 1;
+  return out;
 }
 
-function migrateLegacyTab_(sh, header, dataRows, idColIndex) {
-  sh.getRange(1, 1, 1, header.length).setValues([header]);
-  var lastRow = sh.getLastRow();
-  if (lastRow > 1) sh.deleteRows(2, lastRow - 1);
-  var appended = 0;
-  (dataRows || []).forEach(function (row) {
-    var id = String(row[idColIndex] || '').trim();
-    if (!id) return;
+function snapshotHasAnyDomainData_(data) {
+  var expenditure = data.expenditure || {};
+  var items = expenditure.expenditures || [];
+  return (
+    (data.meetings || []).length > 0 ||
+    (data.souvenirs || []).length > 0 ||
+    items.length > 0 ||
+    (data.orders || []).length > 0 ||
+    (data.dak || []).length > 0 ||
+    (data.tasks || []).length > 0 ||
+    (data.contacts || []).length > 0 ||
+    Number(expenditure.openingBalance) > 0
+  );
+}
+
+function sheetLooksPopulated_(ss) {
+  var tabs = ['Meetings', 'Orders', 'Tasks', 'Souvenirs', 'Contacts', 'Dak Issuance'];
+  for (var i = 0; i < tabs.length; i++) {
+    var sh = ss.getSheetByName(tabs[i]);
+    if (sh && sh.getLastRow() > 1) return true;
+  }
+  var exp = ss.getSheetByName('Expenditure');
+  return !!(exp && exp.getLastRow() > EXPENDITURE_HEADER_ROW_);
+}
+
+/** One correct copy per tab — clear old rows, write exact snapshot (no append ghosts). */
+function syncReplaceTab_(sh, header, dataRows, idColIndex) {
+  var rows = dedupeRowsById_(dataRows, idColIndex || 0).map(function (row) {
     var normalized = row.slice();
     while (normalized.length < header.length) normalized.push('');
-    sh.appendRow(normalized);
-    appended++;
+    return normalized.slice(0, header.length);
   });
-  return { appended: appended, updated: 0, migrated: true };
-}
-
-function buildIdRowMap_(sh, idColIndex) {
-  var map = {};
-  var lastRow = sh.getLastRow();
-  if (lastRow < 2) return map;
-  var lastCol = Math.max(sh.getLastColumn(), idColIndex + 1);
-  var values = sh.getRange(2, 1, lastRow - 1, lastCol).getValues();
-  values.forEach(function (row, i) {
-    var id = String(row[idColIndex] || '').trim();
-    if (id) map[id] = i + 2;
-  });
-  return map;
-}
-
-function syncAppendUpsert_(sh, header, dataRows, idColIndex) {
-  if (sh.getLastRow() > 0) {
-    var row1 = sh.getRange(1, 1, 1, header.length).getValues()[0];
-    if (isLegacySrHeader_(row1) || !headerMatches_(row1, header)) {
-      return migrateLegacyTab_(sh, header, dataRows, idColIndex);
-    }
-  } else {
-    sh.appendRow(header);
+  sh.clearContents();
+  sh.getRange(1, 1, 1, header.length).setValues([header]);
+  if (rows.length) {
+    sh.getRange(2, 1, rows.length, header.length).setValues(rows);
   }
-  ensureHeader_(sh, header);
-  var idToRow = buildIdRowMap_(sh, idColIndex);
-  var appended = 0;
-  var updated = 0;
-
-  (dataRows || []).forEach(function (row) {
-    var id = String(row[idColIndex] || '').trim();
-    if (!id) return;
-    var width = header.length;
-    var normalized = row.slice();
-    while (normalized.length < width) normalized.push('');
-    if (idToRow[id]) {
-      sh.getRange(idToRow[id], 1, 1, width).setValues([normalized]);
-      updated++;
-    } else {
-      sh.appendRow(normalized);
-      appended++;
-    }
-  });
-
-  return { appended: appended, updated: updated };
+  return { replaced: rows.length };
 }
 
 function buildSouvenirDataRows_(souvenirs) {
@@ -190,9 +152,12 @@ function buildSouvenirDataRows_(souvenirs) {
     pushObj(g.id, g.meeting, g.date, g.pieces.join(', '));
   });
 
-  return rows.map(function (r) {
-    return [r.id, r.meeting, r.detail, r.date];
-  });
+  return dedupeRowsById_(
+    rows.map(function (r) {
+      return [r.id, r.meeting, r.detail, r.date];
+    }),
+    0,
+  );
 }
 
 function orderStatusLabel_(o) {
@@ -207,7 +172,25 @@ function taskStatusLabel_(t) {
   return 'Pending';
 }
 
-function updateExpenditureSummary_(sh, expenditure) {
+function contactSheetRow_(c) {
+  var phones =
+    c.phones && c.phones.length ? c.phones.join(', ') : c.phone || '';
+  var emails =
+    c.emails && c.emails.length ? c.emails.join(', ') : c.email || '';
+  var contactNos =
+    c.contactNos && c.contactNos.length ? c.contactNos.join(', ') : c.contactNo || '';
+  return [
+    c.id || '',
+    c.name || '',
+    phones,
+    emails,
+    c.designation || '',
+    contactNos,
+    c.address || '',
+  ];
+}
+
+function syncReplaceExpenditure_(sh, expenditure) {
   var opening = Number(expenditure.openingBalance) || 0;
   var from = String(expenditure.openingBalanceDate || '').trim();
   var items = expenditure.expenditures || [];
@@ -215,113 +198,69 @@ function updateExpenditureSummary_(sh, expenditure) {
     if (from && x.date && String(x.date) < from) return sum;
     return sum + (Number(x.amount) || 0);
   }, 0);
+  var header = ['Record ID', 'Date', 'Description', 'Amount (PKR)', 'Category'];
+  var rows = dedupeRowsById_(
+    items
+      .filter(function (x) {
+        return String(x.id || '').trim();
+      })
+      .map(function (x) {
+        return [
+          x.id || '',
+          x.date || '',
+          x.description || '',
+          Number(x.amount) || 0,
+          x.category || 'Other',
+        ];
+      }),
+    0,
+  );
+
+  sh.clearContents();
   sh.getRange(1, 1, 4, 2).setValues([
     ['Opening Balance (PKR)', opening],
     ['Effective from', from || '—'],
     ['Total Spent (PKR)', total],
     ['Closing Balance (PKR)', opening - total],
   ]);
+  sh.getRange(EXPENDITURE_HEADER_ROW_, 1, 1, header.length).setValues([header]);
+  if (rows.length) {
+    sh.getRange(EXPENDITURE_HEADER_ROW_ + 1, 1, rows.length, header.length).setValues(rows);
+  }
+  return { replaced: rows.length };
 }
 
-var EXPENDITURE_HEADER_ROW = 6;
-
-function isLegacyExpenditureLayout_(sh) {
-  if (sh.getLastRow() < EXPENDITURE_HEADER_ROW) return false;
-  var first = String(sh.getRange(EXPENDITURE_HEADER_ROW, 1).getValue() || '').trim();
-  return first === 'Date';
-}
-
-function migrateLegacyExpenditure_(sh, expenditure) {
-  updateExpenditureSummary_(sh, expenditure);
-  var header = ['Record ID', 'Date', 'Description', 'Amount (PKR)', 'Category'];
-  sh.getRange(EXPENDITURE_HEADER_ROW, 1, 1, header.length).setValues([header]);
-  var lastRow = sh.getLastRow();
-  if (lastRow > EXPENDITURE_HEADER_ROW) {
-    sh.deleteRows(EXPENDITURE_HEADER_ROW + 1, lastRow - EXPENDITURE_HEADER_ROW);
-  }
-  var items = expenditure.expenditures || [];
-  var appended = 0;
-  items.forEach(function (x) {
-    var id = String(x.id || '').trim();
-    if (!id) return;
-    sh.appendRow([x.id || '', x.date || '', x.description || '', Number(x.amount) || 0, x.category || 'Other']);
-    appended++;
-  });
-  return { appended: appended, updated: 0, migrated: true };
-}
-
-function syncExpenditureAppend_(sh, expenditure) {
-  if (isLegacyExpenditureLayout_(sh)) {
-    return migrateLegacyExpenditure_(sh, expenditure);
-  }
-  updateExpenditureSummary_(sh, expenditure);
-  var header = ['Record ID', 'Date', 'Description', 'Amount (PKR)', 'Category'];
-  if (sh.getLastRow() < EXPENDITURE_HEADER_ROW) {
-    sh.getRange(EXPENDITURE_HEADER_ROW, 1, 1, header.length).setValues([header]);
-  } else {
-    var row5 = sh.getRange(EXPENDITURE_HEADER_ROW, 1, 1, header.length).getValues()[0];
-    if (!headerMatches_(row5, header)) {
-      sh.getRange(EXPENDITURE_HEADER_ROW, 1, 1, header.length).setValues([header]);
-    }
-  }
-  var items = expenditure.expenditures || [];
-  var idToRow = {};
-  var lastRow = sh.getLastRow();
-  if (lastRow > EXPENDITURE_HEADER_ROW) {
-    var values = sh.getRange(
-      EXPENDITURE_HEADER_ROW + 1,
-      1,
-      lastRow - EXPENDITURE_HEADER_ROW,
-      header.length,
-    ).getValues();
-    values.forEach(function (row, i) {
-      var id = String(row[0] || '').trim();
-      if (id) idToRow[id] = EXPENDITURE_HEADER_ROW + 1 + i;
-    });
-  }
-  var appended = 0;
-  var updated = 0;
-  items.forEach(function (x) {
-    var row = [x.id || '', x.date || '', x.description || '', Number(x.amount) || 0, x.category || 'Other'];
-    var id = String(row[0] || '').trim();
-    if (!id) return;
-    if (idToRow[id]) {
-      sh.getRange(idToRow[id], 1, 1, header.length).setValues([row]);
-      updated++;
-    } else {
-      sh.appendRow(row);
-      appended++;
-    }
-  });
-  return { appended: appended, updated: updated };
-}
-
-function appendMetaLog_(ss, payload, stats) {
+function writeMetaStatus_(ss, payload, stats) {
   var sh = ss.getSheetByName('Meta');
   var header = [
-    'Sync Time',
+    'Last Sync Time',
     'Format',
+    'Mode',
     'Meetings',
     'Orders',
     'Dak',
     'Tasks',
     'Souvenirs',
     'Expenditures',
-    'Rows Appended',
-    'Rows Updated',
+    'Contacts',
+    'Rows Mirrored',
   ];
-  if (sh.getLastRow() === 0) sh.appendRow(header);
-  sh.appendRow([
-    payload.syncedAt || new Date().toISOString(),
-    SHEETS_FORMAT_VERSION,
-    stats.meetings,
-    stats.orders,
-    stats.dak,
-    stats.tasks,
-    stats.souvenirs,
-    stats.expenditures,
-    stats.appended,
-    stats.updated,
+  sh.clearContents();
+  sh.getRange(1, 1, 1, header.length).setValues([header]);
+  sh.getRange(2, 1, 1, header.length).setValues([
+    [
+      payload.syncedAt || new Date().toISOString(),
+      SHEETS_FORMAT_VERSION,
+      'mirror',
+      stats.meetings,
+      stats.orders,
+      stats.dak,
+      stats.tasks,
+      stats.souvenirs,
+      stats.expenditures,
+      stats.contacts || 0,
+      stats.replaced,
+    ],
   ]);
 }
 
@@ -341,8 +280,17 @@ function doPost(e) {
     var expenditure = data.expenditure || { openingBalance: 0, expenditures: [] };
     var items = expenditure.expenditures || [];
 
-    var totalAppended = 0;
-    var totalUpdated = 0;
+    if (!snapshotHasAnyDomainData_(data) && sheetLooksPopulated_(ss)) {
+      return ContentService.createTextOutput(
+        JSON.stringify({
+          ok: false,
+          error: 'Empty app snapshot blocked — sheet already has data.',
+          mode: 'mirror',
+        }),
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var totalReplaced = 0;
 
     var meetingHeader = [
       'Record ID',
@@ -368,23 +316,25 @@ function doPost(e) {
         m.scheduledViaCalendar ? 'Yes' : 'No',
       ];
     });
-    var mStats = syncAppendUpsert_(ss.getSheetByName('Meetings'), meetingHeader, meetingRows, 0);
-    totalAppended += mStats.appended;
-    totalUpdated += mStats.updated;
+    totalReplaced += syncReplaceTab_(
+      ss.getSheetByName('Meetings'),
+      meetingHeader,
+      meetingRows,
+      0,
+    ).replaced;
 
     var souvenirHeader = ['Record ID', 'Meeting Title', 'Souvenirs', 'Date'];
-    var sStats = syncAppendUpsert_(
+    totalReplaced += syncReplaceTab_(
       ss.getSheetByName('Souvenirs'),
       souvenirHeader,
       buildSouvenirDataRows_(souvenirs),
       0,
-    );
-    totalAppended += sStats.appended;
-    totalUpdated += sStats.updated;
+    ).replaced;
 
-    var eStats = syncExpenditureAppend_(ss.getSheetByName('Expenditure'), expenditure);
-    totalAppended += eStats.appended;
-    totalUpdated += eStats.updated;
+    totalReplaced += syncReplaceExpenditure_(
+      ss.getSheetByName('Expenditure'),
+      expenditure,
+    ).replaced;
 
     var orderHeader = [
       'Record ID',
@@ -406,9 +356,12 @@ function doPost(e) {
         orderStatusLabel_(o),
       ];
     });
-    var oStats = syncAppendUpsert_(ss.getSheetByName('Orders'), orderHeader, orderRows, 0);
-    totalAppended += oStats.appended;
-    totalUpdated += oStats.updated;
+    totalReplaced += syncReplaceTab_(
+      ss.getSheetByName('Orders'),
+      orderHeader,
+      orderRows,
+      0,
+    ).replaced;
 
     var dakHeader = [
       'Record ID',
@@ -432,9 +385,12 @@ function doPost(e) {
         d.status === 'cancelled' ? 'Cancelled' : 'Active',
       ];
     });
-    var dStats = syncAppendUpsert_(ss.getSheetByName('Dak Issuance'), dakHeader, dakRows, 0);
-    totalAppended += dStats.appended;
-    totalUpdated += dStats.updated;
+    totalReplaced += syncReplaceTab_(
+      ss.getSheetByName('Dak Issuance'),
+      dakHeader,
+      dakRows,
+      0,
+    ).replaced;
 
     var taskHeader = ['Record ID', 'Task', 'Date', 'Time', 'Status'];
     var taskRows = tasks.map(function (t) {
@@ -446,9 +402,12 @@ function doPost(e) {
         taskStatusLabel_(t),
       ];
     });
-    var tStats = syncAppendUpsert_(ss.getSheetByName('Tasks'), taskHeader, taskRows, 0);
-    totalAppended += tStats.appended;
-    totalUpdated += tStats.updated;
+    totalReplaced += syncReplaceTab_(
+      ss.getSheetByName('Tasks'),
+      taskHeader,
+      taskRows,
+      0,
+    ).replaced;
 
     var contactHeader = [
       'Record ID',
@@ -459,22 +418,15 @@ function doPost(e) {
       'Contact No',
       'Address',
     ];
-    var contactRows = contacts.map(function (c) {
-      return [
-        c.id || '',
-        c.name || '',
-        c.phone || '',
-        c.email || '',
-        c.designation || '',
-        c.contactNo || '',
-        c.address || '',
-      ];
-    });
-    var cStats = syncAppendUpsert_(ss.getSheetByName('Contacts'), contactHeader, contactRows, 0);
-    totalAppended += cStats.appended;
-    totalUpdated += cStats.updated;
+    var contactRows = contacts.map(contactSheetRow_);
+    totalReplaced += syncReplaceTab_(
+      ss.getSheetByName('Contacts'),
+      contactHeader,
+      contactRows,
+      0,
+    ).replaced;
 
-    appendMetaLog_(ss, payload, {
+    writeMetaStatus_(ss, payload, {
       meetings: meetings.length,
       orders: orders.length,
       dak: dak.filter(function (d) {
@@ -485,8 +437,10 @@ function doPost(e) {
       }).length,
       souvenirs: souvenirs.length,
       expenditures: items.length,
-      appended: totalAppended,
-      updated: totalUpdated,
+      contacts: contacts.filter(function (c) {
+        return c.status !== 'archived';
+      }).length,
+      replaced: totalReplaced,
     });
 
     var presentation = applySheetPresentation_(ss);
@@ -496,9 +450,8 @@ function doPost(e) {
         ok: true,
         format: SHEETS_FORMAT_VERSION,
         presentation: presentation.presentationVersion,
-        mode: 'appendRow',
-        appended: totalAppended,
-        updated: totalUpdated,
+        mode: 'mirror',
+        replaced: totalReplaced,
       }),
     ).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
@@ -549,6 +502,6 @@ function doGet(e) {
     return exportAllData_();
   }
   return ContentService.createTextOutput(
-    'Executive Flow Sheets webhook OK — ' + SHEETS_FORMAT_VERSION + ' · appendRow · GET ?action=export',
+    'Executive Flow Sheets webhook OK — ' + SHEETS_FORMAT_VERSION + ' · mirror · GET ?action=export',
   ).setMimeType(ContentService.MimeType.TEXT);
 }

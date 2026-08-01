@@ -18,6 +18,11 @@ export function getSheetEmbedUrl(viewUrl) {
   return `https://docs.google.com/spreadsheets/d/${match[1]}/htmlembed?widget=true&headers=false`;
 }
 
+/** Stable fingerprint so identical data does not re-mirror the sheet. */
+export function sheetsPayloadFingerprint(snapshotData) {
+  return JSON.stringify(snapshotData ?? {});
+}
+
 export function buildSheetsPayload({
   meetings,
   souvenirs,
@@ -38,7 +43,7 @@ export function buildSheetsPayload({
   });
   return {
     ...snapshot,
-    syncMode: 'appendRow',
+    syncMode: 'mirror',
     syncedAt: new Date().toISOString(),
     source: 'executive-flow',
   };

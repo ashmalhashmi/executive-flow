@@ -25,7 +25,7 @@ Premium executive assistant for office ops: meetings, souvenirs, money, orders, 
 | **Tasks** | `tasks` | Task list + done | `pages/TaskLog.jsx`, `utils/taskEntries.js`, `utils/taskLogPdf.js` |
 | **Capture** | `capture` | Brain-dump inbox | `pages/CaptureInbox.jsx`, `utils/captureEntries.js` |
 | **Contacts** | `contacts` | Contact DB + AI extract | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `api/extract-contact.js` |
-| **Sync** | `sync` | Auth, cloud save/load, Sheets | `pages/SyncBackup.jsx`, `context/CloudSyncContext.jsx`, `context/GoogleSheetsSyncContext.jsx`, `utils/cloudSync*.js`, `utils/googleSheetsSync.js`, `api/sheets-sync.js`, `docs/CLOUD_SYNC.md` |
+| **Sync** | `sync` | Auth, Pulse cloud, Sheets mirror backup | `pages/SyncBackup.jsx`, `context/CloudSyncContext.jsx`, `context/GoogleSheetsSyncContext.jsx`, `utils/cloudSync*.js`, `utils/googleSheetsSync.js`, `api/sheets-sync.js`, `api/_lib/sheetsMirror.js`, `docs/CLOUD_SYNC.md` |
 | **Dashboard** | `dashboard` | Overview only — composes other domains | `pages/DashboardOverview.jsx`, `components/dashboard/` |
 
 Shared UI bricks (GlassCard, Modal, FormField, StatusBadge) live in `src/components/ui/`. Prefer reusing them over inventing new chrome.
@@ -77,7 +77,7 @@ UI page  →  domain Context hooks  →  utils/*Entries (normalize)  →  localS
 | Weekly expenditure summary | settings + PDF utils | `weekly-expenditure-summary.js` + `_lib/expenditureWeekly*` |
 | AI categorize spend | `expenditureAiCategorize.js` | `categorize-expenditure.js` |
 | AI contact extract | `contactAiExtract.js` | `extract-contact.js` |
-| Google Sheets presentation | `googleSheetsSync.js` | `sheets-sync.js` |
+| Google Sheets mirror backup | `googleSheetsSync.js` | `sheets-sync.js` + `sheetsMirror.js` |
 
 Timezone / “today” for office jobs: Karachi — see `api/_lib/karachiDate.js`.
 

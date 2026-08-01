@@ -113,12 +113,12 @@ export default function SyncBackup() {
           <Table2 className="h-5 w-5 shrink-0 text-emerald-300" />
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
-              Google Sheet — Auto Backup
+              Google Sheet — One Correct Backup
             </h3>
             <p className="mt-2 text-sm text-zinc-500">
-              Har change ke baad data Google Sheet par save hota hai. Raw tabs backend ke liye;
-              Report tabs QUERY se print-ready view banati hain — status colours aur named ranges ke
-              sath.
+              Har change ke baad sheet app data ka <strong className="text-zinc-300">ek sahi mirror</strong>{' '}
+              banati hai (purani duplicate rows hata kar). Raw tabs = source of truth; Report tabs
+              QUERY + status colours.
             </p>
 
             {!sheets?.sheetsConfigured ? (
@@ -139,11 +139,10 @@ export default function SyncBackup() {
             ) : (
               <div className="mt-4 space-y-3">
                 <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-zinc-400">
-                  <p className="font-medium text-emerald-200">Automatic sync</p>
+                  <p className="font-medium text-emerald-200">Mirror sync (not append copies)</p>
                   <p className="mt-1">
-                    Raw tabs: Meetings, Souvenirs, Expenditure, Orders, Dak, Tasks, Contacts, Meta.
-                    Report tabs (QUERY): Meetings Report, Orders Report, Tasks Report, etc. — status
-                    conditional formatting (Pending / Done / Cancelled) aur EF_* named ranges.
+                    Har sync pe tabs clear + rewrite — sirf current app state. Meta = last sync
+                    only. Report tabs QUERY + status colours (Pending / Done / Cancelled).
                   </p>
                 </div>
 
