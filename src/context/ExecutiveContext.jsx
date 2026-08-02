@@ -799,7 +799,23 @@ export function ExecutiveProvider({ children }) {
     setDakEntries(normalizeDakList(data.dak));
     setTaskEntries(normalizeTaskList(data.tasks));
     setCaptureEntries(normalizeCaptureList(data.captures));
-    setContacts(normalizeContactList(data.contacts));
+    // Guard: cloud partial/corrupt snapshots used contacts: [] while other domains
+    // had data — Pulse imported that and wiped Contact Database on every device.
+    setContacts((prev) => {
+      const incoming = normalizeContactList(data.contacts);
+      if (incoming.length > 0) return incoming;
+      if (!prev.length) return incoming;
+      const otherDomainsPresent =
+        (Array.isArray(data.meetings) && data.meetings.length > 0) ||
+        (Array.isArray(data.orders) && data.orders.length > 0) ||
+        (Array.isArray(data.tasks) && data.tasks.length > 0) ||
+        (Array.isArray(data.dak) && data.dak.length > 0) ||
+        (Array.isArray(data.souvenirs) && data.souvenirs.length > 0) ||
+        (Array.isArray(data.expenditure?.expenditures) &&
+          data.expenditure.expenditures.length > 0);
+      if (otherDomainsPresent) return prev;
+      return incoming;
+    });
     if (data.settings?.morningMeetingBoard) {
       saveMorningBoardSettings(data.settings.morningMeetingBoard);
     }

@@ -30,6 +30,8 @@ Changing a field that must survive cloud Pulse sync means updating:
 
 `useCloudSync` watches `dataRevision` → debounced silent push; polls / Realtime → silent pull when cloud is newer and there are no local edits. UI: `RealtimePulseStatus` (no Save/Load buttons).
 
+Cloud push always writes a **full** snapshot (`cloudSyncPush.js`). Never write partial section payloads — those zeroed domains like `contacts: []` and Pulse wiped Contact Database across devices. `importAppData` also refuses to replace non-empty local contacts with an empty cloud list when other domains still have data.
+
 ## Google Sheet backup (one correct copy)
 
 Sheet sync uses **mirror** mode (`syncMode: 'mirror'`): each tab is cleared and rewritten from the current app snapshot (deduped by Record ID). Meta stores only the last sync status — not a growing pile of sync log rows.
