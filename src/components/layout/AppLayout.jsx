@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Table2 } from 'lucide-react';
 import Sidebar from './Sidebar';
 import MobileHeader from './MobileHeader';
-import AskAnything from '../ask/AskAnything';
 import { NAV_ITEMS } from '../../constants/navigation';
 import { useGoogleSheetsSyncContext } from '../../context/GoogleSheetsSyncContext';
 
@@ -37,8 +36,6 @@ export default function AppLayout({ activeTab, onTabChange, children }) {
         <main
           className="custom-scrollbar mx-auto w-full max-w-6xl px-4 py-3 pb-[calc(1.5rem+var(--safe-bottom))] sm:px-6 sm:py-8 lg:px-8"
         >
-          <AskAnything onNavigate={onTabChange} />
-
           {/* Desktop page header */}
           <header className="mb-8 hidden lg:block">
             <div className="flex items-start justify-between gap-4">
