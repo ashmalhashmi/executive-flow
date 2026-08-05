@@ -10,7 +10,7 @@ import {
   useSouvenirsExecutive,
   useTasksExecutive,
 } from '../../context/ExecutiveContext';
-import { askAnything } from '../../utils/askAnything';
+import { askAnything, normalizeAskQuery } from '../../utils/askAnything';
 import GlassCard from '../ui/GlassCard';
 
 function getSpeechRecognition() {
@@ -78,7 +78,7 @@ export default function AskAnything({ onNavigate }) {
   }, []);
 
   const runSearch = (text) => {
-    const next = String(text ?? query).trim();
+    const next = normalizeAskQuery(text ?? query);
     setQuery(next);
     setSubmitted(next);
   };

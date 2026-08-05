@@ -123,16 +123,27 @@ function includesAny(haystack, words) {
 
 function parseRelativeDate(q) {
   const today = getTodayISO();
-  if (/\btoday\b|\baaj\b/.test(q)) return today;
-  if (/\btomorrow\b|\bkal\b/.test(q) && !/\byesterday\b/.test(q)) return addDaysISO(today, 1);
-  if (/\byesterday\b/.test(q)) return addDaysISO(today, -1);
+  // Voice often says "todays" / "today's" without a clean word break
+  if (/\btoday'?s?\b|\baaj\b/.test(q)) return today;
+  if (/\btomorrow'?s?\b|\bkal\b/.test(q) && !/\byesterday\b/.test(q)) return addDaysISO(today, 1);
+  if (/\byesterday'?s?\b/.test(q)) return addDaysISO(today, -1);
   const iso = q.match(/\b(20\d{2}-\d{2}-\d{2})\b/);
   if (iso) return iso[1];
   return '';
 }
 
+/** Speech quirks: "todays meeting" → searchable plain language */
+export function normalizeAskQuery(rawQuery) {
+  return String(rawQuery || '')
+    .trim()
+    .replace(/\btoday['']?s\b/gi, 'today')
+    .replace(/\btomorrow['']?s\b/gi, 'tomorrow')
+    .replace(/\byesterday['']?s\b/gi, 'yesterday')
+    .replace(/\bmeetings?\b/gi, (m) => m.toLowerCase());
+}
+
 export function parseAskQuery(rawQuery) {
-  const raw = String(rawQuery || '').trim();
+  const raw = normalizeAskQuery(rawQuery);
   const q = raw.toLowerCase();
   const tabs = DOMAIN_HINTS.filter((d) => includesAny(q, d.words)).map((d) => d.tab);
   const statusHit = STATUS_HINTS.find((s) => includesAny(q, s.words));
@@ -145,7 +156,12 @@ export function parseAskQuery(rawQuery) {
   for (const s of STATUS_HINTS) {
     terms = terms.filter((t) => !s.words.includes(t));
   }
-  terms = terms.filter((t) => t !== 'today' && t !== 'tomorrow' && t !== 'yesterday' && t !== 'aaj' && t !== 'kal');
+  terms = terms.filter(
+    (t) =>
+      !['today', 'todays', 'tomorrow', 'tomorrows', 'yesterday', 'yesterdays', 'aaj', 'kal'].includes(
+        t,
+      ),
+  );
 
   return {
     raw,
@@ -372,6 +388,7 @@ export function buildAskCorpus({
 
 function filterAndRank(corpus, parsed) {
   let list = corpus;
+  let dateMiss = false;
 
   if (parsed.tabs.length) {
     const preferred = list.filter((h) => parsed.tabs.includes(h.tab));
@@ -381,11 +398,18 @@ function filterAndRank(corpus, parsed) {
   if (parsed.date) {
     const dated = list.filter((h) => h.date === parsed.date);
     if (dated.length) list = dated;
+    else dateMiss = true;
   }
 
   if (parsed.status) {
     const st = list.filter((h) => h.status === parsed.status);
     if (st.length) list = st;
+  }
+
+  // If user asked for a date (e.g. today's meetings) and nothing that day, don't
+  // force junk leftover terms like "todays" to zero out the whole search.
+  if (dateMiss && parsed.tabs.length) {
+    return { ranked: [], dateMiss: true };
   }
 
   const ranked = list
@@ -402,13 +426,31 @@ function filterAndRank(corpus, parsed) {
     .filter((h) => h.score > 0)
     .sort((a, b) => b.score - a.score || String(b.date).localeCompare(String(a.date)));
 
-  return ranked;
+  return { ranked, dateMiss: false };
 }
 
-function buildDirectAnswer(parsed, ranked) {
+function buildDirectAnswer(parsed, ranked, dateMiss = false) {
   if (!parsed.raw) {
     return {
       answer: 'Type or speak a question — e.g. “today’s meetings”, “pending tasks”, “contact Ali”.',
+      best: null,
+      hits: [],
+    };
+  }
+
+  if (dateMiss) {
+    const label =
+      parsed.date === getTodayISO()
+        ? 'today'
+        : parsed.date === addDaysISO(getTodayISO(), 1)
+          ? 'tomorrow'
+          : parsed.date
+            ? formatDisplayDate(parsed.date)
+            : 'that day';
+    const domain =
+      DOMAIN_HINTS.find((d) => parsed.tabs.includes(d.tab))?.domain?.toLowerCase() || 'records';
+    return {
+      answer: `No ${domain} found for ${label}. Try another day, or open the log to add one.`,
       best: null,
       hits: [],
     };
@@ -453,6 +495,6 @@ function buildDirectAnswer(parsed, ranked) {
 export function askAnything(query, data) {
   const parsed = parseAskQuery(query);
   const corpus = buildAskCorpus(data);
-  const ranked = filterAndRank(corpus, parsed);
-  return buildDirectAnswer(parsed, ranked);
+  const { ranked, dateMiss } = filterAndRank(corpus, parsed);
+  return buildDirectAnswer(parsed, ranked, dateMiss);
 }
