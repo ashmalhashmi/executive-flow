@@ -137,6 +137,7 @@ export default function ExpenditureLog() {
     updateExpenditure,
     removeExpenditure,
     removeExpendituresBeforeDate,
+    clearExpenditureRecords,
     expenditureSummary,
   } = useExpenditureExecutive();
 
@@ -329,6 +330,35 @@ export default function ExpenditureLog() {
 
   const handleEraseBeforeOpening = () => {
     eraseBeforeOpeningDate(eraseCutoffDate);
+  };
+
+  const handleRemoveAllRecords = () => {
+    const count = expenditures.length;
+    const hasOpening = expenditureOpeningBalance > 0 || Boolean(expenditureOpeningBalanceDate);
+    if (!count && !hasOpening) {
+      setEraseMessage('Remove karne ko koi record nahi');
+      setTimeout(() => setEraseMessage(''), 3000);
+      return;
+    }
+    if (
+      !window.confirm(
+        `App se expenditure records remove karein?\n\n• Opening balance clear\n• ${count} expense entr${count === 1 ? 'y' : 'ies'} delete\n\nGoogle Sheet backup pehle se save ho to theek — yeh sirf app log reset karega taake naya opening balance set kar sako.`,
+      )
+    ) {
+      return;
+    }
+    clearExpenditureRecords();
+    setOpeningInput('');
+    setOpeningDateInput(getTodayISO());
+    setOpeningSaved(false);
+    resetForm();
+    setErrors({});
+    setEraseMessage(
+      count > 0
+        ? `Records remove — opening + ${count} entries clear. Ab naya opening balance save karein.`
+        : 'Opening balance clear. Ab naya opening balance save karein.',
+    );
+    setTimeout(() => setEraseMessage(''), 5000);
   };
 
   const validateForm = () => {
@@ -535,6 +565,21 @@ export default function ExpenditureLog() {
             </button>
           </div>
         )}
+        <div className="mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-zinc-500">
+            Naya period / naya opening balance? Purana app log hatao — Sheet pe pehle se backup ho
+            to safe.
+          </p>
+          <button
+            type="button"
+            onClick={handleRemoveAllRecords}
+            disabled={expenditures.length === 0 && expenditureOpeningBalance <= 0 && !expenditureOpeningBalanceDate}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2.5 text-sm font-medium text-rose-100 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Trash2 className="h-4 w-4" />
+            Remove records
+          </button>
+        </div>
         {eraseMessage && (
           <p className="mt-3 text-sm text-emerald-300">{eraseMessage}</p>
         )}

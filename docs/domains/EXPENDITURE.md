@@ -29,5 +29,6 @@ Opening balance, PKR expense log, AI categorize, weekly summary email/PDF.
 
 - **Do** run balance math through `computeExpenditureBalance` / analytics utils.
 - **Do** keep category lists in `expenditureCategories.js` and server categorize `_lib` in sync.
+- **Do** use **Remove records** to clear opening + expenses when starting a new period (Sheet backup is separate).
 - **Don’t** invent a second opening-balance store.
 - **Don’t** put vendor order lines into expenditures — use Orders.

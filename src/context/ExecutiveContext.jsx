@@ -754,6 +754,16 @@ export function ExecutiveProvider({ children }) {
     return removed;
   }, []);
 
+  /** Clear opening balance + all expenses so a new period can start (Sheet backup is separate). */
+  const clearExpenditureRecords = useCallback(() => {
+    let removed = 0;
+    setExpenditureState((prev) => {
+      removed = prev.expenditures.length;
+      return { openingBalance: 0, openingBalanceDate: '', expenditures: [] };
+    });
+    return removed;
+  }, []);
+
   const updateExpenditure = useCallback((id, { description, amount, date, category }) => {
     setExpenditureState((prev) => ({
       ...prev,
@@ -889,6 +899,7 @@ export function ExecutiveProvider({ children }) {
       addExpenditure,
       removeExpenditure,
       removeExpendituresBeforeDate,
+      clearExpenditureRecords,
       updateExpenditure,
       expenditureSummary,
     }),
@@ -898,6 +909,7 @@ export function ExecutiveProvider({ children }) {
       addExpenditure,
       removeExpenditure,
       removeExpendituresBeforeDate,
+      clearExpenditureRecords,
       updateExpenditure,
       expenditureSummary,
     ],
