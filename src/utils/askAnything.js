@@ -121,25 +121,31 @@ function includesAny(haystack, words) {
   return words.some((w) => haystack.includes(w));
 }
 
+/** Straight and curly apostrophes — speech and mobile keyboards mix them. */
+const APOSTROPHE = "['\u2018\u2019\u02BC]";
+
+function relativeDayRegex(word) {
+  return new RegExp(`\\b${word}${APOSTROPHE}?s?\\b`, 'i');
+}
+
 function parseRelativeDate(q) {
   const today = getTodayISO();
-  // Voice often says "todays" / "today's" without a clean word break
-  if (/\btoday'?s?\b|\baaj\b/.test(q)) return today;
-  if (/\btomorrow'?s?\b|\bkal\b/.test(q) && !/\byesterday\b/.test(q)) return addDaysISO(today, 1);
-  if (/\byesterday'?s?\b/.test(q)) return addDaysISO(today, -1);
+  if (relativeDayRegex('today').test(q) || /\baaj\b/.test(q)) return today;
+  if (relativeDayRegex('yesterday').test(q)) return addDaysISO(today, -1);
+  if (relativeDayRegex('tomorrow').test(q) || /\bkal\b/.test(q)) return addDaysISO(today, 1);
   const iso = q.match(/\b(20\d{2}-\d{2}-\d{2})\b/);
   if (iso) return iso[1];
   return '';
 }
 
-/** Speech quirks: "todays meeting" → searchable plain language */
+/** Speech quirks: "today's meeting" / "todays meeting" → plain searchable words */
 export function normalizeAskQuery(rawQuery) {
   return String(rawQuery || '')
     .trim()
-    .replace(/\btoday['']?s\b/gi, 'today')
-    .replace(/\btomorrow['']?s\b/gi, 'tomorrow')
-    .replace(/\byesterday['']?s\b/gi, 'yesterday')
-    .replace(/\bmeetings?\b/gi, (m) => m.toLowerCase());
+    .replace(new RegExp(`\\btoday${APOSTROPHE}?s\\b`, 'gi'), 'today')
+    .replace(new RegExp(`\\btomorrow${APOSTROPHE}?s\\b`, 'gi'), 'tomorrow')
+    .replace(new RegExp(`\\byesterday${APOSTROPHE}?s\\b`, 'gi'), 'yesterday')
+    .replace(/\s+/g, ' ');
 }
 
 export function parseAskQuery(rawQuery) {
@@ -172,6 +178,19 @@ export function parseAskQuery(rawQuery) {
     wantsCount: /\b(how many|count|kitne|kitni)\b/.test(q),
     wantsTotal: /\b(how much|total|sum|kitna)\b/.test(q),
   };
+}
+
+function dateLabel(isoDate) {
+  const today = getTodayISO();
+  if (isoDate === today) return 'today';
+  if (isoDate === addDaysISO(today, 1)) return 'tomorrow';
+  if (isoDate === addDaysISO(today, -1)) return 'yesterday';
+  return isoDate ? formatDisplayDate(isoDate) : 'that day';
+}
+
+function domainWord(domain, count) {
+  const word = String(domain || 'records').toLowerCase();
+  return count === 1 ? word.replace(/s$/, '') : word;
 }
 
 function scoreText(haystack, terms) {
@@ -388,28 +407,22 @@ export function buildAskCorpus({
 
 function filterAndRank(corpus, parsed) {
   let list = corpus;
-  let dateMiss = false;
 
   if (parsed.tabs.length) {
     const preferred = list.filter((h) => parsed.tabs.includes(h.tab));
     if (preferred.length) list = preferred;
   }
 
+  // "today" must mean today. A date in the question is a hard filter: never fall
+  // back to older records, otherwise a free day looks like a busy one.
   if (parsed.date) {
-    const dated = list.filter((h) => h.date === parsed.date);
-    if (dated.length) list = dated;
-    else dateMiss = true;
+    list = list.filter((h) => h.date === parsed.date);
+    if (!list.length) return { ranked: [], dateMiss: true };
   }
 
   if (parsed.status) {
     const st = list.filter((h) => h.status === parsed.status);
     if (st.length) list = st;
-  }
-
-  // If user asked for a date (e.g. today's meetings) and nothing that day, don't
-  // force junk leftover terms like "todays" to zero out the whole search.
-  if (dateMiss && parsed.tabs.length) {
-    return { ranked: [], dateMiss: true };
   }
 
   const ranked = list
@@ -439,18 +452,16 @@ function buildDirectAnswer(parsed, ranked, dateMiss = false) {
   }
 
   if (dateMiss) {
-    const label =
-      parsed.date === getTodayISO()
-        ? 'today'
-        : parsed.date === addDaysISO(getTodayISO(), 1)
-          ? 'tomorrow'
-          : parsed.date
-            ? formatDisplayDate(parsed.date)
-            : 'that day';
-    const domain =
-      DOMAIN_HINTS.find((d) => parsed.tabs.includes(d.tab))?.domain?.toLowerCase() || 'records';
+    const domain = domainWord(
+      DOMAIN_HINTS.find((d) => parsed.tabs.includes(d.tab))?.domain || 'records',
+      1,
+    );
+    const label = dateLabel(parsed.date);
     return {
-      answer: `No ${domain} found for ${label}. Try another day, or open the log to add one.`,
+      answer:
+        label === 'today'
+          ? `Aaj koi ${domain} nahi — din free hai.`
+          : `${label} koi ${domain} nahi.`,
       best: null,
       hits: [],
     };
@@ -484,7 +495,10 @@ function buildDirectAnswer(parsed, ranked, dateMiss = false) {
 
   const best = ranked[0];
   let answer = best.answerLine;
-  if (ranked.length > 1) {
+
+  if (parsed.date) {
+    answer = `${ranked.length} ${domainWord(best.domain, ranked.length)} ${dateLabel(parsed.date)}: ${best.answerLine}`;
+  } else if (ranked.length > 1) {
     answer += ` Also ${ranked.length - 1} more related result${ranked.length === 2 ? '' : 's'} below.`;
   }
 

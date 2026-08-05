@@ -34,6 +34,8 @@ export default function AskAnything({ onNavigate }) {
   const [voiceError, setVoiceError] = useState('');
   const [submitted, setSubmitted] = useState('');
   const recognitionRef = useRef(null);
+  const heardRef = useRef('');
+  const submittedRef = useRef('');
 
   const data = useMemo(
     () => ({
@@ -79,6 +81,8 @@ export default function AskAnything({ onNavigate }) {
 
   const runSearch = (text) => {
     const next = normalizeAskQuery(text ?? query);
+    if (!next) return;
+    submittedRef.current = next;
     setQuery(next);
     setSubmitted(next);
   };
@@ -99,31 +103,55 @@ export default function AskAnything({ onNavigate }) {
       return;
     }
     setVoiceError('');
+    heardRef.current = '';
     try {
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
       recognition.lang = 'en-US';
       recognition.interimResults = true;
       recognition.continuous = false;
+      recognition.maxAlternatives = 1;
 
       recognition.onstart = () => setListening(true);
-      recognition.onerror = () => {
+
+      recognition.onerror = (event) => {
         setListening(false);
-        setVoiceError('Voice sun nahi saka — dubara try ya type karein.');
+        setVoiceError(
+          event?.error === 'not-allowed'
+            ? 'Microphone permission chahiye — browser settings mein Allow karein.'
+            : event?.error === 'no-speech'
+              ? 'Kuch sunai nahi diya — mic dabao aur saaf bolo.'
+              : 'Voice sun nahi saka — dubara try ya type karein.',
+        );
       };
-      recognition.onend = () => setListening(false);
+
+      // Browsers often end without a final result; answer with whatever was heard
+      // so the assistant never just stares back silently.
+      recognition.onend = () => {
+        setListening(false);
+        const heard = heardRef.current.trim();
+        if (heard && submittedRef.current !== normalizeAskQuery(heard)) {
+          runSearch(heard);
+        } else if (!heard) {
+          setVoiceError('Kuch sunai nahi diya — dubara boliye ya type karein.');
+        }
+      };
+
       recognition.onresult = (event) => {
         let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        for (let i = 0; i < event.results.length; i += 1) {
           transcript += event.results[i][0].transcript;
         }
         const text = transcript.trim();
         if (!text) return;
+        heardRef.current = text;
         setQuery(text);
         if (event.results[event.results.length - 1].isFinal) {
           runSearch(text);
+          stopListening();
         }
       };
+
       recognition.start();
     } catch {
       setListening(false);
