@@ -5,7 +5,7 @@ For *user* click-paths (how operators play), see **[WORKFLOW.md](./WORKFLOW.md)*
 
 ## Default workflow
 
-1. Name the domain (Meetings, Souvenirs, Expenditure, Orders, Dak, Tasks, Capture, Contacts, Sync, Dashboard, or Shell).
+1. Name the domain (Meetings, Souvenirs, Expenditure, Orders, Dak, Tasks, Capture, Contacts, Sync, Dashboard, Ask, or Shell).
 2. Open the matching domain guide under `docs/domains/` when one exists.
 3. Prefer that domain’s page → utils → context/API. Do not wander across unrelated tabs.
 4. If you invent a new pile of bricks, update `ARCHITECTURE.md` in the same change.

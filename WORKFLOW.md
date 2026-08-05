@@ -11,11 +11,13 @@ Do not guess. Follow the matching flow below.
 
 | Step | Who | What | Where to click |
 |------|-----|------|----------------|
-| **1** | You | Open the right room | Sidebar → the tab for that job |
+| **1** | You | Find or open the right room | Top **Ask Anything** (type/speak) **or** Sidebar → tab |
 | **2** | You | Add / edit / mark done | Form on that page → Save / Add |
 | **3** | System (if 2 devices) | Protect the work | **Real-time Pulse** auto-saves after every edit (login once on Sync & Backup) |
 
 Data lives on **this device** and **pulses to cloud** in the background when you are logged in. No Save/Load clicks.
+
+**Ask Anything:** plain question across all logs (meetings, tasks, orders, dak, contacts, expenses, souvenirs, capture). Mic = voice. Direct answer + Open log shortcut — no category picker.
 
 ---
 
