@@ -9,6 +9,7 @@ import {
   Sparkles,
   BookUser,
   CloudUpload,
+  MessageCircleQuestion,
 } from 'lucide-react';
 
 /** Sidebar navigation tabs — id maps to active view in App */
@@ -18,6 +19,12 @@ export const NAV_ITEMS = [
     label: 'Dashboard',
     description: 'Overview & quick actions',
     icon: LayoutDashboard,
+  },
+  {
+    id: 'ask',
+    label: 'Ask Anything',
+    description: 'Roman Urdu · live app data only',
+    icon: MessageCircleQuestion,
   },
   {
     id: 'calendar',

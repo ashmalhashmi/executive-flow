@@ -2,6 +2,7 @@
 
 export const TAB_IMPORTS = {
   dashboard: () => import('../pages/DashboardOverview'),
+  ask: () => import('../pages/AskAnythingPage'),
   calendar: () => import('../pages/ExecutiveCalendar'),
   souvenirs: () => import('../pages/SouvenirLog'),
   expenditure: () => import('../pages/ExpenditureLog'),
@@ -14,6 +15,7 @@ export const TAB_IMPORTS = {
 };
 
 const PREFETCH_ORDER = [
+  'ask',
   'calendar',
   'expenditure',
   'tasks',

@@ -1,6 +1,6 @@
 /**
- * Ask Anything — plain-language search across all Executive Flow logs (80/20).
- * No category picker: one query → ranked hits + a direct top answer.
+ * Ask Anything — Roman Urdu + plain language against live app data only (no Google Sheet).
+ * Dedicated section: picks relevant log (e.g. My Calendar) and answers for today strictly.
  */
 
 import { formatDisplayDate, formatDisplayTime, getTodayISO, addDaysISO } from './dates';
@@ -8,11 +8,34 @@ import { formatPKR } from './currency';
 import { getContactPhones, getContactEmails, getContactContactNos } from './contactEntries';
 import { taskStatusLabel } from './taskEntries';
 
+/** App section labels shown in answers — matches sidebar names */
+export const ASK_SECTION_LABELS = {
+  calendar: 'My Calendar',
+  tasks: 'Task Log',
+  orders: 'Order Log',
+  dak: 'Dak Issuance Log',
+  contacts: 'Contact Database',
+  expenditure: 'Expenditure Log',
+  souvenirs: 'Souvenir Log',
+  capture: 'Capture',
+};
+
 const DOMAIN_HINTS = [
   {
     tab: 'calendar',
     domain: 'Meetings',
-    words: ['meeting', 'meetings', 'appointment', 'calendar', 'visit', 'schedule'],
+    words: [
+      'meeting',
+      'meetings',
+      'appointment',
+      'calendar',
+      'visit',
+      'schedule',
+      'milad',
+      'mulakat',
+      'mulaqat',
+      'milni',
+    ],
   },
   {
     tab: 'tasks',
@@ -101,6 +124,11 @@ const STOP_WORDS = new Set([
   'list',
   'hai',
   'hain',
+  'ha',
+  'ho',
+  'hu',
+  'hun',
+  'koi',
   'kya',
   'kon',
   'kaun',
@@ -138,14 +166,15 @@ function parseRelativeDate(q) {
   return '';
 }
 
-/** Speech quirks: "today's meeting" / "todays meeting" → plain searchable words */
+/** Roman Urdu typing quirks → searchable plain words */
 export function normalizeAskQuery(rawQuery) {
-  return String(rawQuery || '')
-    .trim()
-    .replace(new RegExp(`\\btoday${APOSTROPHE}?s\\b`, 'gi'), 'today')
-    .replace(new RegExp(`\\btomorrow${APOSTROPHE}?s\\b`, 'gi'), 'tomorrow')
-    .replace(new RegExp(`\\byesterday${APOSTROPHE}?s\\b`, 'gi'), 'yesterday')
-    .replace(/\s+/g, ' ');
+  let q = String(rawQuery || '').trim().toLowerCase();
+  q = q.replace(/\baj\b/g, 'aaj');
+  q = q.replace(/\bkl\b/g, 'kal');
+  q = q.replace(new RegExp(`\\btoday${APOSTROPHE}?s\\b`, 'gi'), 'today');
+  q = q.replace(new RegExp(`\\btomorrow${APOSTROPHE}?s\\b`, 'gi'), 'tomorrow');
+  q = q.replace(new RegExp(`\\byesterday${APOSTROPHE}?s\\b`, 'gi'), 'yesterday');
+  return q.replace(/\s+/g, ' ').trim();
 }
 
 export function parseAskQuery(rawQuery) {
@@ -153,7 +182,7 @@ export function parseAskQuery(rawQuery) {
   const q = raw.toLowerCase();
   const tabs = DOMAIN_HINTS.filter((d) => includesAny(q, d.words)).map((d) => d.tab);
   const statusHit = STATUS_HINTS.find((s) => includesAny(q, s.words));
-  const date = parseRelativeDate(q);
+  const date = parseRelativeDate(q) || inferTodayWhenMeetingAsked(q, tabs);
 
   let terms = tokenize(raw);
   for (const d of DOMAIN_HINTS) {
@@ -442,26 +471,53 @@ function filterAndRank(corpus, parsed) {
   return { ranked, dateMiss: false };
 }
 
+function inferTodayWhenMeetingAsked(q, tabs) {
+  if (!tabs.includes('calendar')) return '';
+  if (/\baaj\b|\btoday\b/.test(q)) return getTodayISO();
+  return '';
+}
+
+function sectionLabel(tab) {
+  return ASK_SECTION_LABELS[tab] || tab || 'relevant section';
+}
+
 function buildDirectAnswer(parsed, ranked, dateMiss = false) {
   if (!parsed.raw) {
     return {
-      answer: 'Type or speak a question — e.g. “today’s meetings”, “pending tasks”, “contact Ali”.',
+      answer:
+        'Roman Urdu ya English mein likhein — maslan “aj meeting ha koi?” Sirf app ka live data check hota hai.',
+      sectionChecked: '',
       best: null,
       hits: [],
     };
   }
 
+  const primaryTab = parsed.tabs[0] || ranked[0]?.tab || '';
+  const sectionChecked = primaryTab ? sectionLabel(primaryTab) : '';
+
   if (dateMiss) {
+    const today = getTodayISO();
+    if (parsed.date === today && parsed.tabs.includes('calendar')) {
+      return {
+        answer: 'mene relevant section check kia ha aj koi meeting ni ha',
+        sectionChecked: 'My Calendar',
+        best: null,
+        hits: [],
+      };
+    }
+
     const domain = domainWord(
       DOMAIN_HINTS.find((d) => parsed.tabs.includes(d.tab))?.domain || 'records',
       1,
     );
     const label = dateLabel(parsed.date);
+    const checked = sectionChecked || 'relevant section';
     return {
       answer:
         label === 'today'
-          ? `Aaj koi ${domain} nahi — din free hai.`
-          : `${label} koi ${domain} nahi.`,
+          ? `mene ${checked} check kia ha — aaj koi ${domain} nahi.`
+          : `${checked} check kia — ${label} koi ${domain} nahi.`,
+      sectionChecked: checked,
       best: null,
       hits: [],
     };
@@ -469,7 +525,9 @@ function buildDirectAnswer(parsed, ranked, dateMiss = false) {
 
   if (!ranked.length) {
     return {
-      answer: 'Koi match nahi mila. Try simpler words — name, date (today), or log type (task, dak, order).',
+      answer:
+        'Koi match nahi mila. Roman Urdu try karein — “aj meeting ha koi?”, “pending tasks”, “contact Ali”.',
+      sectionChecked: sectionChecked || '',
       best: null,
       hits: [],
     };
@@ -478,7 +536,8 @@ function buildDirectAnswer(parsed, ranked, dateMiss = false) {
   if (parsed.wantsCount) {
     const domain = ranked[0]?.domain || 'records';
     return {
-      answer: `${ranked.length} ${domain.toLowerCase()} match${ranked.length === 1 ? '' : 'es'} your question.`,
+      answer: `${sectionChecked || domain} check kia — ${ranked.length} match${ranked.length === 1 ? '' : 'es'}.`,
+      sectionChecked: sectionChecked || sectionLabel(ranked[0]?.tab),
       best: ranked[0],
       hits: ranked.slice(0, 8),
     };
@@ -487,22 +546,38 @@ function buildDirectAnswer(parsed, ranked, dateMiss = false) {
   if (parsed.wantsTotal && ranked.every((h) => h.tab === 'expenditure' && h.id !== 'opening-balance')) {
     const total = ranked.reduce((sum, h) => sum + (Number(h.amount) || 0), 0);
     return {
-      answer: `Total matched spend: ${formatPKR(total)} (${ranked.length} entr${ranked.length === 1 ? 'y' : 'ies'}).`,
+      answer: `${sectionChecked || 'Expenditure Log'} check kia — total ${formatPKR(total)} (${ranked.length} entr${ranked.length === 1 ? 'y' : 'ies'}).`,
+      sectionChecked: sectionChecked || 'Expenditure Log',
       best: ranked[0],
       hits: ranked.slice(0, 8),
     };
   }
 
   const best = ranked[0];
+  const checked = sectionLabel(best.tab);
   let answer = best.answerLine;
 
-  if (parsed.date) {
-    answer = `${ranked.length} ${domainWord(best.domain, ranked.length)} ${dateLabel(parsed.date)}: ${best.answerLine}`;
-  } else if (ranked.length > 1) {
-    answer += ` Also ${ranked.length - 1} more related result${ranked.length === 2 ? '' : 's'} below.`;
+  if (parsed.date && best.tab === 'calendar') {
+    const count = ranked.length;
+    answer =
+      count === 1
+        ? `My Calendar check kia — aj 1 meeting: ${best.answerLine}`
+        : `My Calendar check kia — aj ${count} meetings. Pehli: ${best.answerLine}`;
+  } else if (parsed.date) {
+    answer = `${checked} check kia — ${ranked.length} ${domainWord(best.domain, ranked.length)} ${dateLabel(parsed.date)}: ${best.answerLine}`;
+  } else {
+    answer = `${checked} check kia — ${best.answerLine}`;
+    if (ranked.length > 1) {
+      answer += ` Aur ${ranked.length - 1} related result${ranked.length === 2 ? '' : 's'} neeche.`;
+    }
   }
 
-  return { answer, best, hits: ranked.slice(0, 8) };
+  return {
+    answer,
+    sectionChecked: checked,
+    best,
+    hits: ranked.slice(0, 8),
+  };
 }
 
 /** Main entry: plain question → direct answer + sources */

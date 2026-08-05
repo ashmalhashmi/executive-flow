@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Mic, MicOff, Search, ArrowRight, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Search, ArrowRight, Loader2, Database } from 'lucide-react';
 import {
   useCaptureExecutive,
   useContactsExecutive,
@@ -18,6 +18,7 @@ function getSpeechRecognition() {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null;
 }
 
+/** Dedicated Ask Anything panel — live app data only (no Google Sheet fetch). */
 export default function AskAnything({ onNavigate }) {
   const { meetings } = useMeetingsExecutive();
   const { taskEntries } = useTasksExecutive();
@@ -125,8 +126,6 @@ export default function AskAnything({ onNavigate }) {
         );
       };
 
-      // Browsers often end without a final result; answer with whatever was heard
-      // so the assistant never just stares back silently.
       recognition.onend = () => {
         setListening(false);
         const heard = heardRef.current.trim();
@@ -165,15 +164,19 @@ export default function AskAnything({ onNavigate }) {
   };
 
   return (
-    <GlassCard className="mb-6 p-4 sm:p-5">
-      <div className="mb-3 flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-indigo-500/30 bg-indigo-500/15">
+    <GlassCard className="p-4 sm:p-6">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-indigo-500/30 bg-indigo-500/15">
           <Search className="h-5 w-5 text-indigo-300" />
         </span>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-white">Ask Anything</p>
-          <p className="mt-0.5 text-xs text-zinc-500">
-            Plain language — saari logs search. Type ya bolo. Category select ki zaroorat nahi.
+          <p className="text-lg font-semibold text-white">Ask Anything</p>
+          <p className="mt-1 text-sm text-zinc-400">
+            Roman Urdu ya English — relevant section check hota hai (maslan <strong className="text-zinc-300">My Calendar</strong>).
+          </p>
+          <p className="mt-2 flex items-center gap-1.5 text-xs text-zinc-500">
+            <Database className="h-3.5 w-3.5 shrink-0 text-emerald-400/80" />
+            Sirf app ka <strong className="text-zinc-400">live data</strong> — Google Sheet fetch nahi hota.
           </p>
         </div>
       </div>
@@ -190,9 +193,9 @@ export default function AskAnything({ onNavigate }) {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder='e.g. “today’s meetings”, “pending tasks”, “contact Ali”'
+            placeholder="aj meeting ha koi?"
             className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-4 pr-12 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-indigo-500/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            aria-label="Ask a plain language question"
+            aria-label="Roman Urdu ya English mein sawal"
           />
           <button
             type="button"
@@ -213,23 +216,29 @@ export default function AskAnything({ onNavigate }) {
           type="submit"
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-medium text-white hover:bg-indigo-500"
         >
-          Ask
+          Poochho
         </button>
       </form>
 
       {listening && (
         <p className="mt-2 flex items-center gap-2 text-xs text-rose-300">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Listening… bolo
+          Sun raha hai… bolo
         </p>
       )}
       {voiceError && <p className="mt-2 text-xs text-amber-300">{voiceError}</p>}
 
       {result && (
-        <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
+        <div className="mt-5 space-y-3 border-t border-white/10 pt-5">
+          {result.sectionChecked && (
+            <p className="text-xs font-medium uppercase tracking-wider text-indigo-300/90">
+              Section checked: {result.sectionChecked}
+            </p>
+          )}
+
           <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-300/90">
-              Direct answer
+              Jawab
             </p>
             <p className="mt-1 text-sm leading-relaxed text-zinc-100">{result.answer}</p>
             {result.best && (
@@ -238,7 +247,7 @@ export default function AskAnything({ onNavigate }) {
                 onClick={() => onNavigate?.(result.best.tab)}
                 className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-indigo-300 hover:text-indigo-200"
               >
-                Open {result.best.domain}
+                Open {result.sectionChecked || result.best.domain}
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             )}
@@ -269,6 +278,14 @@ export default function AskAnything({ onNavigate }) {
             </ul>
           )}
         </div>
+      )}
+
+      {!result && (
+        <p className="mt-4 text-xs text-zinc-500">
+          Examples: <span className="text-zinc-400">aj meeting ha koi?</span> ·{' '}
+          <span className="text-zinc-400">pending tasks</span> ·{' '}
+          <span className="text-zinc-400">contact Ali</span>
+        </p>
       )}
     </GlassCard>
   );
