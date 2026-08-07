@@ -1,4 +1,4 @@
-/** Real-time Pulse — live / syncing / error indicator (no manual Save/Load). */
+/** Real-time Pulse status — hybrid: background auto + optional Save/Load on Sync page. */
 export default function RealtimePulseStatus({
   pulseState = 'idle',
   lastSyncedAt = null,
@@ -22,7 +22,7 @@ export default function RealtimePulseStatus({
     dotClass = 'bg-sky-400';
     ringClass = 'animate-ping';
   } else if (live) {
-    label = 'Real-time Pulse · live';
+    label = 'Real-time Pulse · live (hybrid)';
     dotClass = 'bg-emerald-400';
     ringClass = 'animate-pulse';
   }
@@ -41,7 +41,8 @@ export default function RealtimePulseStatus({
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-sky-100">{label}</p>
           <p className="mt-1 text-xs text-zinc-400">
-            Draw a whisker on one device — it appears on the other. No Send / Get buttons.
+            Background mein auto-save / auto-load. Agar doosri device ke changes na dikhein — neeche{' '}
+            <strong className="text-zinc-300">Load now</strong> dabao.
           </p>
           {lastSyncedAt && (
             <p className="mt-2 text-[11px] text-zinc-500">

@@ -1,8 +1,7 @@
-# Laptop ↔ Mobile Cloud Sync — Real-time Pulse
+# Laptop ↔ Mobile Cloud Sync — Hybrid (Pulse + manual)
 
 ## Goal
-Changes on mobile appear on laptop (and reverse) **automatically** via **Real-time Pulse**.
-No **Save to Cloud** / **Load from Cloud** clicks — every edit pulses to the cloud; the other device picks it up in the background.
+Changes sync **automatically** via **Real-time Pulse**, with emergency **Save now / Load now** on Sync & Backup when a device misses an update.
 
 ## Login: Email (magic link — recommended)
 
@@ -13,7 +12,7 @@ Supabase default email aksar **sirf link** bhejti hai, 6-digit code nahi.
 3. Email mein **Log In** / blue button / long link **or** 6–8 digit code
 4. Link **Copy** → Chrome address bar mein paste → Enter (or type code in app)
 5. App open → Sync & Backup → **Logged in: ...** + **Real-time Pulse · live**
-6. Done — edit anywhere; Pulse handles the rest
+6. Done — Pulse handles day-to-day; use **Load now** if something is missing
 
 ### Agar 6-digit code chahiye (optional)
 Supabase Dashboard → Authentication → Email Templates → Magic Link  
@@ -25,15 +24,22 @@ Email body mein yeh line add karein:
 
 Phir email mein number dikhega aur app mein type kar sakte ho.
 
-## Sync steps (Pulse)
+## Sync steps (Hybrid)
 
 | Device A | Device B |
 |----------|----------|
 | Login (same email) | Login (same email) |
 | Make any change — Pulse auto-saves (~1s) | Pulse auto-loads when cloud is newer |
+| Optional: **Save now** | If missing: Sync → **Load now** |
 | Keep working | Open the matching tab to see new data |
 
-Empty new device: Pulse auto-restores cloud backup on login (no Load button).
+Empty new device: Pulse auto-restores cloud backup on login. Login also auto-pulls when cloud has **more** records than this device (e.g. mobile added expenses).
+
+## Manual buttons (emergency)
+
+- **Load now** — force-import full cloud snapshot onto this device  
+- **Save now** — force-upload this device’s full snapshot to cloud  
+- **Refresh status** — compare local vs cloud counts only (does not mark synced)
 
 ## Google login (optional)
 Error `Unsupported provider: provider is not enabled` means Google is OFF in Supabase.

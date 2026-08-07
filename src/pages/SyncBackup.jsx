@@ -11,6 +11,8 @@ import {
   Table2,
   Loader2,
   Activity,
+  Upload,
+  Download,
 } from 'lucide-react';
 import {
   useAppMetaExecutive,
@@ -210,25 +212,26 @@ export default function SyncBackup() {
           )}
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
-              Cloud Sync — Real-time Pulse
+              Cloud Sync — Hybrid (Pulse + manual)
             </h3>
             <p className="mt-2 text-sm text-zinc-500">
               Dono devices par <strong className="text-zinc-300">same email</strong> se login —
-              uske baad Pulse background mein har change auto-save / auto-load karti hai.
+              Pulse background mein auto-save / auto-load karti hai. Agar kuch miss ho to{' '}
+              <strong className="text-zinc-300">Save now / Load now</strong> se force sync karein.
             </p>
             <div className="mt-3 rounded-xl border border-sky-500/20 bg-sky-500/5 p-3 text-xs text-zinc-400">
               <p className="font-medium text-sky-200 flex items-center gap-1.5">
                 <Activity className="h-3.5 w-3.5" />
-                Background Automation
+                Hybrid workflow
               </p>
               <p className="mt-1">
                 1) Dono devices: <strong>wahi email</strong> se login
                 <br />
                 2) Edit anywhere — Pulse ~1s mein cloud par likhti hai
                 <br />
-                3) Doosri device kholo / wait — changes magically dikhein
+                3) Doosri device: wait / tab switch — ya <strong>Load now</strong>
                 <br />
-                4) Manual Save / Load ki zaroorat nahi
+                4) Important edits ke baad optional: <strong>Save now</strong>
               </p>
             </div>
 
@@ -278,7 +281,8 @@ export default function SyncBackup() {
                   )}
                   {cloudDiff && (
                     <p className="mt-2 text-amber-300/90">
-                      Counts briefly alag — Pulse sync kar rahi hai (local edits push, remote pull).
+                      Local aur cloud counts alag hain — neeche <strong>Load now</strong> (cloud
+                      lao) ya <strong>Save now</strong> (is device bhejo).
                     </p>
                   )}
                 </div>
@@ -292,12 +296,38 @@ export default function SyncBackup() {
                   phase={cloud.syncPhase}
                   optimisticSaved={cloud.optimisticSaved}
                 />
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <button
+                    type="button"
+                    disabled={cloud.isPushActive || cloud.syncStatus === 'pulling'}
+                    onClick={() => cloud.loadFromCloudNow()}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50 sm:flex-none"
+                  >
+                    {cloud.syncStatus === 'pulling' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    Load now
+                  </button>
+                  <button
+                    type="button"
+                    disabled={cloud.isPushActive || cloud.syncStatus === 'pulling'}
+                    onClick={() => cloud.saveToCloudNow()}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 sm:flex-none"
+                  >
+                    {cloud.isPushActive ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    Save now
+                  </button>
                   <button
                     type="button"
                     disabled={cloud.isPushActive || cloud.syncStatus === 'pulling'}
                     onClick={() => cloud.fetchCloudPreview()}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5 disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm text-zinc-200 hover:bg-white/5 disabled:opacity-50"
                   >
                     <RefreshCw className="h-4 w-4" />
                     Refresh status
@@ -305,7 +335,7 @@ export default function SyncBackup() {
                   <button
                     type="button"
                     onClick={() => cloud.signOut()}
-                    className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 px-4 py-2 text-sm text-red-300 hover:bg-red-500/10"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 px-4 py-2.5 text-sm text-red-300 hover:bg-red-500/10"
                   >
                     <LogOut className="h-4 w-4" />
                     Sign out

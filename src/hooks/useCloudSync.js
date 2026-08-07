@@ -51,6 +51,8 @@ export function useCloudSync({ getAppSnapshot, importAppData, dataRevision = 0 }
   const bootReadyRef = useRef(false);
   const getAppSnapshotRef = useRef(getAppSnapshot);
   getAppSnapshotRef.current = getAppSnapshot;
+  const pullFromCloudRef = useRef(async () => ({ ok: false }));
+  const pushToCloudRef = useRef(async () => ({ ok: false }));
 
   const resetPushUi = useCallback(() => {
     setSyncProgress(0);
@@ -100,12 +102,20 @@ export function useCloudSync({ getAppSnapshot, importAppData, dataRevision = 0 }
       return null;
     }
 
-    cloudUpdatedAtRef.current = data.updated_at ?? null;
+    // Preview only — do NOT mark updated_at as "already applied". That race made
+    // laptop skip pulls (e.g. mobile expenses never appeared) while showing cloud counts.
     const summary = summarizeBackup(validated.data);
     setCloudPreview({ summary, updatedAt: data.updated_at ?? null });
-    const localSummary = summarizeBackup(getAppSnapshot().data);
+    const localSnapshot = getAppSnapshot();
+    const localSummary = summarizeBackup(localSnapshot.data);
     setRestoreAvailable(!hasAnyAppData(localSummary) && hasAnyAppData(summary));
-    return { summary, updatedAt: data.updated_at ?? null, payload: validated.data };
+    return {
+      summary,
+      updatedAt: data.updated_at ?? null,
+      payload: validated.data,
+      cloudKey: snapshotDataKey(validated.data),
+      localKey: snapshotDataKey(localSnapshot),
+    };
   }, [user, getAppSnapshot]);
 
   useEffect(() => {
@@ -120,10 +130,40 @@ export function useCloudSync({ getAppSnapshot, importAppData, dataRevision = 0 }
     sessionDataKeyRef.current = snapshotDataKey(getAppSnapshot());
     setPulseState('live');
     setSyncMessage(
-      'Real-time Pulse on — changes auto-save; other device updates appear automatically.',
+      'Hybrid sync on — Pulse background mein; Sync page par Save now / Load now bhi hain.',
     );
     const previewTimer = setTimeout(() => {
-      fetchCloudPreview();
+      void (async () => {
+        const preview = await fetchCloudPreview();
+        if (!preview?.cloudKey || !preview.localKey || preview.cloudKey === preview.localKey) {
+          return;
+        }
+        if (autoPulledForUserRef.current === user.id) return;
+
+        const cloudSum = preview.summary;
+        const localSum = summarizeBackup(getAppSnapshot().data);
+        const countKeys = [
+          'meetings',
+          'expenditures',
+          'orders',
+          'dak',
+          'tasks',
+          'contacts',
+          'souvenirs',
+        ];
+        const cloudAhead = countKeys.some(
+          (k) => (cloudSum?.[k] ?? 0) > (localSum?.[k] ?? 0),
+        );
+        const emptyLocalNeedsCloud =
+          !hasAnyAppData(localSum) && hasAnyAppData(cloudSum);
+        // Auto-pull when cloud has more rows (mobile expenses) or device is empty.
+        // Otherwise use Load now — avoids wiping richer local edits.
+        if (!cloudAhead && !emptyLocalNeedsCloud) return;
+
+        autoPulledForUserRef.current = user.id;
+        setSyncMessage('Cloud mein zyada data — Pulse auto-load kar rahi hai…');
+        await pullFromCloudRef.current({ silent: true, force: true });
+      })();
     }, CLOUD_PREVIEW_DELAY_MS);
     const bootTimer = setTimeout(() => {
       bootReadyRef.current = true;
@@ -137,10 +177,10 @@ export function useCloudSync({ getAppSnapshot, importAppData, dataRevision = 0 }
   }, [user?.id]);
 
   const pullFromCloud = useCallback(
-    async ({ silent = false } = {}) => {
+    async ({ silent = false, force = false } = {}) => {
       if (!supabaseConfigured || !supabase || !user) return { ok: false, error: 'Login required' };
       if (pullInFlight.current) return { ok: false, error: 'Pull already in progress' };
-      if (pushInFlight.current) return { ok: false, skipped: true };
+      if (pushInFlight.current && !force) return { ok: false, skipped: true };
 
       pullInFlight.current = true;
       if (!silent) {
@@ -189,8 +229,11 @@ export function useCloudSync({ getAppSnapshot, importAppData, dataRevision = 0 }
         }
 
         const incomingKey = snapshotDataKey(validated.data);
-        if (incomingKey === sessionDataKeyRef.current) {
+        const localKey = snapshotDataKey(getAppSnapshotRef.current());
+        // Manual Load now (force) applies cloud when payloads differ from local
+        if (incomingKey === localKey || (!force && incomingKey === sessionDataKeyRef.current)) {
           cloudUpdatedAtRef.current = data.updated_at ?? null;
+          sessionDataKeyRef.current = incomingKey;
           setLastSyncedAt(data.updated_at ?? new Date().toISOString());
           const summary = summarizeBackup(validated.data);
           setCloudPreview({ summary, updatedAt: data.updated_at ?? null });
@@ -360,9 +403,7 @@ export function useCloudSync({ getAppSnapshot, importAppData, dataRevision = 0 }
     [user, getAppSnapshot, resetPushUi, cloudPreview],
   );
 
-  const pushToCloudRef = useRef(pushToCloud);
   pushToCloudRef.current = pushToCloud;
-  const pullFromCloudRef = useRef(pullFromCloud);
   pullFromCloudRef.current = pullFromCloud;
 
   /** Real-time Pulse: every local change → debounced silent push */
@@ -414,7 +455,7 @@ export function useCloudSync({ getAppSnapshot, importAppData, dataRevision = 0 }
       const currentKey = snapshotDataKey(getAppSnapshotRef.current());
       const hasLocalEdits = currentKey !== sessionDataKeyRef.current;
       if (hasLocalEdits) {
-        // Local edits win — pulse will push them
+        // Local edits win for auto-pulse — use Load now if other device should win
         return;
       }
 
@@ -560,7 +601,7 @@ export function useCloudSync({ getAppSnapshot, importAppData, dataRevision = 0 }
     );
     return {
       ok: true,
-      message: 'Login successful — Real-time Pulse ab auto sync karegi (Save/Load ki zaroorat nahi).',
+      message: 'Login successful — Pulse + Save now / Load now available on Sync page.',
     };
   }, [otpEmail]);
 
@@ -581,6 +622,16 @@ export function useCloudSync({ getAppSnapshot, importAppData, dataRevision = 0 }
   }, [resetPushUi]);
 
   const isPushActive = syncStatus === 'pushing' || syncStatus === 'confirming';
+
+  const saveToCloudNow = useCallback(
+    () => pushToCloud({ silent: false, force: true }),
+    [pushToCloud],
+  );
+
+  const loadFromCloudNow = useCallback(
+    () => pullFromCloud({ silent: false, force: true }),
+    [pullFromCloud],
+  );
 
   return {
     supabaseConfigured,
@@ -603,6 +654,8 @@ export function useCloudSync({ getAppSnapshot, importAppData, dataRevision = 0 }
     signOut,
     pullFromCloud,
     pushToCloud,
+    saveToCloudNow,
+    loadFromCloudNow,
     fetchCloudPreview,
   };
 }

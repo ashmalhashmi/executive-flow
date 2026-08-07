@@ -26,9 +26,11 @@ Changing a field that must survive cloud Pulse sync means updating:
 2. `buildAppSnapshot` / `validateBackup` if shape changes
 3. Restore path in `ExecutiveContext` / sync apply
 
-## Real-time Pulse
+## Real-time Pulse (hybrid)
 
-`useCloudSync` watches `dataRevision` → debounced silent push; polls / Realtime → silent pull when cloud is newer and there are no local edits. UI: `RealtimePulseStatus` (no Save/Load buttons).
+`useCloudSync` watches `dataRevision` → debounced silent push; polls / Realtime → silent pull when cloud is newer and there are no local edits. UI: `RealtimePulseStatus` + emergency **Save now / Load now** on Sync & Backup.
+
+Cloud preview must **not** mark `updated_at` as already applied — that race skipped pulls (mobile expenses never reached laptop). Login reconcile auto-pulls when cloud has more domain rows than local.
 
 Cloud push always writes a **full** snapshot (`cloudSyncPush.js`). Never write partial section payloads — those zeroed domains like `contacts: []` and Pulse wiped Contact Database across devices. `importAppData` also refuses to replace non-empty local contacts with an empty cloud list when other domains still have data.
 
@@ -50,3 +52,4 @@ Empty app snapshots cannot wipe a populated sheet.
 - **Don’t** change `BACKUP_VERSION` without a migration story.
 - **Don’t** reintroduce primary Save/Load buttons — Pulse is the sync path.
 - **Don’t** reintroduce append-forever sheet rows — mirror keeps one correct copy.
+- **Do** keep hybrid **Save now / Load now** for missed multi-device updates.

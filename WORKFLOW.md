@@ -13,9 +13,9 @@ Do not guess. Follow the matching flow below.
 |------|-----|------|----------------|
 | **1** | You | Find or open the right room | Top **Ask Anything** (type/speak) **or** Sidebar → tab |
 | **2** | You | Add / edit / mark done | Form on that page → Save / Add |
-| **3** | System (if 2 devices) | Protect the work | **Real-time Pulse** auto-saves after every edit (login once on Sync & Backup) |
+| **3** | System (if 2 devices) | Protect the work | **Pulse** auto-saves after every edit; Sync page has **Save now / Load now** if something misses |
 
-Data lives on **this device** and **pulses to cloud** in the background when you are logged in. No Save/Load clicks.
+Data lives on **this device** and **pulses to cloud** in the background when you are logged in. Hybrid: auto + manual buttons on Sync & Backup.
 
 **Ask Anything:** plain question across all logs (meetings, tasks, orders, dak, contacts, expenses, souvenirs, capture). Mic = voice. Direct answer + Open log shortcut — no category picker.
 
@@ -122,8 +122,8 @@ Souvenir for that meeting? → go to flow **D** (or souvenir panel on the meetin
 | Step | Who | Device A | Device B |
 |------|-----|----------|----------|
 | 1 | You | Edit anything — Pulse auto-saves | Same login |
-| 2 | System | — | Pulse auto-loads when cloud is newer |
-| 3 | You | Keep working | Open the matching tab to see new rows |
+| 2 | System | — | Pulse auto-loads when cloud is newer (or cloud has more rows) |
+| 3 | You (if miss) | Sync & Backup → **Load now** | Open matching tab |
 
 Empty overwrite is blocked: a blank device will not wipe cloud; Pulse restores first.
 
