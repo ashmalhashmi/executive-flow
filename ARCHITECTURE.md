@@ -27,7 +27,7 @@ Premium executive assistant for office ops: meetings, souvenirs, money, orders, 
 | **Contacts** | `contacts` | Contact DB + AI extract | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `api/extract-contact.js` |
 | **Sync** | `sync` | Auth, Pulse cloud, Sheets mirror backup | `pages/SyncBackup.jsx`, `context/CloudSyncContext.jsx`, `context/GoogleSheetsSyncContext.jsx`, `utils/cloudSync*.js`, `utils/googleSheetsSync.js`, `api/sheets-sync.js`, `api/_lib/sheetsMirror.js`, `docs/CLOUD_SYNC.md` |
 | **Dashboard** | `dashboard` | Overview only — composes other domains | `pages/DashboardOverview.jsx`, `components/dashboard/` |
-| **Ask** | `ask` | Roman Urdu + plain language · live app data only | `pages/AskAnythingPage.jsx`, `components/ask/AskAnything.jsx`, `utils/askAnything.js` |
+| **Ask** | `ask` | Unified search + NLP math · live app data only | `pages/AskAnythingPage.jsx`, `components/ask/AskAnything.jsx`, `utils/askAnything.js`, `utils/askMath.js`, `utils/askUnifiedSearch.js` |
 
 Shared UI bricks (GlassCard, Modal, FormField, StatusBadge) live in `src/components/ui/`. Prefer reusing them over inventing new chrome.
 

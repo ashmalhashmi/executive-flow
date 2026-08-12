@@ -1,12 +1,18 @@
 /**
- * Ask Anything — Roman Urdu + plain language against live app data only (no Google Sheet).
- * Dedicated section: picks relevant log (e.g. My Calendar) and answers for today strictly.
+ * Ask Anything — Unified Search (9 logs) + NLP Math on live app data only (no Google Sheet).
+ * Analogy: saari notebooks ek saath scan; user pooche, system sahi notebook se jawab + hisab.
  */
 
 import { formatDisplayDate, formatDisplayTime, getTodayISO, addDaysISO } from './dates';
 import { formatPKR } from './currency';
 import { getContactPhones, getContactEmails, getContactContactNos } from './contactEntries';
 import { taskStatusLabel } from './taskEntries';
+import { parseMathIntent, tryExpenditureMath } from './askMath';
+import {
+  formatNotebooksScanned,
+  listNotebooksWithData,
+  tryUnifiedCount,
+} from './askUnifiedSearch';
 
 /** App section labels shown in answers — matches sidebar names */
 export const ASK_SECTION_LABELS = {
@@ -60,7 +66,7 @@ const DOMAIN_HINTS = [
   {
     tab: 'expenditure',
     domain: 'Expenditure',
-    words: ['expense', 'expenditure', 'spent', 'spend', 'kharcha', 'paisa', 'balance', 'opening'],
+    words: ['expense', 'expenditure', 'spent', 'spend', 'kharcha', 'kharch', 'kharchay', 'paisa', 'paise', 'balance', 'opening', 'bacha', 'baki', 'canteen', 'khana'],
   },
   {
     tab: 'souvenirs',
@@ -182,7 +188,16 @@ export function parseAskQuery(rawQuery) {
   const q = raw.toLowerCase();
   const tabs = DOMAIN_HINTS.filter((d) => includesAny(q, d.words)).map((d) => d.tab);
   const statusHit = STATUS_HINTS.find((s) => includesAny(q, s.words));
-  const date = parseRelativeDate(q) || inferTodayWhenMeetingAsked(q, tabs);
+  let date = parseRelativeDate(q);
+  if (!date && /\b(kharch|kharcha|paise|paisa|balance|kitna|kitne)\b/.test(q)) {
+    if (/\baaj\b|\btoday\b/.test(q)) date = getTodayISO();
+    else if (/\bkal\b|\btomorrow\b/.test(q) && !/\byesterday\b/.test(q)) {
+      date = addDaysISO(getTodayISO(), 1);
+    }
+  }
+  date = date || inferTodayWhenMeetingAsked(q, tabs);
+
+  const mathIntent = parseMathIntent(q);
 
   let terms = tokenize(raw);
   for (const d of DOMAIN_HINTS) {
@@ -204,8 +219,9 @@ export function parseAskQuery(rawQuery) {
     status: statusHit?.status || '',
     date,
     terms,
-    wantsCount: /\b(how many|count|kitne|kitni)\b/.test(q),
-    wantsTotal: /\b(how much|total|sum|kitna)\b/.test(q),
+    mathIntent,
+    wantsCount: mathIntent.wantsCount || /\b(how many|count|kitne|kitni)\b/.test(q),
+    wantsTotal: mathIntent.wantsSpend || /\b(how much|total|sum|kitna)\b/.test(q),
   };
 }
 
@@ -442,11 +458,10 @@ function filterAndRank(corpus, parsed) {
     if (preferred.length) list = preferred;
   }
 
-  // "today" must mean today. A date in the question is a hard filter: never fall
-  // back to older records, otherwise a free day looks like a busy one.
   if (parsed.date) {
-    list = list.filter((h) => h.date === parsed.date);
-    if (!list.length) return { ranked: [], dateMiss: true };
+    const dated = list.filter((h) => h.date === parsed.date);
+    if (!dated.length) return { ranked: [], dateMiss: true };
+    list = dated;
   }
 
   if (parsed.status) {
@@ -463,6 +478,8 @@ function filterAndRank(corpus, parsed) {
       if (!parsed.terms.length && (parsed.tabs.length || parsed.date || parsed.status)) {
         score += 1;
       }
+      // Unified search: domain not named — still rank text matches across all notebooks
+      if (!parsed.tabs.length && parsed.terms.length && score > 0) score += 1;
       return { ...h, score };
     })
     .filter((h) => h.score > 0)
@@ -481,14 +498,20 @@ function sectionLabel(tab) {
   return ASK_SECTION_LABELS[tab] || tab || 'relevant section';
 }
 
-function buildDirectAnswer(parsed, ranked, dateMiss = false) {
+function buildDirectAnswer(parsed, ranked, dateMiss = false, corpus = []) {
+  const scanned = listNotebooksWithData(corpus);
+  const scanNote = scanned.length
+    ? ` (${scanned.length} notebooks scan: ${formatNotebooksScanned(scanned)})`
+    : '';
+
   if (!parsed.raw) {
     return {
       answer:
-        'Roman Urdu ya English mein likhein — maslan “aj meeting ha koi?” Sirf app ka live data check hota hai.',
+        'Roman Urdu ya English — maslan “canteen mein kitne paise kharch?” ya “aj meeting ha koi?” Sirf live app data.',
       sectionChecked: '',
       best: null,
       hits: [],
+      notebooksScanned: scanned,
     };
   }
 
@@ -503,6 +526,7 @@ function buildDirectAnswer(parsed, ranked, dateMiss = false) {
         sectionChecked: 'My Calendar',
         best: null,
         hits: [],
+        notebooksScanned: scanned,
       };
     }
 
@@ -520,16 +544,17 @@ function buildDirectAnswer(parsed, ranked, dateMiss = false) {
       sectionChecked: checked,
       best: null,
       hits: [],
+      notebooksScanned: scanned,
     };
   }
 
   if (!ranked.length) {
     return {
-      answer:
-        'Koi match nahi mila. Roman Urdu try karein — “aj meeting ha koi?”, “pending tasks”, “contact Ali”.',
-      sectionChecked: sectionChecked || '',
+      answer: `Koi match nahi mila${scanNote}. Try — “canteen kitne paise?”, “balance kitna bacha?”, “aj meeting ha koi?”`,
+      sectionChecked: formatNotebooksScanned(scanned) || '',
       best: null,
       hits: [],
+      notebooksScanned: scanned,
     };
   }
 
@@ -540,6 +565,7 @@ function buildDirectAnswer(parsed, ranked, dateMiss = false) {
       sectionChecked: sectionChecked || sectionLabel(ranked[0]?.tab),
       best: ranked[0],
       hits: ranked.slice(0, 8),
+      notebooksScanned: scanned,
     };
   }
 
@@ -550,6 +576,7 @@ function buildDirectAnswer(parsed, ranked, dateMiss = false) {
       sectionChecked: sectionChecked || 'Expenditure Log',
       best: ranked[0],
       hits: ranked.slice(0, 8),
+      notebooksScanned: scanned,
     };
   }
 
@@ -577,13 +604,21 @@ function buildDirectAnswer(parsed, ranked, dateMiss = false) {
     sectionChecked: checked,
     best,
     hits: ranked.slice(0, 8),
+    notebooksScanned: scanned,
   };
 }
 
-/** Main entry: plain question → direct answer + sources */
+/** Main entry: unified scan + math + ranked hits */
 export function askAnything(query, data) {
   const parsed = parseAskQuery(query);
   const corpus = buildAskCorpus(data);
+
+  const mathResult = tryExpenditureMath(parsed, data, parsed.mathIntent);
+  if (mathResult) return mathResult;
+
+  const countResult = tryUnifiedCount(parsed, corpus);
+  if (countResult) return countResult;
+
   const { ranked, dateMiss } = filterAndRank(corpus, parsed);
-  return buildDirectAnswer(parsed, ranked, dateMiss);
+  return buildDirectAnswer(parsed, ranked, dateMiss, corpus);
 }

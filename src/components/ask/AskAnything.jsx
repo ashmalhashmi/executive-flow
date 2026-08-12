@@ -172,7 +172,8 @@ export default function AskAnything({ onNavigate }) {
         <div className="min-w-0">
           <p className="text-lg font-semibold text-white">Ask Anything</p>
           <p className="mt-1 text-sm text-zinc-400">
-            Roman Urdu ya English — relevant section check hota hai (maslan <strong className="text-zinc-300">My Calendar</strong>).
+            Saari notebooks ek saath scan — Roman Urdu mein poochein, system sahi log check kare
+            (maslan <strong className="text-zinc-300">Expenditure Log</strong> par hisab).
           </p>
           <p className="mt-2 flex items-center gap-1.5 text-xs text-zinc-500">
             <Database className="h-3.5 w-3.5 shrink-0 text-emerald-400/80" />
@@ -193,7 +194,7 @@ export default function AskAnything({ onNavigate }) {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="aj meeting ha koi?"
+            placeholder="canteen mein kitne paise kharch?"
             className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-4 pr-12 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-indigo-500/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             aria-label="Roman Urdu ya English mein sawal"
           />
@@ -233,6 +234,11 @@ export default function AskAnything({ onNavigate }) {
           {result.sectionChecked && (
             <p className="text-xs font-medium uppercase tracking-wider text-indigo-300/90">
               Section checked: {result.sectionChecked}
+            </p>
+          )}
+          {result.notebooksScanned?.length > 0 && (
+            <p className="text-[11px] text-zinc-500">
+              Notebooks scan: {result.notebooksScanned.length} logs (live app data only)
             </p>
           )}
 
@@ -282,9 +288,10 @@ export default function AskAnything({ onNavigate }) {
 
       {!result && (
         <p className="mt-4 text-xs text-zinc-500">
-          Examples: <span className="text-zinc-400">aj meeting ha koi?</span> ·{' '}
-          <span className="text-zinc-400">pending tasks</span> ·{' '}
-          <span className="text-zinc-400">contact Ali</span>
+          Examples: <span className="text-zinc-400">canteen mein kitne paise kharch?</span> ·{' '}
+          <span className="text-zinc-400">balance kitna bacha?</span> ·{' '}
+          <span className="text-zinc-400">aj meeting ha koi?</span> ·{' '}
+          <span className="text-zinc-400">pending tasks kitne?</span>
         </p>
       )}
     </GlassCard>
