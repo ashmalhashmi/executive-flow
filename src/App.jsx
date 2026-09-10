@@ -1,10 +1,9 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { ExecutiveProvider } from './context/ExecutiveContext';
-import { GoogleSheetsSyncProvider } from './context/GoogleSheetsSyncContext';
-import { CloudSyncProvider } from './context/CloudSyncContext';
 import ReminderHost from './components/reminders/ReminderHost';
 import AppLayout from './components/layout/AppLayout';
 import TabPanelSkeleton from './components/layout/TabPanelSkeleton';
+import DeferredSyncProviders from './components/layout/DeferredSyncProviders';
 import { TAB_IMPORTS } from './utils/tabImports';
 
 const VIEWS = Object.fromEntries(
@@ -44,17 +43,25 @@ function TabPanels({ activeTab, onNavigate }) {
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  useEffect(() => {
+    const schedule = () => {
+      import('./utils/tabImports').then(({ prefetchAllTabsIdle }) => {
+        prefetchAllTabsIdle();
+      });
+    };
+    const t = setTimeout(schedule, 12000);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <ExecutiveProvider>
-      <CloudSyncProvider>
-        <GoogleSheetsSyncProvider>
-          <ReminderHost>
-            <AppLayout activeTab={activeTab} onTabChange={setActiveTab}>
-              <TabPanels activeTab={activeTab} onNavigate={setActiveTab} />
-            </AppLayout>
-          </ReminderHost>
-        </GoogleSheetsSyncProvider>
-      </CloudSyncProvider>
+      <DeferredSyncProviders>
+        <ReminderHost>
+          <AppLayout activeTab={activeTab} onTabChange={setActiveTab}>
+            <TabPanels activeTab={activeTab} onNavigate={setActiveTab} />
+          </AppLayout>
+        </ReminderHost>
+      </DeferredSyncProviders>
     </ExecutiveProvider>
   );
 }

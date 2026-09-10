@@ -35,3 +35,12 @@ exception
   when duplicate_object then null;
   when undefined_object then null;
 end $$;
+
+-- Dak register scan photos (Supabase Storage — public read URLs, upload via API + service role)
+insert into storage.buckets (id, name, public)
+values ('dak-scans', 'dak-scans', true)
+on conflict (id) do update set public = true;
+
+create policy "Public read dak scan photos"
+  on storage.objects for select
+  using (bucket_id = 'dak-scans');

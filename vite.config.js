@@ -1,6 +1,8 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { resolve } from 'node:path';
+import { finalizeBootHtml } from './scripts/finalizeBootHtml.mjs';
 
 function buildResourceHints(env) {
   const origins = new Set([
@@ -43,25 +45,11 @@ function injectBuildPreloads(html, bundle) {
     if (chunk.type !== 'chunk') continue;
     const href = `./${chunk.fileName}`;
 
-    if (chunk.isEntry || chunk.name === 'index') {
-      addTag(`<link rel="modulepreload" crossorigin href="${href}" />`);
-    }
     if (chunk.name === 'react-vendor') {
       addTag(`<link rel="modulepreload" crossorigin href="${href}" />`);
     }
-    if (chunk.fileName.includes('DashboardOverview')) {
+    if (chunk.isEntry || chunk.name === 'index' || chunk.name === 'main' || chunk.name === 'restore') {
       addTag(`<link rel="modulepreload" crossorigin href="${href}" />`);
-    }
-    if (
-      chunk.fileName.includes('Overview') ||
-      chunk.fileName.includes('Calendar') ||
-      chunk.fileName.includes('Log') ||
-      chunk.fileName.includes('Database') ||
-      chunk.fileName.includes('SyncBackup')
-    ) {
-      if (!chunk.isEntry && chunk.name !== 'react-vendor') {
-        addTag(`<link rel="prefetch" href="${href}" as="script" crossorigin />`);
-      }
     }
   }
 
@@ -94,7 +82,9 @@ export default defineConfig(({ mode }) => {
         transformIndexHtml: {
           order: 'post',
           handler(html, ctx) {
-            return injectBuildPreloads(html, ctx.bundle);
+            let out = injectBuildPreloads(html, ctx.bundle);
+            out = finalizeBootHtml(out);
+            return out;
           },
         },
       },
@@ -102,10 +92,13 @@ export default defineConfig(({ mode }) => {
     base: './',
     build: {
       rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'index.html'),
+          restore: resolve(__dirname, 'restore.html'),
+        },
         output: {
           manualChunks(id) {
             if (!id.includes('node_modules')) return undefined;
-            if (id.includes('@supabase')) return 'supabase';
             if (id.includes('react-dom') || id.includes('/react/')) return 'react-vendor';
             if (id.includes('lucide-react')) return 'icons';
           },

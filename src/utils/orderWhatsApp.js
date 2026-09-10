@@ -1,5 +1,6 @@
 import { getWhatsAppShareUrl } from './whatsappShare';
 import { formatDisplayDate } from './dates';
+import { getReceivingNoteWhatsAppUrl } from './orderReceivingNoteShare';
 
 function orderStatusLabel(status) {
   if (status === 'received') return 'Received';
@@ -27,6 +28,10 @@ export function buildOrderWhatsAppMessage(order) {
   return lines.join('\n');
 }
 
+/** Pending = order text; Received = Receiving Note share text. */
 export function getOrderWhatsAppUrl(order, phoneE164) {
+  if (order?.status === 'received') {
+    return getReceivingNoteWhatsAppUrl(order, phoneE164);
+  }
   return getWhatsAppShareUrl(buildOrderWhatsAppMessage(order), phoneE164);
 }

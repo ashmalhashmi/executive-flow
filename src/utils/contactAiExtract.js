@@ -3,6 +3,9 @@ import {
   standardizeEmails,
   standardizePhoneList,
 } from './contactEntries.js';
+import { compressDataUrlToJpeg } from './imageDataUrlResize.js';
+
+const MAX_UPLOAD_BASE64_CHARS = 3_500_000;
 
 export const CONTACT_EXTRACT_SYSTEM_PROMPT = `You are a contact-data extraction engine for Executive Flow (Pakistan government / corporate contacts).
 
@@ -222,13 +225,46 @@ export async function fileToBase64(file) {
   return btoa(binary);
 }
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Card photo read nahi hui'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function prepareCardImagePayload(imageFile) {
+  const dataUrl = await readFileAsDataUrl(imageFile);
+  let uploadDataUrl = dataUrl;
+  try {
+    const compressed = await compressDataUrlToJpeg(dataUrl, 1200, 0.82);
+    uploadDataUrl = compressed.dataUrl;
+  } catch {
+    /* use original if compress fails */
+  }
+
+  const match = uploadDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) throw new Error('Card photo format theek nahi — JPG try karein');
+
+  if (match[2].length > MAX_UPLOAD_BASE64_CHARS) {
+    throw new Error('Card photo bahut bari hai — thori door se dubara lein');
+  }
+
+  return {
+    imageBase64: match[2],
+    imageMimeType: match[1] || 'image/jpeg',
+  };
+}
+
 export async function extractContactWithAi({ text, imageFile }) {
   const rawText = String(text || '').trim();
   const body = { text: rawText };
 
   if (imageFile) {
-    body.imageBase64 = await fileToBase64(imageFile);
-    body.imageMimeType = imageFile.type || 'image/jpeg';
+    const prepared = await prepareCardImagePayload(imageFile);
+    body.imageBase64 = prepared.imageBase64;
+    body.imageMimeType = prepared.imageMimeType;
   }
 
   if (!rawText && !body.imageBase64) {
@@ -258,6 +294,7 @@ export async function extractContactWithAi({ text, imageFile }) {
         return {
           contact: extractContactLocally(rawText),
           via: 'local',
+          cardPhotoUrl: '',
           warning:
             data.error ||
             'AI unavailable — basic local parse. GEMINI_API_KEY set karein for full AI + card photo.',
@@ -271,12 +308,22 @@ export async function extractContactWithAi({ text, imageFile }) {
       throw new Error('AI ne koi contact field nahi nikala — text check karein');
     }
 
-    return { contact, via: data.via || 'ai', warning: data.warning || '' };
+    return {
+      contact,
+      via: data.via || 'ai',
+      cardPhotoUrl: String(data.cardPhotoUrl ?? '').trim(),
+      warning: data.storageWarning || data.warning || '',
+    };
   } catch (err) {
     if (rawText && err.message !== 'AI configure nahi — GEMINI_API_KEY Vercel par set karein (scripts/setup-gemini-env.ps1)') {
       const local = extractContactLocally(rawText);
       if (local?.name || local?.phones?.length || local?.emails?.length) {
-        return { contact: local, via: 'local', warning: err.message || 'AI unavailable — local parse used' };
+        return {
+          contact: local,
+          via: 'local',
+          cardPhotoUrl: '',
+          warning: err.message || 'AI unavailable — local parse used',
+        };
       }
     }
     throw err;

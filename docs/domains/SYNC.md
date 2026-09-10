@@ -18,7 +18,7 @@ Laptop ↔ mobile cloud, auth, backup snapshot, Google Sheets presentation.
 
 `utils/backup.js` → `buildAppSnapshot` / `validateBackup`.
 
-Domains inside `data`: `meetings`, `souvenirs`, `expenditure`, `orders`, `dak`, `tasks`, `captures`, `contacts`, `settings`.
+Domains inside `data`: `meetings`, `souvenirs`, `expenditure`, `orders`, `dak`, `tasks`, `captures`, `contacts`, `pettyCash`, `fileLabels`, `settings`.
 
 Changing a field that must survive cloud Pulse sync means updating:
 
@@ -32,7 +32,7 @@ Changing a field that must survive cloud Pulse sync means updating:
 
 Cloud preview must **not** mark `updated_at` as already applied — that race skipped pulls (mobile expenses never reached laptop). Login reconcile auto-pulls when cloud has more domain rows than local.
 
-Cloud push always writes a **full** snapshot (`cloudSyncPush.js`). Never write partial section payloads — those zeroed domains like `contacts: []` and Pulse wiped Contact Database across devices. `importAppData` also refuses to replace non-empty local contacts with an empty cloud list when other domains still have data.
+Cloud push always writes a **full** snapshot (`cloudSyncPush.js`). Never write partial section payloads. `importAppData` uses **safety guards on every domain** (`utils/importGuards.js`): refuses to replace a non-empty local list (meetings, souvenirs, orders, dak, tasks, captures, contacts, pettyCash, fileLabels, expenditure) with an empty cloud list when other domains in the same snapshot still have data. Login auto-pull only runs when cloud is ahead **and** local is not ahead in any domain — mixed conflicts need **Load now / Save now**.
 
 ## Google Sheet backup (one correct copy)
 

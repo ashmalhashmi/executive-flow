@@ -1,4 +1,4 @@
-/** Addressee presets — user can pick "Other" and type name / designation manually */
+/** Marked To presets — user can pick "Other" and type name / designation manually */
 export const DAK_DESIGNATION_OPTIONS = [
   'COO',
   'CIA',

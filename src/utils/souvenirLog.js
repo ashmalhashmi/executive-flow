@@ -16,7 +16,8 @@ export function normalizeSouvenirLogEntries(souvenirs) {
   };
 
   for (const s of souvenirs || []) {
-    if (s.detail?.trim() && s.source === 'calendar-meeting') {
+    // Any entry with free-text detail (calendar-linked or Quick Log)
+    if (s.detail?.trim()) {
       pushRow(s.id, s.meetingTitle, s.dateDistributed, s.detail);
       continue;
     }

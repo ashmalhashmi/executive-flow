@@ -25,6 +25,13 @@ Opening balance, PKR expense log, AI categorize, weekly summary email/PDF.
 | Weekly email card on Sync tab | Settings = this domain; card host = **Sync** |
 | Orders / souvenirs cost | **Orders** / **Souvenirs** — separate logs |
 
+## PDF export (`expenditureLogPdf.js`)
+
+- Range: **opening balance date → today** (not month picker).
+- Entries **grouped by category** (fixed list order); within category, newest date first.
+- Each category block has a **subtotal**.
+- Header summary: (1) Opening Balance (2) Total Expenditure (Date Range) (3) Closing Balance.
+
 ## Do / don’t
 
 - **Do** run balance math through `computeExpenditureBalance` / analytics utils.

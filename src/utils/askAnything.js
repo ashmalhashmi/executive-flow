@@ -20,6 +20,7 @@ export const ASK_SECTION_LABELS = {
   tasks: 'Task Log',
   orders: 'Order Log',
   dak: 'Dak Issuance Log',
+  compose: 'Compose Desk',
   contacts: 'Contact Database',
   expenditure: 'Expenditure Log',
   souvenirs: 'Souvenir Log',
@@ -56,7 +57,12 @@ const DOMAIN_HINTS = [
   {
     tab: 'dak',
     domain: 'Dak',
-    words: ['dak', 'dispatch', 'letter', 'issuance', 'outward'],
+    words: ['dak', 'dispatch', 'issuance', 'outward'],
+  },
+  {
+    tab: 'compose',
+    domain: 'Compose',
+    words: ['compose', 'draft', 'letter', 'chithi', 'intent', 'writing'],
   },
   {
     tab: 'contacts',

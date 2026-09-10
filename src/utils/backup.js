@@ -10,6 +10,8 @@ export function buildAppSnapshot({
   taskEntries,
   captureEntries,
   contacts,
+  pettyCashState,
+  fileLabels,
   settings,
 }) {
   return {
@@ -31,6 +33,13 @@ export function buildAppSnapshot({
       tasks: Array.isArray(taskEntries) ? taskEntries : [],
       captures: Array.isArray(captureEntries) ? captureEntries : [],
       contacts: Array.isArray(contacts) ? contacts : [],
+      pettyCash: {
+        cases: Array.isArray(pettyCashState?.cases) ? pettyCashState.cases : [],
+        refreshmentNotes: Array.isArray(pettyCashState?.refreshmentNotes)
+          ? pettyCashState.refreshmentNotes
+          : [],
+      },
+      fileLabels: Array.isArray(fileLabels) ? fileLabels : [],
       settings: settings && typeof settings === 'object' ? settings : {},
     },
   };
@@ -47,8 +56,19 @@ export function validateBackup(raw) {
     return { ok: false, error: 'Backup mein data missing hai' };
   }
 
-  const { meetings, souvenirs, expenditure, orders, dak, tasks, captures, contacts, settings } =
-    raw.data;
+  const {
+    meetings,
+    souvenirs,
+    expenditure,
+    orders,
+    dak,
+    tasks,
+    captures,
+    contacts,
+    settings,
+    pettyCash,
+    fileLabels,
+  } = raw.data;
 
   if (meetings != null && !Array.isArray(meetings)) {
     return { ok: false, error: 'Meetings data invalid hai' };
@@ -74,6 +94,9 @@ export function validateBackup(raw) {
   if (contacts != null && !Array.isArray(contacts)) {
     return { ok: false, error: 'Contacts data invalid hai' };
   }
+  if (fileLabels != null && !Array.isArray(fileLabels)) {
+    return { ok: false, error: 'File labels data invalid hai' };
+  }
 
   return {
     ok: true,
@@ -90,6 +113,8 @@ export function validateBackup(raw) {
       tasks: tasks ?? [],
       captures: captures ?? [],
       contacts: contacts ?? [],
+      pettyCash: pettyCash ?? { cases: [], refreshmentNotes: [] },
+      fileLabels: fileLabels ?? [],
       settings: settings && typeof settings === 'object' ? settings : {},
     },
     exportedAt: raw.exportedAt,
@@ -134,6 +159,9 @@ export function summarizeBackup(data) {
     tasks: (data.tasks ?? []).filter((t) => t.status !== 'cancelled').length,
     captures: (data.captures ?? []).filter((c) => c.status === 'active').length,
     contacts: (data.contacts ?? []).filter((c) => c.status !== 'archived').length,
+    pettyCash:
+      (data.pettyCash?.cases?.length ?? 0) + (data.pettyCash?.refreshmentNotes?.length ?? 0),
+    fileLabels: (data.fileLabels ?? []).length,
   };
 }
 
@@ -149,6 +177,13 @@ export function hasAnyAppData(summary) {
     (summary.tasks ?? 0) > 0 ||
     (summary.captures ?? 0) > 0 ||
     (summary.contacts ?? 0) > 0 ||
+    (summary.fileLabels ?? 0) > 0 ||
     (summary.openingBalance ?? 0) > 0
   );
+}
+
+/** Non-dak records only — Erase Dak on a dak-only backup must still be allowed to push. */
+export function hasAnyAppDataExceptDak(summary) {
+  if (!summary) return false;
+  return hasAnyAppData({ ...summary, dak: 0 });
 }

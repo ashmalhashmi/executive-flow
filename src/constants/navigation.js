@@ -3,6 +3,7 @@ import {
   Calendar,
   Gift,
   Wallet,
+  Banknote,
   Package,
   FileText,
   CheckSquare,
@@ -10,6 +11,8 @@ import {
   BookUser,
   CloudUpload,
   MessageCircleQuestion,
+  PenLine,
+  Tag,
 } from 'lucide-react';
 
 /** Sidebar navigation tabs — id maps to active view in App */
@@ -25,6 +28,18 @@ export const NAV_ITEMS = [
     label: 'Ask Anything',
     description: 'Roman Urdu · live app data only',
     icon: MessageCircleQuestion,
+  },
+  {
+    id: 'compose',
+    label: 'Compose Desk',
+    description: 'Intent → draft · you edit & issue',
+    icon: PenLine,
+  },
+  {
+    id: 'labels',
+    label: 'File Labels',
+    description: 'Box / file labels · Name → PDF / Word',
+    icon: Tag,
   },
   {
     id: 'calendar',
@@ -45,6 +60,12 @@ export const NAV_ITEMS = [
     icon: Wallet,
   },
   {
+    id: 'pettyCash',
+    label: 'Petty Cash Record',
+    description: 'Purchase slip · satisfactory note · refreshment receiving',
+    icon: Banknote,
+  },
+  {
     id: 'orders',
     label: 'Order Log',
     description: 'Vendor orders · received',
@@ -53,7 +74,7 @@ export const NAV_ITEMS = [
   {
     id: 'dak',
     label: 'Dak Issuance Log',
-    description: 'Subject · date · addressee — system assigns dispatch no.',
+    description: 'Subject · date · marked to — system assigns dispatch no.',
     icon: FileText,
   },
   {

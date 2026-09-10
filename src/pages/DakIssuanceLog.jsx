@@ -1,10 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   FileText,
   Plus,
-  MessageCircle,
-  Pencil,
-  XCircle,
   Save,
   FileDown,
   Filter,
@@ -12,44 +9,67 @@ import {
   Search,
   ChevronDown,
   ChevronUp,
+  BookOpen,
+  Trash2,
 } from 'lucide-react';
 import { useDakExecutive } from '../context/ExecutiveContext';
 import GlassCard from '../components/ui/GlassCard';
 import FormField, { TextInput } from '../components/ui/FormField';
-import { formatDisplayDate, getTodayISO } from '../utils/dates';
+import { getTodayISO } from '../utils/dates';
 import {
   DAK_DESIGNATION_CUSTOM,
   DAK_DESIGNATION_OPTIONS,
   designationToFormValue,
   resolveDakDesignation,
 } from '../constants/dakDesignations';
-import { filterDakEntries, searchDakEntries, sortDakEntries } from '../utils/dakEntries';
-import { getDakWhatsAppUrl } from '../utils/dakWhatsApp';
+import { filterDakEntries, searchDakEntries, sortDakRegisterEntries } from '../utils/dakEntries';
+import DakScanCapture from '../components/dak/DakScanCapture';
+import DakScanPreviewTable from '../components/dak/DakScanPreviewTable';
+import DakRegisterTable from '../components/dak/DakRegisterTable';
+import ListPager from '../components/ui/ListPager';
+import { usePagedList } from '../hooks/usePagedList';
+import { extractedRowsToScanDraft } from '../utils/dakAiExtract';
 
 const emptyForm = () => ({
+  registerSr: '',
   receivedDate: '',
   forwardedDate: getTodayISO(),
   designationPreset: DAK_DESIGNATION_OPTIONS[0],
   designationCustom: '',
   subject: '',
-  externalDispatchNo: '',
 });
 
+function scrollToRegister(highlightId) {
+  document.getElementById('dak-register')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (highlightId) {
+    setTimeout(() => {
+      document.getElementById(`dak-entry-${highlightId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }, 350);
+  }
+}
+
 export default function DakIssuanceLog() {
-  const { dakEntries, addDakEntry, updateDakEntry, cancelDakEntry } = useDakExecutive();
+  const { dakEntries, addDakEntry, addDakEntriesBulk, updateDakEntry, eraseAllDakEntries } =
+    useDakExecutive();
 
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
   const [editingId, setEditingId] = useState('');
-  const [editingSystemRef, setEditingSystemRef] = useState('');
   const [pdfBusy, setPdfBusy] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterAddressee, setFilterAddressee] = useState('');
   const [filterDispatchDate, setFilterDispatchDate] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [scanDraftRows, setScanDraftRows] = useState([]);
+  const [scanPhotoUrl, setScanPhotoUrl] = useState('');
+  const [registerNotice, setRegisterNotice] = useState('');
+  const [highlightEntryIds, setHighlightEntryIds] = useState([]);
 
   const listEntries = useMemo(
-    () => sortDakEntries(dakEntries.filter((d) => d.status !== 'cancelled')),
+    () => sortDakRegisterEntries(dakEntries.filter((d) => d.status !== 'cancelled')),
     [dakEntries],
   );
 
@@ -71,6 +91,25 @@ export default function DakIssuanceLog() {
   }, [listEntries, searchQuery, filterAddressee, filterDispatchDate]);
 
   const hasActiveFilter = Boolean(filterAddressee || filterDispatchDate.trim() || searchQuery.trim());
+  const dakFilterKey = `${searchQuery}|${filterAddressee}|${filterDispatchDate}`;
+  const {
+    page: dakPage,
+    setPage: setDakPage,
+    totalPages: dakTotalPages,
+    pageItems: dakPageItems,
+    total: dakTotal,
+    showingLabel: dakShowingLabel,
+  } = usePagedList(filteredEntries, { pageSize: 50, resetKey: dakFilterKey });
+
+  useEffect(() => {
+    if (!highlightEntryIds.length) return undefined;
+    const timer = window.setTimeout(() => setHighlightEntryIds([]), 12000);
+    return () => window.clearTimeout(timer);
+  }, [highlightEntryIds]);
+
+  useEffect(() => {
+    if (listEntries.length === 0) setShowAddForm(true);
+  }, [listEntries.length]);
 
   const clearFilters = () => {
     setFilterAddressee('');
@@ -82,25 +121,56 @@ export default function DakIssuanceLog() {
     setForm(emptyForm());
     setErrors({});
     setEditingId('');
-    setEditingSystemRef('');
-    setShowAdvanced(false);
+  };
+
+  const showSavedInRegister = (savedEntries, message) => {
+    const ids = savedEntries.map((e) => e.id).filter(Boolean);
+    setHighlightEntryIds(ids);
+    setRegisterNotice(message);
+    clearFilters();
+    scrollToRegister(ids[0]);
+  };
+
+  const handleScanExtracted = ({ rows, scanPhotoUrl: photoUrl, storageWarning }) => {
+    setScanDraftRows(extractedRowsToScanDraft(rows));
+    setScanPhotoUrl(String(photoUrl ?? '').trim());
+    setRegisterNotice(storageWarning || '');
+    setShowAddForm(true);
+    setTimeout(() => {
+      document.getElementById('dak-scan-preview')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
+  const handleSaveScanRows = (payloads) => {
+    const saved = addDakEntriesBulk(payloads);
+    setScanDraftRows([]);
+    setScanPhotoUrl('');
+    showSavedInRegister(
+      saved,
+      `${saved.length} entr${saved.length === 1 ? 'y' : 'ies'} digital register mein save — neeche table dekhein`,
+    );
+  };
+
+  const clearScanDraft = () => {
+    setScanDraftRows([]);
+    setScanPhotoUrl('');
   };
 
   const startEdit = (entry) => {
     const { preset, custom } = designationToFormValue(entry.designation);
     setEditingId(entry.id);
-    setEditingSystemRef(entry.fileId);
     setForm({
+      registerSr: entry.registerSr ? String(entry.registerSr) : '',
       receivedDate: entry.receivedDate || '',
       forwardedDate: entry.forwardedDate,
       designationPreset: preset,
       designationCustom: custom,
       subject: entry.subject,
-      externalDispatchNo: entry.externalDispatchNo || '',
     });
-    setShowAdvanced(Boolean(entry.externalDispatchNo));
     setErrors({});
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setShowAddForm(true);
+    setRegisterNotice('');
+    document.getElementById('dak-add-section')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const validateForm = () => {
@@ -111,8 +181,8 @@ export default function DakIssuanceLog() {
     if (!designation) {
       next.designation =
         form.designationPreset === DAK_DESIGNATION_CUSTOM
-          ? 'Addressee likhein'
-          : 'Addressee select karein';
+          ? 'Marked To likhein'
+          : 'Marked To select karein';
     }
     if (Object.keys(next).length) {
       setErrors(next);
@@ -120,11 +190,11 @@ export default function DakIssuanceLog() {
     }
     setErrors({});
     return {
+      registerSr: form.registerSr.trim() ? Number(form.registerSr) : undefined,
       receivedDate: form.receivedDate.trim(),
       forwardedDate: form.forwardedDate,
       designation,
       subject: form.subject.trim(),
-      externalDispatchNo: form.externalDispatchNo.trim(),
     };
   };
 
@@ -134,11 +204,17 @@ export default function DakIssuanceLog() {
     if (!payload) return;
 
     if (editingId) {
-      updateDakEntry(editingId, payload);
+      const id = editingId;
+      updateDakEntry(id, payload);
+      resetForm();
+      setShowAddForm(false);
+      showSavedInRegister([{ id }], 'Entry update ho gayi — register table mein dekhein');
     } else {
-      addDakEntry(payload);
+      const created = addDakEntry(payload);
+      resetForm();
+      setShowAddForm(false);
+      showSavedInRegister([created], 'Nayi entry digital register mein save — table mein dekhein');
     }
-    resetForm();
   };
 
   const handleDownloadPdf = async () => {
@@ -152,209 +228,74 @@ export default function DakIssuanceLog() {
     }
   };
 
-  const handleCancelEntry = (entry) => {
+  const handleEraseAllDak = () => {
+    const count = listEntries.length;
+    if (!count) return;
     if (
       !window.confirm(
-        `"${entry.subject}" cancel karein? Ye entry list se hat jayegi.`,
+        `Poora Dak Issuance Log erase karein?\n\n${count} entr${count === 1 ? 'y' : 'ies'} delete ho jayengi — register khali ho jayega.`,
       )
     ) {
       return;
     }
-    cancelDakEntry(entry.id);
-    if (editingId === entry.id) resetForm();
+    eraseAllDakEntries();
+    resetForm();
+    setScanDraftRows([]);
+    setScanPhotoUrl('');
+    setShowAddForm(false);
+    setHighlightEntryIds([]);
+    setRegisterNotice(`${count} entr${count === 1 ? 'y' : 'ies'} erase — register khali`);
   };
 
   const showCustomAddressee = form.designationPreset === DAK_DESIGNATION_CUSTOM;
 
   return (
     <div className="space-y-6">
-      <GlassCard className="border-violet-500/20 bg-violet-500/5 p-5 sm:p-6">
-        <div className="mb-4 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/15">
-            <FileText className="h-5 w-5 text-violet-300" strokeWidth={1.75} />
-          </span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-violet-400/90">
-              {editingId ? 'Edit Dak Entry' : 'New Dak Entry'}
-            </p>
-            <p className="text-sm text-zinc-500">
-              Sirf context likhein — Subject, Date, Addressee. System apna dispatch number khud
-              banayega.
-            </p>
+      <GlassCard id="dak-register" className="border-violet-500/30 bg-violet-500/5 p-5 sm:p-6">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/15">
+              <BookOpen className="h-5 w-5 text-violet-300" strokeWidth={1.75} />
+            </span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-violet-400/90">
+                Dak Issuance Register — digital
+              </p>
+              <p className="text-sm text-zinc-500">
+                Manual register jaisa — save ke baad yahi table dikhegi, app band karke dubara kholne par bhi
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={!listEntries.length}
+              onClick={handleEraseAllDak}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-200 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Trash2 className="h-4 w-4" />
+              Erase Dak
+            </button>
+            <button
+              type="button"
+              disabled={!filteredEntries.length || pdfBusy}
+              onClick={handleDownloadPdf}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/15 px-4 py-2.5 text-sm font-medium text-violet-100 hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <FileDown className={`h-4 w-4 ${pdfBusy ? 'animate-pulse' : ''}`} />
+              {pdfBusy ? 'PDF…' : `Download PDF (${filteredEntries.length})`}
+            </button>
           </div>
         </div>
 
-        {editingId && editingSystemRef && (
-          <div className="mb-4 rounded-xl border border-violet-500/20 bg-black/30 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-              System dispatch ref (auto — edit nahi hota)
-            </p>
-            <p className="mt-1 font-mono text-sm text-violet-200">{editingSystemRef}</p>
+        {registerNotice && (
+          <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+            {registerNotice}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <FormField label="Subject *" id="dak-subject" error={errors.subject}>
-            <TextInput
-              id="dak-subject"
-              value={form.subject}
-              onChange={(e) => {
-                setForm((p) => ({ ...p, subject: e.target.value }));
-                setErrors((p) => ({ ...p, subject: undefined }));
-              }}
-              placeholder="File ka subject / matter — isi se dhundhenge"
-              autoFocus
-            />
-          </FormField>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              label="Date (Dispatched) *"
-              id="dak-dispatched"
-              error={errors.forwardedDate}
-            >
-              <TextInput
-                id="dak-dispatched"
-                type="date"
-                value={form.forwardedDate}
-                onChange={(e) => {
-                  setForm((p) => ({ ...p, forwardedDate: e.target.value }));
-                  setErrors((p) => ({ ...p, forwardedDate: undefined }));
-                }}
-              />
-            </FormField>
-            <FormField label="Date Received (optional)" id="dak-received">
-              <TextInput
-                id="dak-received"
-                type="date"
-                value={form.receivedDate}
-                onChange={(e) => setForm((p) => ({ ...p, receivedDate: e.target.value }))}
-              />
-            </FormField>
-          </div>
-
-          <FormField label="Addressee *" id="dak-addressee" error={errors.designation}>
-            <select
-              id="dak-addressee"
-              value={form.designationPreset}
-              onChange={(e) => {
-                setForm((p) => ({ ...p, designationPreset: e.target.value }));
-                setErrors((p) => ({ ...p, designation: undefined }));
-              }}
-              className="block w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-zinc-100 shadow-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/40"
-            >
-              {DAK_DESIGNATION_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-              <option value={DAK_DESIGNATION_CUSTOM}>Other — naam / office likhein</option>
-            </select>
-          </FormField>
-
-          {showCustomAddressee && (
-            <FormField label="Addressee (custom)" id="dak-addressee-custom">
-              <TextInput
-                id="dak-addressee-custom"
-                value={form.designationCustom}
-                onChange={(e) => {
-                  setForm((p) => ({ ...p, designationCustom: e.target.value }));
-                  setErrors((p) => ({ ...p, designation: undefined }));
-                }}
-                placeholder="Jisko dak ja rahi hai"
-              />
-            </FormField>
-          )}
-
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowAdvanced((v) => !v)}
-              className="inline-flex items-center gap-2 text-xs font-medium text-zinc-400 hover:text-zinc-200"
-            >
-              {showAdvanced ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-              Official outward no. already hai? (optional)
-            </button>
-            {showAdvanced && (
-              <div className="mt-3">
-                <FormField
-                  label="Official outward no. (optional)"
-                  id="dak-external"
-                  hint="Registry ka number — system apna ref alag banata hai"
-                >
-                  <TextInput
-                    id="dak-external"
-                    value={form.externalDispatchNo}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, externalDispatchNo: e.target.value }))
-                    }
-                    placeholder="Agar diary / outward register mein pehle se number hai"
-                  />
-                </FormField>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="submit"
-              className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-500"
-            >
-              {editingId ? (
-                <>
-                  <Save className="h-4 w-4" />
-                  Save changes
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4" />
-                  Add Dak Entry
-                </>
-              )}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5"
-              >
-                Cancel edit
-              </button>
-            )}
-          </div>
-        </form>
-      </GlassCard>
-
-      <GlassCard className="p-5 sm:p-6">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
-              Dak Issuance — All entries
-            </h3>
-            <p className="mt-1 text-xs text-zinc-500">
-              <strong className="text-zinc-300">{filteredEntries.length}</strong> of{' '}
-              <strong className="text-zinc-300">{listEntries.length}</strong> file
-              {listEntries.length === 1 ? '' : 's'}
-              {hasActiveFilter ? ' — search / filter active' : ' — subject & date se scan karein'}
-            </p>
-          </div>
-          <button
-            type="button"
-            disabled={!filteredEntries.length || pdfBusy}
-            onClick={handleDownloadPdf}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/15 px-4 py-2.5 text-sm font-medium text-violet-100 hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <FileDown className={`h-4 w-4 ${pdfBusy ? 'animate-pulse' : ''}`} />
-            {pdfBusy ? 'PDF…' : `Download PDF (${filteredEntries.length})`}
-          </button>
-        </div>
-
         <div className="mb-4 space-y-3">
-          <FormField label="Search by subject, addressee, or date" id="dak-search">
+          <FormField label="Search register — subject, marked to, date" id="dak-search">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
               <TextInput
@@ -370,17 +311,17 @@ export default function DakIssuanceLog() {
           <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-4">
             <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-300/90">
               <Filter className="h-4 w-4" />
-              Filter by context
+              Filter
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-              <FormField label="Addressee" id="dak-filter-addressee" className="sm:flex-1">
+              <FormField label="Marked To" id="dak-filter-addressee" className="sm:flex-1">
                 <select
                   id="dak-filter-addressee"
                   value={filterAddressee}
                   onChange={(e) => setFilterAddressee(e.target.value)}
                   className="block w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-zinc-100 shadow-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/40"
                 >
-                  <option value="">All addressees</option>
+                  <option value="">All marked to</option>
                   {addresseeFilterOptions.map((opt) => (
                     <option key={opt} value={opt}>
                       {opt}
@@ -410,76 +351,242 @@ export default function DakIssuanceLog() {
           </div>
         </div>
 
+        <p className="mb-3 text-xs text-zinc-500">
+          <strong className="text-zinc-300">{filteredEntries.length}</strong> of{' '}
+          <strong className="text-zinc-300">{listEntries.length}</strong> entr
+          {listEntries.length === 1 ? 'y' : 'ies'}
+          {hasActiveFilter ? ' — filter active' : ''}
+          {filteredEntries.length > 0 ? ` · ${dakShowingLabel}` : ''}
+        </p>
+
         {listEntries.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-zinc-500">
-            Abhi koi dak entry nahi — upar se subject aur addressee likh kar add karein
-          </p>
+          <div className="rounded-xl border border-dashed border-white/10 px-4 py-10 text-center">
+            <p className="text-sm text-zinc-400">Register abhi khali hai</p>
+            <p className="mt-2 text-xs text-zinc-500">
+              Neeche se scan karein ya manual entry add karein — save ke baad yahan table mein dikhega
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddForm(true);
+                document.getElementById('dak-add-section')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
+            >
+              <Plus className="h-4 w-4" />
+              Pehli entry add karein
+            </button>
+          </div>
         ) : filteredEntries.length === 0 ? (
           <p className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-zinc-500">
-            Is search / filter par koi dak match nahi — subject ya date badlein
+            Is search / filter par koi entry nahi — Clear karein
           </p>
         ) : (
-          <ul className="space-y-3">
-            {filteredEntries.map((entry) => (
-              <li
-                key={entry.id}
-                className="rounded-xl border border-white/10 bg-black/25 p-4"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold leading-snug text-zinc-100">
-                      {entry.subject}
-                    </p>
-                    <p className="mt-2 text-xs text-zinc-400">
-                      <span className="text-zinc-300">
-                        {formatDisplayDate(entry.forwardedDate)}
-                      </span>
-                      <span className="text-zinc-600"> · </span>
-                      <span>{entry.designation}</span>
-                    </p>
-                    <p className="mt-2 font-mono text-[10px] text-zinc-600">
-                      System ref: {entry.fileId}
-                      {entry.externalDispatchNo
-                        ? ` · Official: ${entry.externalDispatchNo}`
-                        : ''}
-                    </p>
-                    {entry.receivedDate && (
-                      <p className="mt-1 text-[10px] text-zinc-600">
-                        Received: {formatDisplayDate(entry.receivedDate)}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
+          <>
+            <ListPager
+              page={dakPage}
+              totalPages={dakTotalPages}
+              total={dakTotal}
+              showingLabel={dakShowingLabel}
+              onPageChange={setDakPage}
+              className="mb-3"
+            />
+            <DakRegisterTable
+              entries={dakPageItems}
+              highlightIds={highlightEntryIds}
+              onEdit={startEdit}
+            />
+            <ListPager
+              page={dakPage}
+              totalPages={dakTotalPages}
+              total={dakTotal}
+              showingLabel={dakShowingLabel}
+              onPageChange={setDakPage}
+              className="mt-3"
+            />
+          </>
+        )}
+      </GlassCard>
+
+      <GlassCard id="dak-add-section" className="border-violet-500/20 p-5 sm:p-6">
+        <button
+          type="button"
+          onClick={() => setShowAddForm((v) => !v)}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/5">
+              <FileText className="h-5 w-5 text-violet-300" />
+            </span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                Nayi entry — scan ya manual
+              </p>
+              <p className="text-sm text-zinc-500">Save ke baad upar wali register table mein dikhega</p>
+            </div>
+          </div>
+          {showAddForm ? (
+            <ChevronUp className="h-5 w-5 shrink-0 text-zinc-500" />
+          ) : (
+            <ChevronDown className="h-5 w-5 shrink-0 text-zinc-500" />
+          )}
+        </button>
+
+        {showAddForm && (
+          <div className="mt-5 border-t border-white/10 pt-5">
+            {!editingId && (
+              <div className="mb-4">
+                <DakScanCapture onExtracted={handleScanExtracted} disabled={Boolean(editingId)} />
+              </div>
+            )}
+
+            {!editingId && scanDraftRows.length > 0 && (
+              <div id="dak-scan-preview" className="mb-4">
+                {scanPhotoUrl && (
+                  <p className="mb-2 text-xs text-emerald-300/90">
+                    Scan photo cloud par save —{' '}
                     <a
-                      href={getDakWhatsAppUrl(entry)}
+                      href={scanPhotoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-2 text-xs font-medium text-white hover:bg-[#20bd5a]"
+                      className="underline hover:text-emerald-200"
                     >
-                      <MessageCircle className="h-3.5 w-3.5" />
-                      WhatsApp
+                      preview
                     </a>
-                    <button
-                      type="button"
-                      onClick={() => startEdit(entry)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-2 text-xs text-zinc-200 hover:bg-white/5"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCancelEntry(entry)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-2 text-xs text-red-300 hover:bg-red-500/10"
-                    >
-                      <XCircle className="h-3.5 w-3.5" />
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  </p>
+                )}
+                <DakScanPreviewTable
+                  rows={scanDraftRows}
+                  scanPhotoUrl={scanPhotoUrl}
+                  onChange={setScanDraftRows}
+                  onSave={handleSaveScanRows}
+                  onDismiss={clearScanDraft}
+                />
+              </div>
+            )}
+
+            {editingId && form.registerSr && (
+              <div className="mb-4 rounded-xl border border-violet-500/20 bg-black/30 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                  Register Sr#
+                </p>
+                <p className="mt-1 text-sm text-violet-200">{form.registerSr}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!editingId && (
+                <FormField
+                  label="Sr# (optional)"
+                  id="dak-sr"
+                  hint="Khali chhor dein — agla number auto assign hoga (manual register jaisa)"
+                >
+                  <TextInput
+                    id="dak-sr"
+                    inputMode="numeric"
+                    value={form.registerSr}
+                    onChange={(e) => setForm((p) => ({ ...p, registerSr: e.target.value }))}
+                    placeholder="e.g. 45"
+                  />
+                </FormField>
+              )}
+
+              <FormField label="Subject *" id="dak-subject" error={errors.subject}>
+                <TextInput
+                  id="dak-subject"
+                  value={form.subject}
+                  onChange={(e) => {
+                    setForm((p) => ({ ...p, subject: e.target.value }));
+                    setErrors((p) => ({ ...p, subject: undefined }));
+                  }}
+                  placeholder="File ka subject / matter"
+                />
+              </FormField>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField label="Date (Dispatched) *" id="dak-dispatched" error={errors.forwardedDate}>
+                  <TextInput
+                    id="dak-dispatched"
+                    type="date"
+                    value={form.forwardedDate}
+                    onChange={(e) => {
+                      setForm((p) => ({ ...p, forwardedDate: e.target.value }));
+                      setErrors((p) => ({ ...p, forwardedDate: undefined }));
+                    }}
+                  />
+                </FormField>
+                <FormField label="Date Received (optional)" id="dak-received">
+                  <TextInput
+                    id="dak-received"
+                    type="date"
+                    value={form.receivedDate}
+                    onChange={(e) => setForm((p) => ({ ...p, receivedDate: e.target.value }))}
+                  />
+                </FormField>
+              </div>
+
+              <FormField label="Marked To *" id="dak-addressee" error={errors.designation}>
+                <select
+                  id="dak-addressee"
+                  value={form.designationPreset}
+                  onChange={(e) => {
+                    setForm((p) => ({ ...p, designationPreset: e.target.value }));
+                    setErrors((p) => ({ ...p, designation: undefined }));
+                  }}
+                  className="block w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-zinc-100 shadow-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/40"
+                >
+                  {DAK_DESIGNATION_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                  <option value={DAK_DESIGNATION_CUSTOM}>Other — naam / office likhein</option>
+                </select>
+              </FormField>
+
+              {showCustomAddressee && (
+                <FormField label="Marked To (custom)" id="dak-addressee-custom">
+                  <TextInput
+                    id="dak-addressee-custom"
+                    value={form.designationCustom}
+                    onChange={(e) => {
+                      setForm((p) => ({ ...p, designationCustom: e.target.value }));
+                      setErrors((p) => ({ ...p, designation: undefined }));
+                    }}
+                    placeholder="Jisko dak ja rahi hai"
+                  />
+                </FormField>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-500"
+                >
+                  {editingId ? (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Save &amp; register mein dekhein
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      Add to register
+                    </>
+                  )}
+                </button>
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5"
+                  >
+                    Cancel edit
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
         )}
       </GlassCard>
     </div>

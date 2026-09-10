@@ -20,7 +20,17 @@ import {
   saveWeeklyExpenditureEmailSettings,
 } from '../utils/weeklyExpenditureEmailSettings';
 import { nextOrderNumber, normalizeOrders } from '../utils/orderNumber';
-import { generateDispatchNumber, normalizeDakList } from '../utils/dakEntries';
+import {
+  applyDakClearedAt,
+  generateDispatchNumber,
+  loadDakClearedAt,
+  maxDakClearedAt,
+  mergeDakLists,
+  normalizeDakList,
+  parseDakClearedAt,
+  resolveRegisterSr,
+  saveDakClearedAt,
+} from '../utils/dakEntries';
 import { normalizeTaskList } from '../utils/taskEntries';
 import { normalizeCaptureList } from '../utils/captureEntries';
 import {
@@ -30,8 +40,24 @@ import {
   prepareContactStore,
   standardizeContactRecord,
 } from '../utils/contactEntries';
-import { computeExpenditureBalance } from '../utils/expenditureAnalytics';
+import {
+  generatePettyCaseNo,
+  generateRefreshmentNoteNo,
+  normalizePettyCashCaseList,
+  normalizeRefreshmentNoteList,
+} from '../utils/pettyCashEntries';
+import {
+  loadPettyCashSignatures,
+  savePettyCashSignatures,
+} from '../utils/pettyCashSignatureSettings';
+import { normalizeFileLabel, normalizeFileLabelList } from '../utils/fileLabelEntries';
 import { schedulePersist } from '../utils/persistStorage';
+import { computeExpenditureBalance } from '../utils/expenditureAnalytics';
+import {
+  preferLocalExpenditureIfIncomingEmpty,
+  preferLocalListIfIncomingEmpty,
+  snapshotHasOtherDomainData,
+} from '../utils/importGuards';
 import {
   AppMetaContext,
   ContactsContext,
@@ -39,6 +65,8 @@ import {
   ExpenditureContext,
   MeetingsContext,
   OrdersContext,
+  PettyCashContext,
+  LabelsContext,
   SouvenirsContext,
   TasksContext,
   CaptureContext,
@@ -52,6 +80,8 @@ const DAK_STORAGE_KEY = 'executive_flow_dak';
 const TASKS_STORAGE_KEY = 'executive_flow_tasks';
 const CAPTURE_STORAGE_KEY = 'executive_flow_captures';
 const CONTACTS_STORAGE_KEY = 'executive_flow_contacts';
+const PETTY_CASH_STORAGE_KEY = 'executive_flow_petty_cash';
+const FILE_LABELS_STORAGE_KEY = 'executive_flow_file_labels';
 
 function loadContacts() {
   try {
@@ -59,6 +89,35 @@ function loadContacts() {
     if (raw) {
       const parsed = JSON.parse(raw);
       return normalizeContactList(parsed);
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+function loadPettyCashState() {
+  try {
+    const raw = localStorage.getItem(PETTY_CASH_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        cases: normalizePettyCashCaseList(parsed.cases),
+        refreshmentNotes: normalizeRefreshmentNoteList(parsed.refreshmentNotes),
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return { cases: [], refreshmentNotes: [] };
+}
+
+function loadFileLabels() {
+  try {
+    const raw = localStorage.getItem(FILE_LABELS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return normalizeFileLabelList(parsed);
     }
   } catch {
     /* ignore */
@@ -97,7 +156,7 @@ function loadDakEntries() {
     const raw = localStorage.getItem(DAK_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return normalizeDakList(parsed);
+      return applyDakClearedAt(parsed, loadDakClearedAt());
     }
   } catch {
     /* ignore */
@@ -191,10 +250,17 @@ export function ExecutiveProvider({ children }) {
   }, [orders]);
 
   const [dakEntries, setDakEntries] = useState(loadDakEntries);
+  const [dakClearedAt, setDakClearedAt] = useState(loadDakClearedAt);
+  const dakClearedAtRef = useRef(dakClearedAt);
+  dakClearedAtRef.current = dakClearedAt;
 
   useEffect(() => {
     schedulePersist(DAK_STORAGE_KEY, dakEntries);
   }, [dakEntries]);
+
+  useEffect(() => {
+    saveDakClearedAt(dakClearedAt);
+  }, [dakClearedAt]);
 
   const [taskEntries, setTaskEntries] = useState(loadTaskEntries);
 
@@ -214,6 +280,19 @@ export function ExecutiveProvider({ children }) {
     schedulePersist(CONTACTS_STORAGE_KEY, contacts);
   }, [contacts]);
 
+  const [pettyCashState, setPettyCashState] = useState(loadPettyCashState);
+  const [pettyCashSignatures, setPettyCashSignaturesState] = useState(loadPettyCashSignatures);
+
+  useEffect(() => {
+    schedulePersist(PETTY_CASH_STORAGE_KEY, pettyCashState);
+  }, [pettyCashState]);
+
+  const [fileLabels, setFileLabels] = useState(loadFileLabels);
+
+  useEffect(() => {
+    schedulePersist(FILE_LABELS_STORAGE_KEY, fileLabels);
+  }, [fileLabels]);
+
   const [dataRevision, setDataRevision] = useState(0);
   const skipRevisionBump = useRef(true);
 
@@ -223,7 +302,7 @@ export function ExecutiveProvider({ children }) {
       return;
     }
     setDataRevision((v) => v + 1);
-  }, [meetings, souvenirs, expenditureState, orders, dakEntries, taskEntries, captureEntries, contacts]);
+  }, [meetings, souvenirs, expenditureState, orders, dakEntries, dakClearedAt, taskEntries, captureEntries, contacts, pettyCashState, fileLabels]);
 
   const [inventory] = useState(INVENTORY_ITEMS);
 
@@ -390,21 +469,39 @@ export function ExecutiveProvider({ children }) {
     return entry;
   }, []);
 
-  /** Calendar meeting — exact user detail text, one log row per save */
-  const addSouvenirsFromPresentation = useCallback(
-    ({ meetingId, meetingTitle, date, rawText }) => {
+  /**
+   * Souvenir Log row — independent of calendar.
+   * Meeting title optional (planned or spontaneous / walk-in).
+   */
+  const addSouvenirLogEntry = useCallback(
+    ({ meetingId, meetingTitle, date, detail, source = 'quick-log' }) => {
+      const text = String(detail ?? '').trim();
+      if (!text) return null;
       const entry = {
         id: `souv-${Date.now()}`,
-        meetingId,
-        meetingTitle,
-        dateDistributed: date,
-        detail: rawText.trim(),
-        source: 'calendar-meeting',
+        meetingId: meetingId || undefined,
+        meetingTitle: String(meetingTitle ?? '').trim() || 'Walk-in / Quick log',
+        dateDistributed: date || undefined,
+        detail: text,
+        source,
       };
       setSouvenirs((prev) => [entry, ...prev]);
       return entry;
     },
     [],
+  );
+
+  /** Calendar convenience — same log row, optional link to a meeting */
+  const addSouvenirsFromPresentation = useCallback(
+    ({ meetingId, meetingTitle, date, rawText }) =>
+      addSouvenirLogEntry({
+        meetingId,
+        meetingTitle,
+        date,
+        detail: rawText,
+        source: meetingId ? 'calendar-meeting' : 'quick-log',
+      }),
+    [addSouvenirLogEntry],
   );
 
   /** Souvenir Log row delete — single entry ya purani batch */
@@ -478,17 +575,48 @@ export function ExecutiveProvider({ children }) {
       const entry = {
         id: `dak-${Date.now()}`,
         fileId: generateDispatchNumber(active),
+        registerSr: resolveRegisterSr(payload, active),
         externalDispatchNo: String(payload.externalDispatchNo ?? '').trim(),
         receivedDate: String(payload.receivedDate ?? '').trim(),
         forwardedDate: payload.forwardedDate,
         designation: payload.designation.trim(),
         subject: payload.subject.trim(),
+        scanPhotoUrl: String(payload.scanPhotoUrl ?? '').trim(),
         status: 'active',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       created = entry;
       return [entry, ...prev];
+    });
+    return created;
+  }, []);
+
+  const addDakEntriesBulk = useCallback((payloads) => {
+    if (!Array.isArray(payloads) || !payloads.length) return [];
+    const created = [];
+    setDakEntries((prev) => {
+      let active = prev.filter((d) => d.status !== 'cancelled');
+      for (let i = 0; i < payloads.length; i += 1) {
+        const payload = payloads[i];
+        const entry = {
+          id: `dak-${Date.now()}-${i}`,
+          fileId: generateDispatchNumber(active),
+          registerSr: resolveRegisterSr(payload, active),
+          externalDispatchNo: String(payload.externalDispatchNo ?? '').trim(),
+          receivedDate: String(payload.receivedDate ?? '').trim(),
+          forwardedDate: payload.forwardedDate,
+          designation: String(payload.designation ?? '').trim(),
+          subject: String(payload.subject ?? '').trim(),
+          scanPhotoUrl: String(payload.scanPhotoUrl ?? '').trim(),
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        active = [entry, ...active];
+        created.push(entry);
+      }
+      return [...created, ...prev];
     });
     return created;
   }, []);
@@ -505,6 +633,8 @@ export function ExecutiveProvider({ children }) {
               forwardedDate: payload.forwardedDate,
               designation: payload.designation.trim(),
               subject: payload.subject.trim(),
+              registerSr:
+                Number(payload.registerSr) > 0 ? Number(payload.registerSr) : d.registerSr,
               updatedAt: new Date().toISOString(),
             },
       ),
@@ -519,6 +649,18 @@ export function ExecutiveProvider({ children }) {
           : d,
       ),
     );
+  }, []);
+
+  const eraseDakEntry = useCallback((dakId) => {
+    setDakEntries((prev) => prev.filter((d) => d.id !== dakId));
+  }, []);
+
+  const eraseAllDakEntries = useCallback(() => {
+    const clearedAt = new Date().toISOString();
+    dakClearedAtRef.current = clearedAt;
+    setDakClearedAt(clearedAt);
+    saveDakClearedAt(clearedAt);
+    setDakEntries([]);
   }, []);
 
   const addTaskEntry = useCallback((payload) => {
@@ -705,6 +847,143 @@ export function ExecutiveProvider({ children }) {
     setContacts((prev) => prepareContactStore(prev));
   }, []);
 
+  const addPettyCashCase = useCallback((payload) => {
+    let created;
+    setPettyCashState((prev) => {
+      const cases = prev.cases || [];
+      const entry = {
+        id: `pc-case-${Date.now()}`,
+        caseNo: generatePettyCaseNo(cases),
+        meetingId: String(payload.meetingId ?? '').trim(),
+        meetingTitle: String(payload.meetingTitle ?? '').trim(),
+        meetingDate: String(payload.meetingDate ?? '').trim(),
+        invoicePhotoUrl: String(payload.invoicePhotoUrl ?? '').trim(),
+        purchaseSlip: payload.purchaseSlip || {},
+        satisfactoryNote: payload.satisfactoryNote || {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      created = entry;
+      return {
+        ...prev,
+        cases: [entry, ...cases],
+      };
+    });
+    return created;
+  }, []);
+
+  const updatePettyCashCase = useCallback((caseId, payload) => {
+    setPettyCashState((prev) => ({
+      ...prev,
+      cases: (prev.cases || []).map((c) =>
+        c.id !== caseId
+          ? c
+          : {
+              ...c,
+              meetingId: String(payload.meetingId ?? c.meetingId).trim(),
+              meetingTitle: String(payload.meetingTitle ?? c.meetingTitle).trim(),
+              meetingDate: String(payload.meetingDate ?? c.meetingDate).trim(),
+              invoicePhotoUrl: String(payload.invoicePhotoUrl ?? c.invoicePhotoUrl).trim(),
+              purchaseSlip: payload.purchaseSlip || c.purchaseSlip,
+              satisfactoryNote: payload.satisfactoryNote || c.satisfactoryNote,
+              updatedAt: new Date().toISOString(),
+            },
+      ),
+    }));
+  }, []);
+
+  const removePettyCashCase = useCallback((caseId) => {
+    setPettyCashState((prev) => ({
+      ...prev,
+      cases: (prev.cases || []).filter((c) => c.id !== caseId),
+    }));
+  }, []);
+
+  const addRefreshmentNote = useCallback((payload) => {
+    let created;
+    setPettyCashState((prev) => {
+      const notes = prev.refreshmentNotes || [];
+      const entry = {
+        id: `pc-refresh-${Date.now()}`,
+        noteNo: generateRefreshmentNoteNo(notes),
+        meetingId: String(payload.meetingId ?? '').trim(),
+        meetingTitle: String(payload.meetingTitle ?? '').trim(),
+        meetingDate: String(payload.meetingDate ?? '').trim(),
+        date: String(payload.date ?? '').trim(),
+        itemsIssued: String(payload.itemsIssued ?? '').trim(),
+        quantity: String(payload.quantity ?? '').trim(),
+        purpose: String(payload.purpose ?? '').trim(),
+        receiverName: String(payload.receiverName ?? '').trim(),
+        receiverDesignation: String(payload.receiverDesignation ?? '').trim(),
+        issuedByName: String(payload.issuedByName ?? '').trim(),
+        issuedByDesignation: String(payload.issuedByDesignation ?? '').trim(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      created = entry;
+      return {
+        ...prev,
+        refreshmentNotes: [entry, ...notes],
+      };
+    });
+    return created;
+  }, []);
+
+  const removeRefreshmentNote = useCallback((noteId) => {
+    setPettyCashState((prev) => ({
+      ...prev,
+      refreshmentNotes: (prev.refreshmentNotes || []).filter((n) => n.id !== noteId),
+    }));
+  }, []);
+
+  const updatePettyCashSignatures = useCallback((settings) => {
+    const next = savePettyCashSignatures(settings);
+    setPettyCashSignaturesState(next);
+    return next;
+  }, []);
+
+  const addFileLabel = useCallback((payload) => {
+    const now = new Date().toISOString();
+    const entry = normalizeFileLabel({
+      id: `flabel-${Date.now()}`,
+      name: payload?.name,
+      nameSize: payload?.nameSize,
+      fontSize: payload?.fontSize,
+      nameWeight: payload?.nameWeight,
+      nameAlign: payload?.nameAlign,
+      logoSize: payload?.logoSize,
+      border: payload?.border,
+      orientation: payload?.orientation,
+      copies: payload?.copies,
+      createdAt: now,
+      updatedAt: now,
+    });
+    if (!entry) return null;
+    setFileLabels((prev) => [entry, ...prev]);
+    return entry;
+  }, []);
+
+  const updateFileLabel = useCallback((labelId, payload) => {
+    setFileLabels((prev) =>
+      prev.map((row) => {
+        if (row.id !== labelId) return row;
+        return (
+          normalizeFileLabel({
+            ...row,
+            ...payload,
+            id: row.id,
+            createdAt: row.createdAt,
+            updatedAt: new Date().toISOString(),
+          }) || row
+        );
+      }),
+    );
+  }, []);
+
+  const removeFileLabel = useCallback((labelId) => {
+    setFileLabels((prev) => prev.filter((row) => row.id !== labelId));
+  }, []);
+
   const setExpenditureOpeningBalance = useCallback((amount, date) => {
     const effectiveDate = String(date ?? '').trim() || getTodayISO();
     setExpenditureState((prev) => ({
@@ -792,45 +1071,98 @@ export function ExecutiveProvider({ children }) {
   );
 
   const importAppData = useCallback((data) => {
-    setMeetings(
-      Array.isArray(data.meetings)
+    // Safety guards on EVERY domain: refuse empty cloud wipe when other domains
+    // in the same snapshot still have data (stale / partial Pulse).
+    setMeetings((prev) => {
+      const incoming = Array.isArray(data.meetings)
         ? data.meetings.map((m) => normalizeMeetingForCalendar(m))
-        : [],
+        : [];
+      return preferLocalListIfIncomingEmpty(prev, incoming, data, 'meetings');
+    });
+    setSouvenirs((prev) =>
+      preferLocalListIfIncomingEmpty(
+        prev,
+        Array.isArray(data.souvenirs) ? data.souvenirs : [],
+        data,
+        'souvenirs',
+      ),
     );
-    setSouvenirs(Array.isArray(data.souvenirs) ? data.souvenirs : []);
-    setExpenditureState({
-      openingBalance: Number(data.expenditure?.openingBalance) || 0,
-      openingBalanceDate: String(data.expenditure?.openingBalanceDate ?? '').trim(),
-      expenditures: Array.isArray(data.expenditure?.expenditures)
-        ? data.expenditure.expenditures
-        : [],
+    setExpenditureState((prev) => preferLocalExpenditureIfIncomingEmpty(prev, data));
+    setOrders((prev) =>
+      preferLocalListIfIncomingEmpty(
+        prev,
+        Array.isArray(data.orders) ? data.orders : [],
+        data,
+        'orders',
+      ),
+    );
+    const incomingClear = parseDakClearedAt(data.settings?.dakClearedAt);
+    const dakClearedAtMerged = maxDakClearedAt(dakClearedAtRef.current, incomingClear);
+    if (incomingClear && incomingClear > (dakClearedAtRef.current || '')) {
+      dakClearedAtRef.current = incomingClear;
+      setDakClearedAt(incomingClear);
+      saveDakClearedAt(incomingClear);
+    }
+    setDakEntries((prev) => {
+      const incoming = normalizeDakList(data.dak);
+      if (!incoming.length) {
+        if (incomingClear) {
+          return applyDakClearedAt(prev, dakClearedAtMerged);
+        }
+        return preferLocalListIfIncomingEmpty(prev, incoming, data, 'dak');
+      }
+      return applyDakClearedAt(mergeDakLists(prev, incoming), dakClearedAtMerged);
     });
-    setOrders(Array.isArray(data.orders) ? data.orders : []);
-    setDakEntries(normalizeDakList(data.dak));
-    setTaskEntries(normalizeTaskList(data.tasks));
-    setCaptureEntries(normalizeCaptureList(data.captures));
-    // Guard: cloud partial/corrupt snapshots used contacts: [] while other domains
-    // had data — Pulse imported that and wiped Contact Database on every device.
-    setContacts((prev) => {
-      const incoming = normalizeContactList(data.contacts);
-      if (incoming.length > 0) return incoming;
-      if (!prev.length) return incoming;
-      const otherDomainsPresent =
-        (Array.isArray(data.meetings) && data.meetings.length > 0) ||
-        (Array.isArray(data.orders) && data.orders.length > 0) ||
-        (Array.isArray(data.tasks) && data.tasks.length > 0) ||
-        (Array.isArray(data.dak) && data.dak.length > 0) ||
-        (Array.isArray(data.souvenirs) && data.souvenirs.length > 0) ||
-        (Array.isArray(data.expenditure?.expenditures) &&
-          data.expenditure.expenditures.length > 0);
-      if (otherDomainsPresent) return prev;
-      return incoming;
+    setTaskEntries((prev) =>
+      preferLocalListIfIncomingEmpty(prev, normalizeTaskList(data.tasks), data, 'tasks'),
+    );
+    setCaptureEntries((prev) =>
+      preferLocalListIfIncomingEmpty(
+        prev,
+        normalizeCaptureList(data.captures),
+        data,
+        'captures',
+      ),
+    );
+    setContacts((prev) =>
+      preferLocalListIfIncomingEmpty(
+        prev,
+        normalizeContactList(data.contacts),
+        data,
+        'contacts',
+      ),
+    );
+    setPettyCashState((prev) => {
+      const incomingCases = normalizePettyCashCaseList(data.pettyCash?.cases);
+      const incomingRefresh = normalizeRefreshmentNoteList(data.pettyCash?.refreshmentNotes);
+      const incomingEmpty = !incomingCases.length && !incomingRefresh.length;
+      const prevHas =
+        (prev.cases?.length ?? 0) > 0 || (prev.refreshmentNotes?.length ?? 0) > 0;
+      if (incomingEmpty && prevHas && snapshotHasOtherDomainData(data, 'pettyCash')) {
+        return prev;
+      }
+      if (incomingEmpty && !prevHas) return prev;
+      return {
+        cases: incomingCases.length ? incomingCases : prev.cases,
+        refreshmentNotes: incomingRefresh.length ? incomingRefresh : prev.refreshmentNotes,
+      };
     });
+    setFileLabels((prev) =>
+      preferLocalListIfIncomingEmpty(
+        prev,
+        normalizeFileLabelList(data.fileLabels),
+        data,
+        'fileLabels',
+      ),
+    );
     if (data.settings?.morningMeetingBoard) {
       saveMorningBoardSettings(data.settings.morningMeetingBoard);
     }
     if (data.settings?.weeklyExpenditureEmail) {
       saveWeeklyExpenditureEmailSettings(data.settings.weeklyExpenditureEmail);
+    }
+    if (data.settings?.pettyCashSignatures) {
+      setPettyCashSignaturesState(savePettyCashSignatures(data.settings.pettyCashSignatures));
     }
   }, []);
 
@@ -845,12 +1177,16 @@ export function ExecutiveProvider({ children }) {
         taskEntries,
         captureEntries,
         contacts,
+        pettyCashState,
+        fileLabels,
         settings: {
           morningMeetingBoard: loadMorningBoardSettings(),
           weeklyExpenditureEmail: loadWeeklyExpenditureEmailSettings(),
+          pettyCashSignatures: loadPettyCashSignatures(),
+          ...(dakClearedAt ? { dakClearedAt } : {}),
         },
       }),
-    [meetings, souvenirs, expenditureState, orders, dakEntries, taskEntries, captureEntries, contacts],
+    [meetings, souvenirs, expenditureState, orders, dakEntries, dakClearedAt, taskEntries, captureEntries, contacts, pettyCashState, fileLabels],
   );
 
   const appMetaValue = useMemo(
@@ -931,10 +1267,13 @@ export function ExecutiveProvider({ children }) {
     () => ({
       dakEntries,
       addDakEntry,
+      addDakEntriesBulk,
       updateDakEntry,
       cancelDakEntry,
+      eraseDakEntry,
+      eraseAllDakEntries,
     }),
-    [dakEntries, addDakEntry, updateDakEntry, cancelDakEntry],
+    [dakEntries, addDakEntry, addDakEntriesBulk, updateDakEntry, cancelDakEntry, eraseDakEntry, eraseAllDakEntries],
   );
 
   const tasksValue = useMemo(
@@ -980,11 +1319,46 @@ export function ExecutiveProvider({ children }) {
     [contacts, addContact, updateContact, removeContact, importContacts, clearAllContacts, reconcileContacts],
   );
 
+  const pettyCashValue = useMemo(
+    () => ({
+      pettyCashCases: pettyCashState.cases || [],
+      refreshmentNotes: pettyCashState.refreshmentNotes || [],
+      pettyCashSignatures,
+      addPettyCashCase,
+      updatePettyCashCase,
+      removePettyCashCase,
+      addRefreshmentNote,
+      removeRefreshmentNote,
+      updatePettyCashSignatures,
+    }),
+    [
+      pettyCashState,
+      pettyCashSignatures,
+      addPettyCashCase,
+      updatePettyCashCase,
+      removePettyCashCase,
+      addRefreshmentNote,
+      removeRefreshmentNote,
+      updatePettyCashSignatures,
+    ],
+  );
+
+  const labelsValue = useMemo(
+    () => ({
+      fileLabels,
+      addFileLabel,
+      updateFileLabel,
+      removeFileLabel,
+    }),
+    [fileLabels, addFileLabel, updateFileLabel, removeFileLabel],
+  );
+
   const souvenirsValue = useMemo(
     () => ({
       souvenirs,
       setSouvenirs,
       addSouvenir,
+      addSouvenirLogEntry,
       addSouvenirsFromPresentation,
       removeSouvenirLogEntry,
       monthlySouvenirSummary,
@@ -992,6 +1366,7 @@ export function ExecutiveProvider({ children }) {
     [
       souvenirs,
       addSouvenir,
+      addSouvenirLogEntry,
       addSouvenirsFromPresentation,
       removeSouvenirLogEntry,
       monthlySouvenirSummary,
@@ -1007,6 +1382,8 @@ export function ExecutiveProvider({ children }) {
       ...tasksValue,
       ...captureValue,
       ...contactsValue,
+      ...pettyCashValue,
+      ...labelsValue,
       ...souvenirsValue,
       ...appMetaValue,
     }),
@@ -1018,6 +1395,8 @@ export function ExecutiveProvider({ children }) {
       tasksValue,
       captureValue,
       contactsValue,
+      pettyCashValue,
+      labelsValue,
       souvenirsValue,
       appMetaValue,
     ],
@@ -1032,11 +1411,15 @@ export function ExecutiveProvider({ children }) {
               <TasksContext.Provider value={tasksValue}>
                 <CaptureContext.Provider value={captureValue}>
                   <ContactsContext.Provider value={contactsValue}>
-                    <SouvenirsContext.Provider value={souvenirsValue}>
-                      <ExecutiveContext.Provider value={legacyValue}>
-                        {children}
-                      </ExecutiveContext.Provider>
-                    </SouvenirsContext.Provider>
+                    <PettyCashContext.Provider value={pettyCashValue}>
+                      <LabelsContext.Provider value={labelsValue}>
+                      <SouvenirsContext.Provider value={souvenirsValue}>
+                        <ExecutiveContext.Provider value={legacyValue}>
+                          {children}
+                        </ExecutiveContext.Provider>
+                      </SouvenirsContext.Provider>
+                      </LabelsContext.Provider>
+                    </PettyCashContext.Provider>
                   </ContactsContext.Provider>
                 </CaptureContext.Provider>
               </TasksContext.Provider>
@@ -1072,6 +1455,8 @@ export const useDakExecutive = () => useDomainContext(DakContext, 'useDakExecuti
 export const useTasksExecutive = () => useDomainContext(TasksContext, 'useTasksExecutive');
 export const useCaptureExecutive = () => useDomainContext(CaptureContext, 'useCaptureExecutive');
 export const useContactsExecutive = () => useDomainContext(ContactsContext, 'useContactsExecutive');
+export const usePettyCashExecutive = () => useDomainContext(PettyCashContext, 'usePettyCashExecutive');
+export const useLabelsExecutive = () => useDomainContext(LabelsContext, 'useLabelsExecutive');
 export const useSouvenirsExecutive = () =>
   useDomainContext(SouvenirsContext, 'useSouvenirsExecutive');
 export const useAppMetaExecutive = () => useDomainContext(AppMetaContext, 'useAppMetaExecutive');

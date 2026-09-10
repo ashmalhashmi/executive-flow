@@ -24,6 +24,7 @@ import {
   useOrdersExecutive,
   useSouvenirsExecutive,
   useTasksExecutive,
+  useLabelsExecutive,
 } from '../context/ExecutiveContext';
 import { useCloudSyncContext } from '../context/CloudSyncContext';
 import { useGoogleSheetsSyncContext } from '../context/GoogleSheetsSyncContext';
@@ -45,6 +46,7 @@ export default function SyncBackup() {
   const { taskEntries } = useTasksExecutive();
   const { captureEntries } = useCaptureExecutive();
   const { contacts } = useContactsExecutive();
+  const { fileLabels } = useLabelsExecutive();
   const { importAppData, getAppSnapshot } = useAppMetaExecutive();
   const [loginEmail, setLoginEmail] = useState('hashmiashmal57@gmail.com');
   const [otpCode, setOtpCode] = useState('');
@@ -64,6 +66,7 @@ export default function SyncBackup() {
     tasks: taskEntries,
     captures: captureEntries,
     contacts,
+    fileLabels,
   });
 
   const cloudDiff = useMemo(() => {
@@ -82,7 +85,8 @@ export default function SyncBackup() {
               {localSummary.calendarMeetings} calendar meetings · {localSummary.meetings} total ·{' '}
               {localSummary.souvenirs} souvenirs · {localSummary.expenditures} expenditures ·{' '}
               {localSummary.orders} orders · {localSummary.dak} dak · {localSummary.tasks} tasks ·{' '}
-              {localSummary.captures} captures · {localSummary.contacts} contacts
+              {localSummary.captures} captures · {localSummary.contacts} contacts ·{' '}
+              {localSummary.fileLabels ?? 0} file labels
             </p>
           </div>
         </div>
@@ -263,7 +267,8 @@ export default function SyncBackup() {
                   <p className="mt-1 text-zinc-500">
                     Local: {localSummary.meetings} meetings · {localSummary.orders} orders ·{' '}
                     {localSummary.tasks} tasks · {localSummary.dak} dak · {localSummary.expenditures}{' '}
-                    expenses · {localSummary.contacts} contacts
+                    expenses · {localSummary.contacts} contacts · {localSummary.fileLabels ?? 0}{' '}
+                    labels
                   </p>
                   {cloud.cloudPreview ? (
                     <p className="mt-1 text-zinc-500">
@@ -271,7 +276,8 @@ export default function SyncBackup() {
                       {cloud.cloudPreview.summary.orders} orders ·{' '}
                       {cloud.cloudPreview.summary.tasks} tasks · {cloud.cloudPreview.summary.dak} dak
                       · {cloud.cloudPreview.summary.expenditures} expenses ·{' '}
-                      {cloud.cloudPreview.summary.contacts ?? 0} contacts
+                      {cloud.cloudPreview.summary.contacts ?? 0} contacts ·{' '}
+                      {cloud.cloudPreview.summary.fileLabels ?? 0} labels
                       {cloud.cloudPreview.updatedAt
                         ? ` · ${new Date(cloud.cloudPreview.updatedAt).toLocaleString()}`
                         : ''}

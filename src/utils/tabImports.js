@@ -3,9 +3,12 @@
 export const TAB_IMPORTS = {
   dashboard: () => import('../pages/DashboardOverview'),
   ask: () => import('../pages/AskAnythingPage'),
+  compose: () => import('../pages/ComposeDesk'),
+  labels: () => import('../pages/LabelGenerator'),
   calendar: () => import('../pages/ExecutiveCalendar'),
   souvenirs: () => import('../pages/SouvenirLog'),
   expenditure: () => import('../pages/ExpenditureLog'),
+  pettyCash: () => import('../pages/PettyCashRecord'),
   orders: () => import('../pages/OrderLog'),
   dak: () => import('../pages/DakIssuanceLog'),
   tasks: () => import('../pages/TaskLog'),
@@ -16,8 +19,11 @@ export const TAB_IMPORTS = {
 
 const PREFETCH_ORDER = [
   'ask',
+  'compose',
+  'labels',
   'calendar',
   'expenditure',
+  'pettyCash',
   'tasks',
   'capture',
   'contacts',

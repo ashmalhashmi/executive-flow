@@ -11,6 +11,8 @@ import {
 import { useTasksExecutive } from '../context/ExecutiveContext';
 import GlassCard from '../components/ui/GlassCard';
 import FormField, { TextInput } from '../components/ui/FormField';
+import ListPager from '../components/ui/ListPager';
+import { usePagedList } from '../hooks/usePagedList';
 import { formatDisplayDate, formatDisplayTime, getTodayISO } from '../utils/dates';
 import { taskStatusLabel } from '../utils/taskEntries';
 
@@ -42,6 +44,15 @@ export default function TaskLog() {
         }),
     [taskEntries],
   );
+
+  const {
+    page: taskPage,
+    setPage: setTaskPage,
+    totalPages: taskTotalPages,
+    pageItems: taskPageItems,
+    total: taskTotal,
+    showingLabel: taskShowingLabel,
+  } = usePagedList(listEntries, { pageSize: 50 });
 
   const resetForm = () => {
     setForm(emptyForm());
@@ -224,7 +235,7 @@ export default function TaskLog() {
             </h3>
             <p className="mt-1 text-xs text-zinc-500">
               <strong className="text-zinc-300">{listEntries.length}</strong> task
-              {listEntries.length === 1 ? '' : 's'} · pending pehle, phir done
+              {listEntries.length === 1 ? '' : 's'} · pending pehle, phir done · {taskShowingLabel}
             </p>
           </div>
           <button
@@ -243,8 +254,17 @@ export default function TaskLog() {
             Abhi koi task nahi — upar se add karein
           </p>
         ) : (
-          <ul className="space-y-3">
-            {listEntries.map((entry) => {
+          <>
+            <ListPager
+              page={taskPage}
+              totalPages={taskTotalPages}
+              total={taskTotal}
+              showingLabel={taskShowingLabel}
+              onPageChange={setTaskPage}
+              className="mb-3"
+            />
+            <ul className="space-y-3">
+              {taskPageItems.map((entry) => {
               const isDone = entry.status === 'done';
               return (
                 <li
@@ -321,7 +341,16 @@ export default function TaskLog() {
                 </li>
               );
             })}
-          </ul>
+            </ul>
+            <ListPager
+              page={taskPage}
+              totalPages={taskTotalPages}
+              total={taskTotal}
+              showingLabel={taskShowingLabel}
+              onPageChange={setTaskPage}
+              className="mt-3"
+            />
+          </>
         )}
       </GlassCard>
     </div>

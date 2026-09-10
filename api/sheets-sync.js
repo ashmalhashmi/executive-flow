@@ -322,10 +322,11 @@ export default async function handler(req, res) {
       'Record ID',
       'System Dispatch No.',
       'Date (Dispatched)',
-      'Addressee',
+      'Marked To',
       'Subject',
       'Date Received',
       'Official Outward No.',
+      'Scan Photo URL',
       'Status',
     ];
     const dakDataRows = dak.map((d) => [
@@ -336,6 +337,7 @@ export default async function handler(req, res) {
       d.subject || '',
       d.receivedDate || '',
       d.externalDispatchNo || '',
+      d.scanPhotoUrl || '',
       d.status === 'cancelled' ? 'Cancelled' : 'Active',
     ]);
     totalReplaced += (

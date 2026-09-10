@@ -3,6 +3,7 @@ import {
   buildContactExtractUserPrompt,
   parseExtractedContactJson,
 } from './_lib/contactExtract.js';
+import { uploadContactCardPhoto } from './_lib/contactCardStorage.js';
 
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite';
 
@@ -81,8 +82,26 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'text ya image required' });
     }
 
+    let cardPhotoUrl = '';
+    let storageWarning = '';
+    if (imageBase64) {
+      const uploadResult = await uploadContactCardPhoto({ imageBase64, imageMimeType });
+      if (uploadResult.ok) {
+        cardPhotoUrl = uploadResult.cardPhotoUrl;
+      } else {
+        storageWarning = uploadResult.error || 'Card photo cloud par save nahi hui';
+      }
+    }
+
     const contact = await callGemini({ apiKey, text, imageBase64, imageMimeType });
-    return res.status(200).json({ ok: true, via: 'ai', model: getGeminiModel(), contact });
+    return res.status(200).json({
+      ok: true,
+      via: 'ai',
+      model: getGeminiModel(),
+      contact,
+      cardPhotoUrl,
+      ...(storageWarning ? { storageWarning } : {}),
+    });
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Extraction failed' });
   }

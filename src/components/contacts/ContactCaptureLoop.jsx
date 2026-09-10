@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { ArrowRight, ClipboardPaste, ImagePlus, Loader2, Zap } from 'lucide-react';
-import GlassCard from '../ui/GlassCard';
+import CollapsibleSection from '../ui/CollapsibleSection';
 import { extractContactWithAi } from '../../utils/contactAiExtract';
 import ContactCaptureVerifyModal from './ContactCaptureVerifyModal';
 
@@ -10,7 +10,7 @@ const STEPS = [
   { id: 'sync', label: 'Sync', color: 'text-emerald-300' },
 ];
 
-export default function ContactCaptureLoop({ contacts, onSaveContact }) {
+export default function ContactCaptureLoop({ contacts, onSaveContact, defaultOpen = false }) {
   const [rawText, setRawText] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imageName, setImageName] = useState('');
@@ -18,6 +18,7 @@ export default function ContactCaptureLoop({ contacts, onSaveContact }) {
   const [message, setMessage] = useState('');
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [previewContact, setPreviewContact] = useState(null);
+  const [cardPhotoUrl, setCardPhotoUrl] = useState('');
   const [extractVia, setExtractVia] = useState('ai');
   const imageRef = useRef(null);
 
@@ -49,6 +50,7 @@ export default function ContactCaptureLoop({ contacts, onSaveContact }) {
     try {
       const result = await extractContactWithAi({ text: rawText, imageFile });
       setPreviewContact(result.contact);
+      setCardPhotoUrl(String(result.cardPhotoUrl ?? '').trim());
       setExtractVia(result.via || 'ai');
       setVerifyOpen(true);
       if (result.warning) setMessage(result.warning);
@@ -65,6 +67,7 @@ export default function ContactCaptureLoop({ contacts, onSaveContact }) {
       setRawText('');
       setImageFile(null);
       setImageName('');
+      setCardPhotoUrl('');
       if (imageRef.current) imageRef.current.value = '';
       setMessage('Synced ✓ — contact saved, Sheet sync background mein');
     }
@@ -73,31 +76,21 @@ export default function ContactCaptureLoop({ contacts, onSaveContact }) {
 
   return (
     <>
-      <GlassCard className="border-amber-500/25 bg-gradient-to-br from-amber-500/10 to-emerald-500/5 p-5 sm:p-6">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/15">
-              <Zap className="h-5 w-5 text-amber-300" />
+      <CollapsibleSection
+        defaultOpen={defaultOpen}
+        className="border-amber-500/25 bg-gradient-to-br from-amber-500/10 to-emerald-500/5 p-5 sm:p-6"
+        icon={<Zap className="h-5 w-5 text-amber-300" />}
+        title="Capture → Verify → Sync"
+        subtitle="Card / WhatsApp / OCR — zaroorat par kholein"
+      >
+        <div className="mb-3 flex items-center gap-1 text-xs font-medium">
+          {STEPS.map((step, i) => (
+            <span key={step.id} className="flex items-center gap-1">
+              <span className={step.color}>{step.label}</span>
+              {i < STEPS.length - 1 && <ArrowRight className="h-3 w-3 text-zinc-600" />}
             </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-amber-400/90">
-                Capture → Verify → Sync
-              </p>
-              <p className="text-sm text-zinc-500">
-                Card / WhatsApp / OCR text — abhi capture karo, baad mein mat choro
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-xs font-medium">
-            {STEPS.map((step, i) => (
-              <span key={step.id} className="flex items-center gap-1">
-                <span className={step.color}>{step.label}</span>
-                {i < STEPS.length - 1 && <ArrowRight className="h-3 w-3 text-zinc-600" />}
-              </span>
-            ))}
-          </div>
+          ))}
         </div>
-
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-amber-300/80">
           Step 1 — Capture
         </p>
@@ -129,6 +122,7 @@ export default function ContactCaptureLoop({ contacts, onSaveContact }) {
               ref={imageRef}
               type="file"
               accept="image/*"
+              capture="environment"
               className="sr-only"
               onChange={handleImage}
             />
@@ -145,12 +139,18 @@ export default function ContactCaptureLoop({ contacts, onSaveContact }) {
         </div>
 
         {message && <p className="mt-3 text-sm text-zinc-400">{message}</p>}
-      </GlassCard>
+        {!message && imageFile && (
+          <p className="mt-3 text-xs text-zinc-500">
+            Card photo cloud par save hogi — phone gallery mein save nahi hogi
+          </p>
+        )}
+      </CollapsibleSection>
 
       <ContactCaptureVerifyModal
         isOpen={verifyOpen}
         onClose={() => setVerifyOpen(false)}
         initialContact={previewContact}
+        cardPhotoUrl={cardPhotoUrl}
         contacts={contacts}
         onConfirm={handleSync}
         extractVia={extractVia}

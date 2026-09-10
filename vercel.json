@@ -14,9 +14,42 @@
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/restore", "destination": "/restore.html" },
+    { "source": "/((?!api/|restore\\.html).*)", "destination": "/index.html" }
   ],
+  "functions": {
+    "api/extract-dak.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/extract-petty-invoice.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/extract-contact.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
   "headers": [
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/restore.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
     {
       "source": "/assets/(.*)",
       "headers": [

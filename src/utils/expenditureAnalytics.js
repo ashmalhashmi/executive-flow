@@ -1,4 +1,7 @@
-import { normalizeExpenditureCategory } from '../constants/expenditureCategories';
+import {
+  EXPENDITURE_CATEGORIES,
+  normalizeExpenditureCategory,
+} from '../constants/expenditureCategories';
 import { isDateBetween } from './dates';
 
 export function filterExpendituresByRange(expenditures, startISO, endISO) {
@@ -60,6 +63,31 @@ export function groupByCategory(expenditures) {
   return [...map.entries()]
     .map(([category, amount]) => ({ category, amount }))
     .sort((a, b) => b.amount - a.amount);
+}
+
+/**
+ * Category blocks for PDF/reports: fixed category order, items newest-date first.
+ * @returns {{ category: string, items: object[], subtotal: number }[]}
+ */
+export function groupExpendituresByCategoryBlocks(expenditures) {
+  const map = new Map();
+  for (const e of expenditures || []) {
+    const cat = normalizeExpenditureCategory(e.category);
+    if (!map.has(cat)) map.set(cat, []);
+    map.get(cat).push(e);
+  }
+  const blocks = [];
+  for (const category of EXPENDITURE_CATEGORIES) {
+    const items = map.get(category);
+    if (!items?.length) continue;
+    items.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    blocks.push({
+      category,
+      items,
+      subtotal: sumExpenditures(items),
+    });
+  }
+  return blocks;
 }
 
 /** Each row: category, amount, percent of total, cumulative percent */

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase, supabaseConfigured, CLOUD_TABLE } from '../lib/supabase';
-import { hasAnyAppData, summarizeBackup, validateBackup } from '../utils/backup';
+import { hasAnyAppData, hasAnyAppDataExceptDak, summarizeBackup, validateBackup } from '../utils/backup';
+import { parseDakClearedAt } from '../utils/dakEntries';
 import { pushSnapshotToCloud } from '../utils/cloudSyncPush';
 import { snapshotDataKey } from '../utils/cloudSyncState';
 import { getAuthRedirectTo } from '../utils/authRedirect';
@@ -154,11 +155,23 @@ export function useCloudSync({ getAppSnapshot, importAppData, dataRevision = 0 }
         const cloudAhead = countKeys.some(
           (k) => (cloudSum?.[k] ?? 0) > (localSum?.[k] ?? 0),
         );
+        const localAhead = countKeys.some(
+          (k) => (localSum?.[k] ?? 0) > (cloudSum?.[k] ?? 0),
+        );
         const emptyLocalNeedsCloud =
           !hasAnyAppData(localSum) && hasAnyAppData(cloudSum);
-        // Auto-pull when cloud has more rows (mobile expenses) or device is empty.
-        // Otherwise use Load now — avoids wiping richer local edits.
-        if (!cloudAhead && !emptyLocalNeedsCloud) return;
+        // Auto-pull only when cloud is ahead AND this device is not ahead in any domain.
+        // Mixed ahead (e.g. cloud has more meetings, local has more souvenirs) → Load now.
+        if (emptyLocalNeedsCloud) {
+          /* continue */
+        } else if (!cloudAhead || localAhead) {
+          if (cloudAhead && localAhead) {
+            setSyncMessage(
+              'Cloud aur is device dono mein alag naye records — Sync page se Load now / Save now choose karein.',
+            );
+          }
+          return;
+        }
 
         autoPulledForUserRef.current = user.id;
         setSyncMessage('Cloud mein zyada data — Pulse auto-load kar rahi hai…');
@@ -322,7 +335,17 @@ export function useCloudSync({ getAppSnapshot, importAppData, dataRevision = 0 }
       const isSmall = payloadBytes <= 80_000;
 
       const cloudSummary = cloudPreview?.summary;
-      if (!hasAnyAppData(summary) && cloudSummary && hasAnyAppData(cloudSummary)) {
+      const intentionalDakOnlyWipe =
+        Boolean(parseDakClearedAt(snapshot?.data?.settings?.dakClearedAt)) &&
+        (summary.dak ?? 0) === 0 &&
+        cloudSummary &&
+        !hasAnyAppDataExceptDak(cloudSummary);
+      if (
+        !hasAnyAppData(summary) &&
+        cloudSummary &&
+        hasAnyAppData(cloudSummary) &&
+        !intentionalDakOnlyWipe
+      ) {
         const blockedMessage =
           'Is device par data khali hai — cloud par purana backup hai. Pulse pehle cloud se load karega; empty overwrite block hai.';
         if (!silent) {

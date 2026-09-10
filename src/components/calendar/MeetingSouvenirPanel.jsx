@@ -1,21 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Gift, Lock, CheckCircle2 } from 'lucide-react';
+import { Gift, CheckCircle2 } from 'lucide-react';
 import GlassCard from '../ui/GlassCard';
-import FormField, { TextArea } from '../ui/FormField';
+import FormField, { TextArea, TextInput } from '../ui/FormField';
 import { formatDisplayTime } from '../../utils/dates';
 
+/**
+ * Calendar-side convenience logger.
+ * Meeting on that day is optional — free-text occasion works anytime.
+ */
 export default function MeetingSouvenirPanel({
   selectedDate,
   meetingsOnDay,
   onSavePresentation,
 }) {
-  const enabled = meetingsOnDay.length > 0;
+  const hasMeetings = meetingsOnDay.length > 0;
   const [selectedMeetingId, setSelectedMeetingId] = useState('');
+  const [customTitle, setCustomTitle] = useState('');
   const [rawText, setRawText] = useState('');
   const [saved, setSaved] = useState(false);
 
   const selectedMeeting = useMemo(
-    () => meetingsOnDay.find((m) => m.id === selectedMeetingId) ?? meetingsOnDay[0],
+    () => meetingsOnDay.find((m) => m.id === selectedMeetingId) ?? null,
     [meetingsOnDay, selectedMeetingId],
   );
 
@@ -25,46 +30,30 @@ export default function MeetingSouvenirPanel({
     } else {
       setSelectedMeetingId('');
     }
+    setCustomTitle('');
     setRawText('');
     setSaved(false);
   }, [selectedDate, meetingsOnDay]);
 
+  const meetingTitle = hasMeetings
+    ? selectedMeeting?.title || customTitle.trim()
+    : customTitle.trim();
+
   const canSave = rawText.trim().length > 0;
 
   const handleSave = () => {
-    if (!enabled || !selectedMeeting || !canSave) return;
+    if (!canSave) return;
     onSavePresentation({
-      meetingId: selectedMeeting.id,
-      meetingTitle: selectedMeeting.title,
+      meetingId: selectedMeeting?.id,
+      meetingTitle: meetingTitle || 'Walk-in / Quick log',
       date: selectedDate,
       rawText: rawText.trim(),
     });
     setRawText('');
+    if (!hasMeetings) setCustomTitle('');
     setSaved(true);
     setTimeout(() => setSaved(false), 4000);
   };
-
-  if (!enabled) {
-    return (
-      <GlassCard className="border-zinc-700/50 bg-zinc-900/50 p-5 opacity-80">
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-600/50 bg-zinc-800/80">
-            <Lock className="h-5 w-5 text-zinc-600" />
-          </span>
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-500">
-              Souvenirs Presented (disabled)
-            </h3>
-            <p className="mt-2 text-xs leading-relaxed text-zinc-600">
-              Yeh option sirf un dinon par enable hoti hai jab{' '}
-              <strong className="text-zinc-500">Executive Flow Calendar</strong> par meeting
-              schedule ho. Pehle is din appointment add karein.
-            </p>
-          </div>
-        </div>
-      </GlassCard>
-    );
-  }
 
   return (
     <GlassCard className="border-amber-500/25 bg-amber-500/5 p-5 sm:p-6">
@@ -73,15 +62,16 @@ export default function MeetingSouvenirPanel({
           <Gift className="h-5 w-5 text-amber-300" strokeWidth={1.75} />
         </span>
         <div>
-          <h3 className="text-sm font-semibold text-white">Souvenirs Presented</h3>
+          <h3 className="text-sm font-semibold text-white">Log Souvenir</h3>
           <p className="mt-1 text-xs text-zinc-500">
-            Jo likhein wahi Souvenir Log aur Google Sheet mein save hoga
+            Calendar meeting optional — spontaneous visit bhi yahan save ho sakti hai. Ya{' '}
+            <span className="text-zinc-400">Souvenir Log → Quick Log</span> use karein.
           </p>
         </div>
       </div>
 
-      {meetingsOnDay.length > 1 && (
-        <FormField label="Meeting" id="souv-meeting-pick" className="mb-4">
+      {hasMeetings ? (
+        <FormField label="Meeting (optional pick)" id="souv-meeting-pick" className="mb-4">
           <select
             id="souv-meeting-pick"
             value={selectedMeeting?.id ?? ''}
@@ -94,6 +84,20 @@ export default function MeetingSouvenirPanel({
               </option>
             ))}
           </select>
+        </FormField>
+      ) : (
+        <FormField
+          label="Occasion / Guest (optional)"
+          id="souv-custom-title"
+          className="mb-4"
+          hint="Is din koi calendar meeting nahi — phir bhi log kar sakte hain"
+        >
+          <TextInput
+            id="souv-custom-title"
+            value={customTitle}
+            onChange={(e) => setCustomTitle(e.target.value)}
+            placeholder="e.g. Walk-in — supplier visit"
+          />
         </FormField>
       )}
 
@@ -108,7 +112,6 @@ export default function MeetingSouvenirPanel({
           value={rawText}
           onChange={(e) => setRawText(e.target.value)}
           placeholder="e.g. Crystal Award 2, Branded Portfolio 1, Fountain Pen 6"
-          disabled={!enabled}
         />
       </FormField>
 
@@ -120,7 +123,7 @@ export default function MeetingSouvenirPanel({
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Gift className="h-4 w-4" />
-          Souvenir Log mein save
+          Log Souvenir
         </button>
         {saved && (
           <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">

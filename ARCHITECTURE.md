@@ -19,15 +19,18 @@ Premium executive assistant for office ops: meetings, souvenirs, money, orders, 
 | **Shell** | — | Layout, tabs, providers | `App.jsx`, `components/layout/`, `constants/navigation.js`, `utils/tabImports.js` |
 | **Meetings** | `calendar`, dashboard widgets | Appointments, reminders, morning board | `pages/ExecutiveCalendar.jsx`, `utils/calendar.js`, `utils/reminders.js`, `utils/morningBoardSettings.js`, `api/morning-meeting-board.js` |
 | **Souvenirs** | `souvenirs` | Meeting gift / stock log | `pages/SouvenirLog.jsx`, `utils/souvenirLog.js`, `components/souvenirs/` |
-| **Expenditure** | `expenditure` | PKR expenses, categories, weekly email | `pages/ExpenditureLog.jsx`, `utils/expenditure*.js`, `api/categorize-expenditure.js`, `api/weekly-expenditure-summary.js` |
-| **Orders** | `orders` | Vendor orders | `pages/OrderLog.jsx`, `utils/orderNumber.js`, `utils/orderWhatsApp.js`, `utils/orderHistoryPdf.js` |
-| **Dak** | `dak` | Dispatch / issuance log | `pages/DakIssuanceLog.jsx`, `utils/dakEntries.js`, `utils/dakIssuancePdf.js`, `utils/dakWhatsApp.js` |
+| **Expenditure** | `expenditure` | PKR expenses, categories, weekly email · PDF grouped by category (opening→today) | `pages/ExpenditureLog.jsx`, `utils/expenditure*.js`, `api/categorize-expenditure.js`, `api/weekly-expenditure-summary.js` |
+| **Petty Cash** | `pettyCash` | Purchase Slip · Satisfactory Note · Refreshment Receiving · invoice scan · PDF/Word/Email | `pages/PettyCashRecord.jsx`, `utils/pettyCash*.js`, `api/extract-petty-invoice.js`, `api/petty-cash-email.js` |
+| **Orders** | `orders` | Vendor orders · Receiving Note PDF/Word/Email (+ AI statement, signature image) | `pages/OrderLog.jsx`, `utils/orderNumber.js`, `utils/orderWhatsApp.js`, `utils/orderHistoryPdf.js`, `utils/orderReceivingNotePdf.js`, `utils/orderReceivingNoteDoc.js`, `utils/orderReceivingNoteAi.js`, `utils/orderReceivingNoteEmail.js`, `api/receiving-note-statement.js`, `api/receiving-note-email.js` |
+| **Dak** | `dak` | Dispatch / issuance log · register scan → cloud photo URL + AI fields (verify before save) | `pages/DakIssuanceLog.jsx`, `components/dak/DakScanCapture.jsx`, `utils/dakEntries.js`, `utils/dakAiExtract.js`, `utils/dakIssuancePdf.js`, `utils/dakWhatsApp.js`, `api/extract-dak.js`, `api/_lib/dakScanStorage.js` |
 | **Tasks** | `tasks` | Task list + done | `pages/TaskLog.jsx`, `utils/taskEntries.js`, `utils/taskLogPdf.js` |
 | **Capture** | `capture` | Brain-dump inbox | `pages/CaptureInbox.jsx`, `utils/captureEntries.js` |
 | **Contacts** | `contacts` | Contact DB + AI extract | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `api/extract-contact.js` |
 | **Sync** | `sync` | Auth, Pulse cloud, Sheets mirror backup | `pages/SyncBackup.jsx`, `context/CloudSyncContext.jsx`, `context/GoogleSheetsSyncContext.jsx`, `utils/cloudSync*.js`, `utils/googleSheetsSync.js`, `api/sheets-sync.js`, `api/_lib/sheetsMirror.js`, `docs/CLOUD_SYNC.md` |
 | **Dashboard** | `dashboard` | Overview only — composes other domains | `pages/DashboardOverview.jsx`, `components/dashboard/` |
 | **Ask** | `ask` | Unified search + NLP math · live app data only | `pages/AskAnythingPage.jsx`, `components/ask/AskAnything.jsx`, `utils/askAnything.js`, `utils/askMath.js`, `utils/askUnifiedSearch.js` |
+| **Compose** | `compose` | Intent → blueprint slots (AI/local) → assembler → editor · Copy/PDF/Word/Email | `pages/ComposeDesk.jsx`, `constants/composePurposes.js`, `constants/composeBlueprints.js`, `utils/composeBlueprintAssemble.js`, `utils/composeDraft.js`, `utils/composeAiDraft.js`, `utils/composeLetterPdf.js`, `utils/composeLetterDoc.js`, `utils/composeLetterEmail.js`, `api/compose-draft.js`, `api/compose-letter-email.js` |
+| **Labels** | `labels` | Official PAFDA plate labels · designation → PDF/Word/Email · Pulse cloud | `pages/LabelGenerator.jsx`, `constants/labelTemplates.js`, `utils/fileLabel*.js`, `utils/labelPdf.js`, `api/compose-letter-email.js` (`file_label`), `docs/domains/LABELS.md` |
 
 Shared UI bricks (GlassCard, Modal, FormField, StatusBadge) live in `src/components/ui/`. Prefer reusing them over inventing new chrome.
 
@@ -54,6 +57,7 @@ App
 | `TasksContext` | same | Tasks |
 | `CaptureContext` | same | Capture |
 | `ContactsContext` | same | Contacts |
+| `LabelsContext` | same | Labels |
 | `AppMetaContext` | same | Shell / meta |
 | `CloudSyncContext` | `context/CloudSyncContext.jsx` | Sync |
 | `GoogleSheetsSyncContext` | `context/GoogleSheetsSyncContext.jsx` | Sync |
@@ -76,8 +80,11 @@ UI page  →  domain Context hooks  →  utils/*Entries (normalize)  →  localS
 |---------|--------|-----------------|
 | Morning meeting board PDF/email | `meetingBoardPdf.js`, settings utils | `morning-meeting-board.js` + `_lib/meetingBoard*` |
 | Weekly expenditure summary | settings + PDF utils | `weekly-expenditure-summary.js` + `_lib/expenditureWeekly*` |
+| Compose letter Word email | `composeLetterDoc.js` (client + API) | `compose-letter-email.js` + Resend |
+| Compose blueprint assemble | `composeBlueprints.js`, `composeBlueprintAssemble.js` | `compose-draft.js` returns **slots** only |
 | AI categorize spend | `expenditureAiCategorize.js` | `categorize-expenditure.js` |
 | AI contact extract | `contactAiExtract.js` | `extract-contact.js` |
+| AI dak register scan | `dakAiExtract.js`, `DakScanCapture.jsx` | `extract-dak.js` + `_lib/dakExtract.js` + `_lib/dakScanStorage.js` (Vercel Blob, Supabase fallback) |
 | Google Sheets mirror backup | `googleSheetsSync.js` | `sheets-sync.js` + `sheetsMirror.js` |
 
 Timezone / “today” for office jobs: Karachi — see `api/_lib/karachiDate.js`.
@@ -135,6 +142,9 @@ docs/CLOUD_SYNC.md        Sync user/ops story
 | Sync | [docs/domains/SYNC.md](./docs/domains/SYNC.md) |
 | Meetings | [docs/domains/MEETINGS.md](./docs/domains/MEETINGS.md) |
 | Expenditure | [docs/domains/EXPENDITURE.md](./docs/domains/EXPENDITURE.md) |
+| Compose | [docs/domains/COMPOSE.md](./docs/domains/COMPOSE.md) |
+| Labels | [docs/domains/LABELS.md](./docs/domains/LABELS.md) |
+| Orders | [docs/domains/ORDERS.md](./docs/domains/ORDERS.md) |
 
 Agent entrypoint: **[AGENTS.md](./AGENTS.md)**
 

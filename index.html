@@ -337,43 +337,99 @@
       </div>
     </div>
     <script>
+      window.__efBoot = { htmlReadyAt: Date.now() };
+    </script>
+    <script>
       (function () {
-        var BOOT_TIMEOUT_MS = 8000;
+        var WAIT_HINT_MS = 15000;
+        var BOOT_TIMEOUT_MS = 180000;
+
+        function hardReloadWithCacheBust() {
+          var url = new URL(window.location.href);
+          url.searchParams.set('ef_refresh', String(Date.now()));
+          window.location.replace(url.pathname + url.search + url.hash);
+        }
+
+        function dismissBootUi() {
+          document.getElementById('ef-boot-recovery')?.remove();
+          document.getElementById('ef-boot-wait')?.remove();
+          document.querySelector('.app-boot')?.remove();
+        }
+
+        function runRecovery() {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              return Promise.all(regs.map(function (r) { return r.unregister(); }));
+            }).then(function () {
+              if ('caches' in window) {
+                return caches.keys().then(function (keys) {
+                  return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                });
+              }
+            }).finally(function () { hardReloadWithCacheBust(); });
+          } else {
+            hardReloadWithCacheBust();
+          }
+        }
+
+        function showWaitHint() {
+          if (document.getElementById('ef-boot-wait') || document.getElementById('ef-boot-recovery')) return;
+          if (!document.querySelector('.app-boot')) return;
+          if (window.__efBoot && window.__efBoot.reactMounted) return;
+
+          var bar = document.createElement('div');
+          bar.id = 'ef-boot-wait';
+          bar.style.cssText =
+            'position:fixed;inset:auto 0 0 0;padding:0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));background:#27272a;border-top:1px solid rgba(255,255,255,.1);z-index:9998;text-align:center;font-family:system-ui,sans-serif;font-size:13px;color:#d4d4d8;';
+          bar.textContent = 'Loading… slow network par 2–3 minute wait karein. Beech mein Refresh mat dabao.';
+          document.body.appendChild(bar);
+        }
 
         function showRecoveryBar() {
           if (document.getElementById('ef-boot-recovery')) return;
+          if (window.__efBoot && window.__efBoot.reactMounted) return;
           var boot = document.querySelector('.app-boot');
           if (!boot || !boot.isConnected) return;
+
+          document.getElementById('ef-boot-wait')?.remove();
+
+          var detail = '';
+          if (window.__efBoot && window.__efBoot.moduleLoaded) {
+            detail = 'Files load ho gayi — app start mein error. Refresh try karein.';
+          } else {
+            detail = 'Internet slow ya purani cache. Refresh try karein — Clear site data mat karein.';
+          }
 
           var bar = document.createElement('div');
           bar.id = 'ef-boot-recovery';
           bar.style.cssText =
             'position:fixed;inset:auto 0 0 0;padding:1rem 1.25rem calc(1rem + env(safe-area-inset-bottom));background:#18181b;border-top:1px solid rgba(255,255,255,.12);z-index:9999;text-align:center;font-family:system-ui,sans-serif;font-size:14px;color:#e4e4e7;line-height:1.5;';
           bar.innerHTML =
-            'App load nahi ho rahi. Neeche wala button sirf cache clear karta hai — aapka data phone memory mein safe rehta hai. ' +
-            '<strong>Chrome Settings se "Clear site data" mat karein.</strong> ' +
+            detail +
+            ' <strong>Chrome Settings se Clear site data mat karein</strong> (data udd jayega). ' +
+            '<a href="./restore.html" style="color:#a5b4fc;display:block;margin-top:8px">Emergency restore (cloud se data)</a>' +
             '<button type="button" id="ef-boot-recovery-btn" style="display:block;margin:10px auto 0;padding:10px 20px;border-radius:10px;border:none;background:#6366f1;color:#fff;font-weight:600;font-size:14px;">Refresh app</button>';
 
           document.body.appendChild(bar);
           document.getElementById('ef-boot-recovery-btn').addEventListener('click', function () {
             var btn = document.getElementById('ef-boot-recovery-btn');
             if (btn) btn.textContent = 'Refreshing…';
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistrations().then(function (regs) {
-                return Promise.all(regs.map(function (r) { return r.unregister(); }));
-              }).then(function () {
-                if ('caches' in window) {
-                  return caches.keys().then(function (keys) {
-                    return Promise.all(keys.map(function (k) { return caches.delete(k); }));
-                  });
-                }
-              }).finally(function () { window.location.reload(); });
-            } else {
-              window.location.reload();
-            }
+            runRecovery();
           });
         }
 
+        var rootEl = document.getElementById('root');
+        if (rootEl) {
+          var bootObserver = new MutationObserver(function () {
+            if (!document.querySelector('.app-boot') || (window.__efBoot && window.__efBoot.reactMounted)) {
+              dismissBootUi();
+              bootObserver.disconnect();
+            }
+          });
+          bootObserver.observe(rootEl, { childList: true, subtree: true });
+        }
+
+        setTimeout(showWaitHint, WAIT_HINT_MS);
         setTimeout(showRecoveryBar, BOOT_TIMEOUT_MS);
       })();
     </script>

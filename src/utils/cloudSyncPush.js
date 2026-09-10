@@ -1,6 +1,7 @@
 import { buildAppSnapshot } from './backup';
+import { mergeDakSnapshotData } from './dakEntries';
 
-const SECTIONS = ['meetings', 'souvenirs', 'expenditure', 'orders', 'dak', 'tasks', 'contacts'];
+const SECTIONS = ['meetings', 'souvenirs', 'expenditure', 'orders', 'dak', 'tasks', 'pettyCash', 'contacts', 'fileLabels'];
 
 const SECTION_LABELS = {
   meetings: 'Meetings',
@@ -9,11 +10,34 @@ const SECTION_LABELS = {
   orders: 'Orders',
   dak: 'Dak Issuance',
   tasks: 'Tasks',
+  pettyCash: 'Petty Cash',
   contacts: 'Contacts',
+  fileLabels: 'File Labels',
 };
 
 export function getSnapshotPayloadBytes(snapshot) {
   return new Blob([JSON.stringify(snapshot)]).size;
+}
+
+async function mergeCloudDakIntoSnapshot({ supabase, table, userId, getAppSnapshot }) {
+  const local = getAppSnapshot();
+  const { data: row } = await supabase
+    .from(table)
+    .select('payload')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const cloudData = row?.payload?.data;
+  const { dak, settings } = mergeDakSnapshotData(local?.data, cloudData);
+
+  return {
+    ...local,
+    data: {
+      ...local.data,
+      dak,
+      settings,
+    },
+  };
 }
 
 /**
@@ -28,8 +52,10 @@ export async function pushSnapshotToCloud({
   getAppSnapshot,
   onProgress,
 }) {
+  onProgress?.({ progress: 8, phase: 'Merging dak with cloud…' });
+  const mergedLocal = await mergeCloudDakIntoSnapshot({ supabase, table, userId, getAppSnapshot });
   const snapshot = {
-    ...getAppSnapshot(),
+    ...mergedLocal,
     exportedAt: new Date().toISOString(),
   };
   const payloadBytes = getSnapshotPayloadBytes(snapshot);

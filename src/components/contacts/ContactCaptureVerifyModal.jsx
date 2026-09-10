@@ -16,6 +16,7 @@ export default function ContactCaptureVerifyModal({
   contacts,
   onConfirm,
   extractVia = 'ai',
+  cardPhotoUrl = '',
 }) {
   const [form, setForm] = useState(extractedContactToForm(initialContact));
   const [errors, setErrors] = useState({});
@@ -36,10 +37,15 @@ export default function ContactCaptureVerifyModal({
       return;
     }
 
-    const payload = formFieldsToContactPayload(form);
+    const payload = {
+      ...formFieldsToContactPayload(form),
+      cardPhotoUrl: String(cardPhotoUrl ?? '').trim(),
+    };
     const duplicate = findDuplicateContact(contacts, payload);
     if (duplicate) {
-      setErrors({ phone: `Duplicate — ${duplicate.name} pehle se mojood hai` });
+      setErrors({
+        phone: `Duplicate — card ki har field same hai (${duplicate.name} pehle se mojood hai)`,
+      });
       return;
     }
 
@@ -47,7 +53,7 @@ export default function ContactCaptureVerifyModal({
     try {
       const saved = await onConfirm(payload);
       if (!saved) {
-        setErrors({ phone: 'Save failed — duplicate ya invalid data' });
+        setErrors({ phone: 'Save failed — bilkul same contact pehle se mojood hai' });
         return;
       }
       onClose();
@@ -70,6 +76,20 @@ export default function ContactCaptureVerifyModal({
             </span>
           )}
         </p>
+
+        {cardPhotoUrl ? (
+          <p className="text-xs text-emerald-300/90">
+            Card photo cloud par save —{' '}
+            <a
+              href={cardPhotoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-emerald-200"
+            >
+              preview
+            </a>
+          </p>
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <FormField label="Naam *" id="capture-verify-name" error={errors.name}>

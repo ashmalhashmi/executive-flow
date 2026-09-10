@@ -6,7 +6,7 @@ export function snapshotDataKey(snapshotOrData) {
 
 export function countDiff(localSummary, cloudSummary) {
   if (!cloudSummary) return null;
-  const keys = ['meetings', 'calendarMeetings', 'souvenirs', 'expenditures', 'orders', 'dak', 'tasks', 'contacts'];
+  const keys = ['meetings', 'calendarMeetings', 'souvenirs', 'expenditures', 'orders', 'dak', 'tasks', 'contacts', 'fileLabels'];
   const diff = {};
   for (const key of keys) {
     const local = localSummary[key] ?? 0;

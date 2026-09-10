@@ -5,17 +5,14 @@ export function buildDakWhatsAppMessage(entry) {
   const lines = [
     'Dak Issuance',
     '',
+    entry.registerSr ? `Sr#: ${entry.registerSr}` : '',
     `Subject: ${entry.subject}`,
     `Date (Dispatched): ${formatDisplayDate(entry.forwardedDate)}`,
-    `Addressee: ${entry.designation}`,
-  ];
+    `Marked To: ${entry.designation}`,
+  ].filter(Boolean);
   if (entry.receivedDate) {
     lines.push(`Date Received: ${formatDisplayDate(entry.receivedDate)}`);
   }
-  if (entry.externalDispatchNo) {
-    lines.push(`Official Outward No.: ${entry.externalDispatchNo}`);
-  }
-  lines.push(`System Ref: ${entry.fileId}`);
   return lines.join('\n');
 }
 

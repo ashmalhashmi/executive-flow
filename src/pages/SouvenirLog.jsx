@@ -3,13 +3,22 @@ import { FileDown, Gift } from 'lucide-react';
 import { useSouvenirsExecutive } from '../context/ExecutiveContext';
 import GlassCard from '../components/ui/GlassCard';
 import SouvenirLogTable from '../components/souvenirs/SouvenirLogTable';
+import QuickSouvenirLogForm from '../components/souvenirs/QuickSouvenirLogForm';
 import { normalizeSouvenirLogEntries } from '../utils/souvenirLog';
 
-export default function SouvenirLog({ onNavigate }) {
-  const { souvenirs, removeSouvenirLogEntry } = useSouvenirsExecutive();
+export default function SouvenirLog() {
+  const { souvenirs, removeSouvenirLogEntry, addSouvenirLogEntry } = useSouvenirsExecutive();
   const rows = normalizeSouvenirLogEntries(souvenirs);
   const hasRecords = rows.length > 0;
   const [pdfBusy, setPdfBusy] = useState(false);
+
+  const handleQuickSave = ({ meetingTitle, date, detail }) =>
+    addSouvenirLogEntry({
+      meetingTitle,
+      date,
+      detail,
+      source: 'quick-log',
+    });
 
   const handleDownloadPdf = async () => {
     if (!hasRecords) return;
@@ -24,6 +33,8 @@ export default function SouvenirLog({ onNavigate }) {
 
   return (
     <div className="space-y-6">
+      <QuickSouvenirLogForm onSave={handleQuickSave} />
+
       <GlassCard className="p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -31,7 +42,7 @@ export default function SouvenirLog({ onNavigate }) {
               Souvenir Log PDF
             </h3>
             <p className="mt-1 text-xs text-zinc-500">
-              Meeting Title, meeting ki date, aur souvenirs ka exact text PDF me download karein.
+              Meeting / occasion, date, aur souvenirs ka exact text PDF me download karein.
             </p>
           </div>
           <button
@@ -52,22 +63,13 @@ export default function SouvenirLog({ onNavigate }) {
           onDeleteEntry={removeSouvenirLogEntry}
         />
       ) : (
-        <GlassCard className="flex flex-col items-center justify-center px-6 py-16 text-center">
+        <GlassCard className="flex flex-col items-center justify-center px-6 py-12 text-center">
           <Gift className="mb-4 h-12 w-12 text-zinc-600" strokeWidth={1.25} />
           <p className="text-sm font-medium text-zinc-400">Abhi koi souvenir record nahi</p>
           <p className="mt-2 max-w-sm text-xs text-zinc-600">
-            Calendar par meeting ke baad &quot;Souvenirs Presented&quot; se Detail likh kar save
-            karein — Meeting, Date aur exact text yahan dikhega.
+            Upar <strong className="text-zinc-500">Quick Log Souvenir</strong> se seedha entry
+            add karein — calendar meeting zaroori nahi.
           </p>
-          {onNavigate && (
-            <button
-              type="button"
-              onClick={() => onNavigate('calendar')}
-              className="mt-4 text-sm font-medium text-indigo-400 hover:text-indigo-300"
-            >
-              My Calendar kholein →
-            </button>
-          )}
         </GlassCard>
       )}
     </div>

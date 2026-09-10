@@ -179,6 +179,7 @@ export function standardizeContactRecord(contact) {
     contactNo: contactNos[0] || '',
     website: standardizeWebsite(contact.website),
     address: String(contact.address ?? '').trim(),
+    cardPhotoUrl: String(contact.cardPhotoUrl ?? '').trim(),
     status: contact.status === 'archived' ? 'archived' : 'active',
     createdAt: contact.createdAt || new Date().toISOString(),
     updatedAt: contact.updatedAt || contact.createdAt || new Date().toISOString(),
@@ -235,6 +236,7 @@ export function mergeContactRecords(primary, secondary) {
     contactNo: mergedContactNos[0] || '',
     website: pickRicherString(a.website, b.website),
     address: pickRicherString(a.address, b.address),
+    cardPhotoUrl: String(newer.cardPhotoUrl || older.cardPhotoUrl || '').trim(),
     status: a.status === 'archived' || b.status === 'archived' ? 'archived' : 'active',
     createdAt:
       (Date.parse(a.createdAt) || Infinity) < (Date.parse(b.createdAt) || Infinity)
@@ -244,34 +246,52 @@ export function mergeContactRecords(primary, secondary) {
   };
 }
 
-/** Dedupe keys — same mobile, office line, or email = same person. */
-export function getContactDedupeKeys(contact) {
-  const keys = new Set();
+/** Exact-match fingerprint — duplicate tabhi jab card ki saari fields same hon. */
+export function getContactExactFingerprint(contact) {
   const record = standardizeContactRecord(contact);
-  if (!record) return [];
+  if (!record) return null;
 
-  const mobileDigits = new Set();
-  for (const phone of getContactPhones(record)) {
-    const mobile = normalizePhoneDigits(phone);
-    if (mobile.length >= 10) {
-      keys.add(`phone:${mobile}`);
-      mobileDigits.add(mobile);
-    }
-  }
-  for (const contactNo of getContactContactNos(record)) {
-    const office = normalizePhoneDigits(contactNo);
-    if (office.length >= 7 && !mobileDigits.has(office)) keys.add(`office:${office}`);
-  }
-  for (const email of getContactEmails(record)) {
-    keys.add(`email:${email}`);
-  }
+  const phones = getContactPhones(record)
+    .map(normalizePhoneDigits)
+    .filter(Boolean)
+    .sort();
+  const contactNos = getContactContactNos(record)
+    .map(normalizePhoneDigits)
+    .filter(Boolean)
+    .sort();
+  const emails = getContactEmails(record).sort();
 
-  return [...keys];
+  return {
+    name: record.name.toLowerCase(),
+    department: record.department.toLowerCase(),
+    designation: record.designation.toLowerCase(),
+    phones,
+    contactNos,
+    emails,
+    website: standardizeWebsite(record.website).toLowerCase(),
+    address: record.address.toLowerCase(),
+  };
 }
 
-export function contactsShareDedupeKey(a, b) {
-  const aKeys = new Set(getContactDedupeKeys(a));
-  return getContactDedupeKeys(b).some((key) => aKeys.has(key));
+function fingerprintListsEqual(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
+}
+
+export function contactsAreExactDuplicate(a, b) {
+  const left = getContactExactFingerprint(a);
+  const right = getContactExactFingerprint(b);
+  if (!left || !right) return false;
+  return (
+    left.name === right.name &&
+    left.department === right.department &&
+    left.designation === right.designation &&
+    left.website === right.website &&
+    left.address === right.address &&
+    fingerprintListsEqual(left.phones, right.phones) &&
+    fingerprintListsEqual(left.contactNos, right.contactNos) &&
+    fingerprintListsEqual(left.emails, right.emails)
+  );
 }
 
 export function findDuplicateContact(contacts, payload, excludeId = '') {
@@ -284,58 +304,32 @@ export function findDuplicateContact(contacts, payload, excludeId = '') {
   });
   if (!probe) return null;
 
-  const probeKeys = getContactDedupeKeys(probe);
-  if (!probeKeys.length) return null;
-
   for (const contact of contacts || []) {
     if (contact.id === excludeId || contact.status === 'archived') continue;
-    if (contactsShareDedupeKey(probe, contact)) return contact;
+    if (contactsAreExactDuplicate(probe, contact)) return contact;
   }
   return null;
 }
 
-/** Remove / merge repeat entries — newest richest record wins per dedupe key. */
+/** Remove bilkul same entries — newest record wins per exact fingerprint. */
 export function dedupeContactList(contacts) {
   const sorted = [...(contacts || [])]
     .map(standardizeContactRecord)
     .filter(Boolean)
     .sort((a, b) => (Date.parse(a.updatedAt) || 0) - (Date.parse(b.updatedAt) || 0));
 
-  const keyOwners = new Map();
-  const mergedById = new Map();
+  const kept = [];
 
   for (const contact of sorted) {
-    const keys = getContactDedupeKeys(contact);
-    let ownerId = null;
-
-    for (const key of keys) {
-      if (keyOwners.has(key)) {
-        ownerId = keyOwners.get(key);
-        break;
-      }
-    }
-
-    if (ownerId && mergedById.has(ownerId)) {
-      const merged = mergeContactRecords(mergedById.get(ownerId), contact);
-      mergedById.set(merged.id, merged);
-      for (const key of getContactDedupeKeys(merged)) {
-        keyOwners.set(key, merged.id);
-      }
-      if (merged.id !== ownerId) {
-        mergedById.delete(ownerId);
-      }
+    const dupIndex = kept.findIndex((existing) => contactsAreExactDuplicate(existing, contact));
+    if (dupIndex >= 0) {
+      kept[dupIndex] = mergeContactRecords(kept[dupIndex], contact);
       continue;
     }
-
-    mergedById.set(contact.id, contact);
-    for (const key of keys) {
-      keyOwners.set(key, contact.id);
-    }
+    kept.push(contact);
   }
 
-  return [...mergedById.values()].sort(
-    (a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0),
-  );
+  return kept.sort((a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0));
 }
 
 export function prepareContactStore(raw) {

@@ -8,4 +8,6 @@ export const TasksContext = createContext(null);
 export const CaptureContext = createContext(null);
 export const ContactsContext = createContext(null);
 export const SouvenirsContext = createContext(null);
+export const PettyCashContext = createContext(null);
+export const LabelsContext = createContext(null);
 export const AppMetaContext = createContext(null);

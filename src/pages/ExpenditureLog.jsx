@@ -16,11 +16,12 @@ import {
 import { useExpenditureExecutive } from '../context/ExecutiveContext';
 import GlassCard from '../components/ui/GlassCard';
 import FormField, { TextInput } from '../components/ui/FormField';
+import ListPager from '../components/ui/ListPager';
+import { usePagedList } from '../hooks/usePagedList';
 import { formatPKR, parsePKRInput } from '../utils/currency';
 import {
   formatDisplayDate,
   getTodayISO,
-  getYearMonth,
   getCurrentWeekRangeISO,
 } from '../utils/dates';
 import {
@@ -152,9 +153,6 @@ export default function ExpenditureLog() {
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
   const [editingId, setEditingId] = useState('');
-  const todayParts = getYearMonth(getTodayISO());
-  const [logYear, setLogYear] = useState(todayParts.year);
-  const [logMonth, setLogMonth] = useState(todayParts.month - 1);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [categoryBusy, setCategoryBusy] = useState(false);
   const [categoryHint, setCategoryHint] = useState('');
@@ -178,36 +176,22 @@ export default function ExpenditureLog() {
     [expenditures],
   );
 
+  const {
+    page: expPage,
+    setPage: setExpPage,
+    totalPages: expTotalPages,
+    pageItems: expPageItems,
+    total: expTotal,
+    showingLabel: expShowingLabel,
+  } = usePagedList(expenditures, { pageSize: 50 });
+
   const weekTotal = weekBreakdown.total;
 
-  const logYears = useMemo(() => {
-    const years = Array.from(
-      new Set(
-        expenditures
-          .map((e) => getYearMonth(e.date || '').year)
-          .filter((y) => Number.isFinite(y) && y > 0),
-      ),
-    ).sort((a, b) => b - a);
-    return years.length ? years : [todayParts.year];
-  }, [expenditures, todayParts.year]);
-
-  const monthOptions = useMemo(
-    () =>
-      Array.from({ length: 12 }, (_, i) => ({
-        value: i,
-        label: new Date(2000, i, 1).toLocaleDateString('en-US', { month: 'long' }),
-      })),
-    [],
-  );
-
-  const monthExpenditures = useMemo(
-    () =>
-      expenditures.filter((e) => {
-        const { year, month } = getYearMonth(e.date || '');
-        return year === logYear && month === logMonth + 1;
-      }),
-    [expenditures, logMonth, logYear],
-  );
+  /** PDF range: opening balance date → today */
+  const pdfRangeExpenditures = useMemo(() => {
+    const start = expenditureOpeningBalanceDate || '0000-01-01';
+    return filterExpendituresByRange(expenditures, start, getTodayISO());
+  }, [expenditures, expenditureOpeningBalanceDate]);
 
   const resetForm = () => {
     setForm(emptyForm());
@@ -401,7 +385,7 @@ export default function ExpenditureLog() {
   };
 
   const handleDownloadPdf = async () => {
-    if (!monthExpenditures.length) return;
+    if (!pdfRangeExpenditures.length) return;
     setPdfBusy(true);
     try {
       const { downloadExpenditureLogPdf } = await import('../utils/expenditureLogPdf');
@@ -409,8 +393,6 @@ export default function ExpenditureLog() {
         expenditures,
         openingBalance: expenditureOpeningBalance,
         openingBalanceDate: expenditureOpeningBalanceDate,
-        year: logYear,
-        monthIndex: logMonth,
       });
     } finally {
       setPdfBusy(false);
@@ -713,56 +695,37 @@ export default function ExpenditureLog() {
               Expenditure Log
             </h3>
             <p className="mt-1 text-xs text-zinc-500">
-              Year-Month select karke PDF: Sr#, Description, Category, Date, Amount
+              PDF: opening date → aaj · category-grouped · subtotals · Opening / Total / Closing
             </p>
           </div>
-        </div>
-        <div className="mb-4 grid gap-3 sm:grid-cols-2">
-          <label className="text-xs text-zinc-400">
-            Year
-            <select
-              value={logYear}
-              onChange={(e) => setLogYear(Number(e.target.value))}
-              className="mt-1 block w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-zinc-100 shadow-sm outline-none ring-0 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/40"
-            >
-              {logYears.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs text-zinc-400">
-            Month
-            <select
-              value={logMonth}
-              onChange={(e) => setLogMonth(Number(e.target.value))}
-              className="mt-1 block w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-zinc-100 shadow-sm outline-none ring-0 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/40"
-            >
-              {monthOptions.map((month) => (
-                <option key={month.value} value={month.value}>
-                  {month.label}
-                </option>
-              ))}
-            </select>
-          </label>
         </div>
         <button
           type="button"
           onClick={handleDownloadPdf}
-          disabled={pdfBusy || monthExpenditures.length === 0}
+          disabled={pdfBusy || pdfRangeExpenditures.length === 0}
           className="mb-4 inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <FileDown className="h-4 w-4" />
-          {pdfBusy ? 'PDF ban rahi hai…' : `Download PDF (${monthExpenditures.length})`}
+          {pdfBusy
+            ? 'PDF ban rahi hai…'
+            : `Download PDF (${pdfRangeExpenditures.length})`}
         </button>
         {expenditures.length === 0 ? (
           <p className="py-8 text-center text-sm text-zinc-500">
             Abhi koi expenditure record nahi
           </p>
         ) : (
-          <ul className="custom-scrollbar max-h-none space-y-2 sm:max-h-[360px] sm:overflow-y-auto">
-            {expenditures.map((item) => (
+          <>
+            <ListPager
+              page={expPage}
+              totalPages={expTotalPages}
+              total={expTotal}
+              showingLabel={expShowingLabel}
+              onPageChange={setExpPage}
+              className="mb-3"
+            />
+            <ul className="space-y-2">
+              {expPageItems.map((item) => (
               <li
                 key={item.id}
                 className={[
@@ -805,7 +768,16 @@ export default function ExpenditureLog() {
                 </button>
               </li>
             ))}
-          </ul>
+            </ul>
+            <ListPager
+              page={expPage}
+              totalPages={expTotalPages}
+              total={expTotal}
+              showingLabel={expShowingLabel}
+              onPageChange={setExpPage}
+              className="mt-3"
+            />
+          </>
         )}
       </GlassCard>
 

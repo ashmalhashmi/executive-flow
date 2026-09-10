@@ -143,9 +143,9 @@ export function getReportTabDefs() {
       sourceTab: 'Dak Issuance',
       title: 'Dak Issuance — Context Register',
       subtitle:
-        'Human view: Subject, Date, Addressee first. System ref last. Sorted by dispatch date.',
+        'Human view: Subject, Date, Marked To first. System ref last. Sorted by dispatch date.',
       formulaRow: 4,
-      formula: `=QUERY('Dak Issuance'!A1:H, "SELECT E, C, D, F, B, G WHERE A IS NOT NULL AND A <> 'Record ID' ORDER BY C DESC LABEL E 'Subject', C 'Date (Dispatched)', D 'Addressee', F 'Date Received', B 'System Ref', G 'Official Outward No.'", 1)`,
+      formula: `=QUERY('Dak Issuance'!A1:H, "SELECT E, C, D, F, B, G WHERE A IS NOT NULL AND A <> 'Record ID' ORDER BY C DESC LABEL E 'Subject', C 'Date (Dispatched)', D 'Marked To', F 'Date Received', B 'System Ref', G 'Official Outward No.'", 1)`,
       statusCol: null,
       mergeTitleCols: 6,
     },

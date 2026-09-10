@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  BookUser,
   Plus,
   Search,
   Phone,
@@ -15,11 +14,16 @@ import {
   Loader2,
   Undo2,
   Globe,
+  Image,
 } from 'lucide-react';
 import { useContactsExecutive } from '../context/ExecutiveContext';
 import GlassCard from '../components/ui/GlassCard';
 import FormField, { TextInput } from '../components/ui/FormField';
 import CopyButton from '../components/ui/CopyButton';
+import Modal from '../components/ui/Modal';
+import ListPager from '../components/ui/ListPager';
+import CollapsibleSection from '../components/ui/CollapsibleSection';
+import { usePagedList } from '../hooks/usePagedList';
 import { getWhatsAppShareUrl } from '../utils/whatsappShare';
 import {
   buildContactCardText,
@@ -60,6 +64,24 @@ const COL_OPTIONS = (headers) => [
   { value: '', label: '— Select column —' },
   ...headers.map((h, i) => ({ value: String(i), label: h || `Column ${i + 1}` })),
 ];
+
+const EMAIL_KEY = 'executive_flow_contact_database_email';
+
+function loadExportEmail() {
+  try {
+    return localStorage.getItem(EMAIL_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function saveExportEmail(email) {
+  try {
+    localStorage.setItem(EMAIL_KEY, String(email || '').trim());
+  } catch {
+    /* ignore */
+  }
+}
 
 const emptyForm = () => ({
   name: '',
@@ -141,6 +163,17 @@ function ContactActions({ contact }) {
           Website
         </a>
       )}
+      {contact.cardPhotoUrl ? (
+        <a
+          href={contact.cardPhotoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-fuchsia-500/30 bg-fuchsia-500/10 px-2.5 py-1.5 text-xs font-medium text-fuchsia-200 hover:bg-fuchsia-500/20"
+        >
+          <Image className="h-3.5 w-3.5" />
+          Card photo
+        </a>
+      ) : null}
       {googleSearchUrl && (
         <a
           href={googleSearchUrl}
@@ -167,6 +200,9 @@ export default function ContactDatabase() {
   const [errors, setErrors] = useState({});
   const [editingId, setEditingId] = useState('');
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [exportEmail, setExportEmail] = useState(loadExportEmail);
+  const [exportMessage, setExportMessage] = useState('');
 
   const [importBusy, setImportBusy] = useState(false);
   const [importMessage, setImportMessage] = useState('');
@@ -177,6 +213,8 @@ export default function ContactDatabase() {
   const [importType, setImportType] = useState('');
   const [columnMap, setColumnMap] = useState(emptyContactUiColumnMap);
   const [importMode, setImportMode] = useState('merge');
+  const [formOpen, setFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const didReconcile = useRef(false);
 
   useEffect(() => {
@@ -213,11 +251,30 @@ export default function ContactDatabase() {
     [searchIndex, search, departmentContactIds],
   );
   const hasActiveFilters = search.trim() || selectedDepartmentId !== ALL_DEPARTMENTS_ID;
+  const filterResetKey = `${search.trim()}|${selectedDepartmentId}`;
+  const {
+    page,
+    setPage,
+    totalPages,
+    pageItems,
+    total,
+    showingLabel,
+  } = usePagedList(filtered, { pageSize: 50, resetKey: filterResetKey });
 
   const resetForm = () => {
     setForm(emptyForm());
     setErrors({});
     setEditingId('');
+  };
+
+  const closeFormModal = () => {
+    resetForm();
+    setFormOpen(false);
+  };
+
+  const openNewContact = () => {
+    resetForm();
+    setFormOpen(true);
   };
 
   const startEdit = (contact) => {
@@ -233,7 +290,7 @@ export default function ContactDatabase() {
       address: contact.address || '',
     });
     setErrors({});
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setFormOpen(true);
   };
 
   const validateForm = () => {
@@ -275,13 +332,8 @@ export default function ContactDatabase() {
 
     const duplicate = findDuplicateContact(contacts, payload, editingId);
     if (duplicate) {
-      const hint =
-        getContactPhones(duplicate)[0] ||
-        getContactContactNos(duplicate)[0] ||
-        getContactEmails(duplicate)[0] ||
-        duplicate.name;
       setErrors({
-        phone: `Yeh contact pehle se mojood hai — ${hint}`,
+        phone: `Yeh contact pehle se mojood hai — card ki har field same hai (${duplicate.name})`,
       });
       return null;
     }
@@ -298,27 +350,60 @@ export default function ContactDatabase() {
     if (editingId) {
       const saved = updateContact(editingId, payload);
       if (!saved) {
-        setErrors({ phone: 'Update failed — duplicate phone, email, ya office number' });
+        setErrors({ phone: 'Update failed — bilkul same contact pehle se mojood hai' });
         return;
       }
     } else {
       const created = addContact(payload);
       if (!created) {
-        setErrors({ phone: 'Duplicate contact — same phone, email, ya office number' });
+        setErrors({ phone: 'Duplicate contact — card ki har field pehle se same hai' });
         return;
       }
     }
-    resetForm();
+    closeFormModal();
   };
 
   const handleDownloadPdf = async () => {
     if (!filtered.length) return;
     setPdfBusy(true);
+    setExportMessage('');
     try {
       const { downloadContactDatabasePdf } = await import('../utils/contactDatabasePdf');
       downloadContactDatabasePdf(filtered);
+      setExportMessage(`PDF ready — ${filtered.length} contact${filtered.length === 1 ? '' : 's'}`);
+    } catch (err) {
+      setExportMessage(err.message || 'PDF fail');
     } finally {
       setPdfBusy(false);
+    }
+  };
+
+  const handleEmailPdf = async () => {
+    const to = exportEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+      setExportMessage('Pehle valid email address likhein.');
+      return;
+    }
+    if (!filtered.length) {
+      setExportMessage('Email ke liye koi contact nahi');
+      return;
+    }
+    setEmailBusy(true);
+    setExportMessage('');
+    try {
+      const { sendContactDatabaseEmail } = await import('../utils/contactDatabaseEmail');
+      const result = await sendContactDatabaseEmail({
+        email: to,
+        contacts: filtered,
+      });
+      saveExportEmail(to);
+      setExportMessage(
+        `Contact Database PDF email ho gayi → ${to}${result.filename ? ` (${result.filename})` : ''}`,
+      );
+    } catch (err) {
+      setExportMessage(err.message || 'Email fail — RESEND_API_KEY check karein.');
+    } finally {
+      setEmailBusy(false);
     }
   };
 
@@ -344,6 +429,7 @@ export default function ContactDatabase() {
         setColumnMap(uiColumnMapFromIndexMapping(guessed));
         setImportMessage(`${result.rows.length} rows load ho gayi — neeche columns confirm karein`);
       }
+      setImportOpen(true);
     } catch (err) {
       setImportMessage(err.message || 'File read failed');
       setImportFileName('');
@@ -459,26 +545,216 @@ export default function ContactDatabase() {
             ))}
           </select>
         </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <FormField label="Export email (PDF attachment)" id="contact-export-email">
+            <TextInput
+              id="contact-export-email"
+              type="email"
+              value={exportEmail}
+              onChange={(e) => setExportEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+          </FormField>
+          {exportMessage && (
+            <p className="text-sm text-emerald-200/90 sm:pb-2.5">{exportMessage}</p>
+          )}
+        </div>
+      </GlassCard>
+
+      {/* Contact list */}
+      <GlassCard className="p-5 sm:p-6">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
+              Contacts
+            </h3>
+            <p className="mt-1 text-xs text-zinc-500">{showingLabel}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={openNewContact}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2.5 text-sm font-medium text-cyan-200 hover:bg-cyan-500/20"
+            >
+              <Plus className="h-4 w-4" />
+              Add Contact
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={pdfBusy || emailBusy || filtered.length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FileDown className="h-4 w-4" />
+              {pdfBusy ? 'PDF…' : `Download PDF (${filtered.length})`}
+            </button>
+            <button
+              type="button"
+              onClick={handleEmailPdf}
+              disabled={pdfBusy || emailBusy || filtered.length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm font-medium text-amber-200 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {emailBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Mail className="h-4 w-4" />
+              )}
+              {emailBusy ? 'Email…' : `Email PDF (${filtered.length})`}
+            </button>
+            <button
+              type="button"
+              onClick={handleClearAllContacts}
+              disabled={contacts.length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm font-medium text-rose-200 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              Clear all
+            </button>
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <p className="py-10 text-center text-sm text-zinc-500">
+            {hasActiveFilters
+              ? 'Koi contact match nahi — search ya department change karein'
+              : 'Abhi koi contact nahi — Add Contact dabayein'}
+          </p>
+        ) : (
+          <>
+            <ListPager
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              showingLabel={showingLabel}
+              onPageChange={setPage}
+              className="mb-4"
+            />
+            <ul className="space-y-3">
+              {pageItems.map((contact) => (
+                <li
+                  key={contact.id}
+                  className={[
+                    'rounded-xl border px-4 py-4',
+                    editingId === contact.id
+                      ? 'border-cyan-400/40 bg-cyan-500/10'
+                      : 'border-white/10 bg-white/[0.03]',
+                  ].join(' ')}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-semibold text-zinc-100">{contact.name}</p>
+                      {contact.department && (
+                        <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-cyan-300/80">
+                          {contact.department}
+                        </p>
+                      )}
+                      {contact.designation && (
+                        <p className="mt-0.5 text-xs text-zinc-400">
+                          {contact.designation}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(contact)}
+                        className="rounded-lg p-2 text-zinc-500 hover:bg-cyan-500/10 hover:text-cyan-300"
+                        aria-label="Edit contact"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`"${contact.name}" delete karein?`)) {
+                            if (editingId === contact.id) closeFormModal();
+                            removeContact(contact.id);
+                          }
+                        }}
+                        className="rounded-lg p-2 text-zinc-500 hover:bg-red-500/10 hover:text-red-300"
+                        aria-label="Delete contact"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-1.5 text-sm text-zinc-400">
+                    {getContactPhones(contact).map((phone) => (
+                      <p key={`phone-${phone}`} className="flex items-center gap-2">
+                        <Phone className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                        <span>{phone}</span>
+                      </p>
+                    ))}
+                    {getContactContactNos(contact).map((contactNo, index) => (
+                      <p key={`contactNo-${contactNo}`} className="flex items-center gap-2">
+                        <Phone className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                        <span className="text-zinc-500">
+                          {getContactContactNos(contact).length > 1 ? `Alt ${index + 1}:` : 'Alt:'}
+                        </span>
+                        <span>{contactNo}</span>
+                      </p>
+                    ))}
+                    {getContactEmails(contact).map((email) => (
+                      <p key={email} className="flex items-center gap-2 break-all">
+                        <Mail className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                        <a href={`mailto:${encodeURIComponent(email)}`} className="hover:text-violet-200">
+                          {email}
+                        </a>
+                      </p>
+                    ))}
+                    {contact.website && (
+                      <p className="flex items-center gap-2 break-all">
+                        <Globe className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                        <a
+                          href={contact.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-cyan-300/90 hover:underline"
+                        >
+                          {contact.website}
+                        </a>
+                      </p>
+                    )}
+                    {contact.address && (
+                      <p className="flex items-start gap-2">
+                        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                        <span className="text-zinc-500">{contact.address}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-3 border-t border-white/5 pt-3">
+                    <ContactActions contact={contact} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <ListPager
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              showingLabel={showingLabel}
+              onPageChange={setPage}
+              className="mt-4"
+            />
+          </>
+        )}
       </GlassCard>
 
       <ContactCaptureLoop contacts={contacts} onSaveContact={handleCaptureSync} />
 
       {/* File import */}
-      <GlassCard className="border-violet-500/20 bg-violet-500/5 p-5 sm:p-6">
-        <div className="mb-4 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/15">
-            <Upload className="h-5 w-5 text-violet-300" />
-          </span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-violet-400/90">
-              File se Import
-            </p>
-            <p className="text-sm text-zinc-500">
-              CSV ya JSON upload — import ke baad neeche Contacts list mein dikhenge
-            </p>
-          </div>
-        </div>
-
+      <CollapsibleSection
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        defaultOpen={false}
+        className="border-violet-500/20 bg-violet-500/5 p-5 sm:p-6"
+        icon={<Upload className="h-5 w-5 text-violet-300" />}
+        title="File se Import"
+        subtitle="CSV / JSON — zaroorat par kholein"
+        badge={importedFileCount > 0 ? String(importedFileCount) : undefined}
+      >
         <div className="mb-4 flex flex-wrap gap-2">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-2.5 text-sm font-medium text-violet-200 hover:bg-violet-500/20">
             {importBusy ? (
@@ -612,23 +888,14 @@ export default function ContactDatabase() {
           CSV columns: Naam, Phone, Email, Department, Designation, Contact No, Address — ya
           JSON / app backup file jisme <code className="text-zinc-500">contacts</code> array ho.
         </p>
-      </GlassCard>
+      </CollapsibleSection>
 
-      {/* Add / edit form */}
-      <GlassCard className="p-5 sm:p-6">
-        <div className="mb-4 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-500/15">
-            <BookUser className="h-5 w-5 text-cyan-300" />
-          </span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-cyan-400/90">
-              {editingId ? 'Edit Contact' : 'New Contact'}
-            </p>
-            <p className="text-sm text-zinc-500">
-              Sab details ek jagah — memory par load kam, communication fast
-            </p>
-          </div>
-        </div>
+      <Modal
+        isOpen={formOpen}
+        onClose={closeFormModal}
+        title={editingId ? 'Edit Contact' : 'New Contact'}
+        size="xl"
+      >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Naam *" id="contact-name" error={errors.name}>
@@ -734,162 +1001,16 @@ export default function ContactDatabase() {
                 </>
               )}
             </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="rounded-xl border border-white/15 px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5"
-              >
-                Cancel
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={closeFormModal}
+              className="rounded-xl border border-white/15 px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5"
+            >
+              Cancel
+            </button>
           </div>
         </form>
-      </GlassCard>
-
-      {/* Contact list */}
-      <GlassCard className="p-5 sm:p-6">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
-              Contacts
-            </h3>
-            <p className="mt-1 text-xs text-zinc-500">
-              Call, WhatsApp, email — ek click mein
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleDownloadPdf}
-              disabled={pdfBusy || filtered.length === 0}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <FileDown className="h-4 w-4" />
-              {pdfBusy ? 'PDF…' : `Download PDF (${filtered.length})`}
-            </button>
-            <button
-              type="button"
-              onClick={handleClearAllContacts}
-              disabled={contacts.length === 0}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm font-medium text-rose-200 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Trash2 className="h-4 w-4" />
-              Clear all
-            </button>
-          </div>
-        </div>
-
-        {filtered.length === 0 ? (
-          <p className="py-10 text-center text-sm text-zinc-500">
-            {hasActiveFilters
-              ? 'Koi contact match nahi — search ya department change karein'
-              : 'Abhi koi contact nahi — upar form se pehla contact add karein'}
-          </p>
-        ) : (
-          <ul className="space-y-3">
-            {filtered.map((contact) => (
-              <li
-                key={contact.id}
-                className={[
-                  'rounded-xl border px-4 py-4',
-                  editingId === contact.id
-                    ? 'border-cyan-400/40 bg-cyan-500/10'
-                    : 'border-white/10 bg-white/[0.03]',
-                ].join(' ')}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-base font-semibold text-zinc-100">{contact.name}</p>
-                    {contact.department && (
-                      <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-cyan-300/80">
-                        {contact.department}
-                      </p>
-                    )}
-                    {contact.designation && (
-                      <p className="mt-0.5 text-xs text-zinc-400">
-                        {contact.designation}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 gap-1">
-                    <button
-                      type="button"
-                      onClick={() => startEdit(contact)}
-                      className="rounded-lg p-2 text-zinc-500 hover:bg-cyan-500/10 hover:text-cyan-300"
-                      aria-label="Edit contact"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (window.confirm(`"${contact.name}" delete karein?`)) {
-                          if (editingId === contact.id) resetForm();
-                          removeContact(contact.id);
-                        }
-                      }}
-                      className="rounded-lg p-2 text-zinc-500 hover:bg-red-500/10 hover:text-red-300"
-                      aria-label="Delete contact"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-3 grid gap-1.5 text-sm text-zinc-400">
-                  {getContactPhones(contact).map((phone) => (
-                    <p key={`phone-${phone}`} className="flex items-center gap-2">
-                      <Phone className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-                      <span>{phone}</span>
-                    </p>
-                  ))}
-                  {getContactContactNos(contact).map((contactNo, index) => (
-                    <p key={`contactNo-${contactNo}`} className="flex items-center gap-2">
-                      <Phone className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-                      <span className="text-zinc-500">
-                        {getContactContactNos(contact).length > 1 ? `Alt ${index + 1}:` : 'Alt:'}
-                      </span>
-                      <span>{contactNo}</span>
-                    </p>
-                  ))}
-                  {getContactEmails(contact).map((email) => (
-                    <p key={email} className="flex items-center gap-2 break-all">
-                      <Mail className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-                      <a href={`mailto:${encodeURIComponent(email)}`} className="hover:text-violet-200">
-                        {email}
-                      </a>
-                    </p>
-                  ))}
-                  {contact.website && (
-                    <p className="flex items-center gap-2 break-all">
-                      <Globe className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-                      <a
-                        href={contact.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-cyan-300/90 hover:underline"
-                      >
-                        {contact.website}
-                      </a>
-                    </p>
-                  )}
-                  {contact.address && (
-                    <p className="flex items-start gap-2">
-                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-500" />
-                      <span className="text-zinc-500">{contact.address}</span>
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-3 border-t border-white/5 pt-3">
-                  <ContactActions contact={contact} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </GlassCard>
+      </Modal>
     </div>
   );
 }

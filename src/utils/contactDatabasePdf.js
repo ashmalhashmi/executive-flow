@@ -8,7 +8,7 @@ const PAGE = {
   marginTop: 18,
 };
 
-export function downloadContactDatabasePdf(contacts) {
+function buildContactDatabaseDoc(contacts) {
   const rows = [...(contacts || [])]
     .filter((c) => c.status !== 'archived')
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -62,5 +62,26 @@ export function downloadContactDatabasePdf(contacts) {
     tableWidth: contentWidth,
   });
 
-  doc.save(`contact-database-${new Date().toISOString().slice(0, 10)}.pdf`);
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  const filename = `contact-database-${dateStamp}.pdf`;
+  return { doc, rows, filename };
+}
+
+/** Same PDF as Download — base64 for Resend email attachment. */
+export function buildContactDatabasePdfBase64(contacts) {
+  const { doc, rows, filename } = buildContactDatabaseDoc(contacts);
+  const dataUri = doc.output('datauristring');
+  const base64 = String(dataUri).includes(',')
+    ? String(dataUri).split(',')[1]
+    : String(dataUri);
+  return {
+    base64,
+    filename,
+    count: rows.length,
+  };
+}
+
+export function downloadContactDatabasePdf(contacts) {
+  const { doc, filename } = buildContactDatabaseDoc(contacts);
+  doc.save(filename);
 }

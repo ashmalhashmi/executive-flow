@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDisplayDate } from './dates';
-import { sortDakEntries } from './dakEntries';
+import { sortDakRegisterEntries } from './dakEntries';
 
 const PAGE = {
   width: 210,
@@ -10,7 +10,7 @@ const PAGE = {
 };
 
 export function downloadDakIssuancePdf(dakEntries) {
-  const rows = sortDakEntries((dakEntries || []).filter((d) => d.status !== 'cancelled'));
+  const rows = sortDakRegisterEntries((dakEntries || []).filter((d) => d.status !== 'cancelled'));
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   doc.setProperties({ title: 'Dak Issuance Log', subject: 'Dak Issuance' });
@@ -31,23 +31,23 @@ export function downloadDakIssuancePdf(dakEntries) {
 
   autoTable(doc, {
     startY: y,
-    head: [['Sr#', 'Subject', 'Date (Dispatched)', 'Addressee', 'System Ref']],
-    body: rows.map((d, i) => [
-      String(i + 1),
+    head: [['Sr#', 'Subject', 'Date (Dispatched)', 'Date Received', 'Marked To']],
+    body: rows.map((d) => [
+      String(d.registerSr || '—'),
       d.subject || '-',
       d.forwardedDate ? formatDisplayDate(d.forwardedDate) : '-',
+      d.receivedDate ? formatDisplayDate(d.receivedDate) : '-',
       d.designation || '-',
-      d.fileId || '-',
     ]),
     theme: 'grid',
     styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5, overflow: 'linebreak' },
     headStyles: { fillColor: [76, 29, 149], textColor: 255, fontStyle: 'bold', fontSize: 8 },
     columnStyles: {
       0: { cellWidth: 10, halign: 'center' },
-      1: { cellWidth: contentWidth - 10 - 26 - 32 - 24 },
-      2: { cellWidth: 26, halign: 'center' },
-      3: { cellWidth: 32 },
-      4: { cellWidth: 24, fontSize: 8 },
+      1: { cellWidth: contentWidth - 10 - 24 - 24 - 28 },
+      2: { cellWidth: 24, halign: 'center' },
+      3: { cellWidth: 24, halign: 'center' },
+      4: { cellWidth: 28 },
     },
     margin: { left: PAGE.marginX, right: PAGE.marginX },
     tableWidth: contentWidth,
