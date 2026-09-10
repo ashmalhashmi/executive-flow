@@ -1,4 +1,4 @@
-import { Image, MessageCircle, Pencil } from 'lucide-react';
+import { Image, MessageCircle, Pencil, Trash2 } from 'lucide-react';
 import { formatDisplayDate } from '../../utils/dates';
 import { getDakWhatsAppUrl } from '../../utils/dakWhatsApp';
 
@@ -8,13 +8,14 @@ const REGISTER_COLUMNS = [
   { key: 'forwardedDate', label: 'Date (Dispatched)', className: 'min-w-[110px]' },
   { key: 'receivedDate', label: 'Date Received', className: 'min-w-[110px]' },
   { key: 'designation', label: 'Marked To', className: 'min-w-[100px]' },
-  { key: 'actions', label: '', className: 'w-28' },
+  { key: 'actions', label: '', className: 'w-36' },
 ];
 
 export default function DakRegisterTable({
   entries,
   highlightIds = [],
   onEdit,
+  onDelete,
 }) {
   if (!entries.length) return null;
 
@@ -90,6 +91,14 @@ export default function DakRegisterTable({
                       title="Edit"
                     >
                       <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete?.(entry)}
+                      className="inline-flex rounded p-1.5 text-zinc-400 hover:bg-white/5 hover:text-red-300"
+                      title="Delete row"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </td>

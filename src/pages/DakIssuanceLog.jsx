@@ -52,8 +52,14 @@ function scrollToRegister(highlightId) {
 }
 
 export default function DakIssuanceLog() {
-  const { dakEntries, addDakEntry, addDakEntriesBulk, updateDakEntry, eraseAllDakEntries } =
-    useDakExecutive();
+  const {
+    dakEntries,
+    addDakEntry,
+    addDakEntriesBulk,
+    updateDakEntry,
+    cancelDakEntry,
+    eraseAllDakEntries,
+  } = useDakExecutive();
 
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
@@ -228,6 +234,17 @@ export default function DakIssuanceLog() {
     }
   };
 
+  const handleDeleteRow = (entry) => {
+    const label = entry.registerSr
+      ? `Sr# ${entry.registerSr} — ${entry.subject}`
+      : entry.subject;
+    if (!window.confirm(`"${label}" register se delete karein?`)) return;
+    cancelDakEntry(entry.id);
+    if (editingId === entry.id) resetForm();
+    setHighlightEntryIds((prev) => prev.filter((id) => id !== entry.id));
+    setRegisterNotice(`Entry delete — Sr# ${entry.registerSr || '—'} register se hata di`);
+  };
+
   const handleEraseAllDak = () => {
     const count = listEntries.length;
     if (!count) return;
@@ -395,6 +412,7 @@ export default function DakIssuanceLog() {
               entries={dakPageItems}
               highlightIds={highlightEntryIds}
               onEdit={startEdit}
+              onDelete={handleDeleteRow}
             />
             <ListPager
               page={dakPage}

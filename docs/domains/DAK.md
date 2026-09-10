@@ -7,7 +7,7 @@ Outward dispatch **metadata index** — subject, dates, marked to. System auto-a
 1. **Digital register (top)** — manual register jaisi table; app reopen par bhi yahi dikhega (localStorage + cloud sync).
 2. **Add / Scan (neeche)** — nayi entry ya register scan.
 3. Save ke baad auto-scroll + green **Saved** highlight upar wali table mein.
-4. Search / filter / PDF export register se hi.
+4. Search / filter / PDF export register se hi. Row trash = us entry ko register se hatao (Pulse merge usay wapas nahi lata).
 
 ## Touch these files
 
@@ -20,7 +20,7 @@ Outward dispatch **metadata index** — subject, dates, marked to. System auto-a
 
 ## Hook
 
-`useDakExecutive` — `dakEntries`, `addDakEntry`, `updateDakEntry`, `eraseAllDakEntries`.
+`useDakExecutive` — `dakEntries`, `addDakEntry`, `updateDakEntry`, `cancelDakEntry` (row delete), `eraseAllDakEntries`.
 
 ## Scan notes
 
