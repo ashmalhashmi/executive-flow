@@ -6,7 +6,7 @@ export const DEFAULT_PETTY_CASH_SIGNATURES = {
   ],
   purchaseSlipApprover: {
     name: '',
-    designation: 'Section Head',
+    designation: '',
     useSignatureImage: false,
   },
   satisfactoryNote: [

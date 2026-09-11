@@ -19,7 +19,6 @@ import {
 import GlassCard from '../components/ui/GlassCard';
 import FormField, { TextInput, TextArea } from '../components/ui/FormField';
 import { formatDisplayDate, getTodayISO } from '../utils/dates';
-import { formatPKR } from '../utils/currency';
 import {
   emptyPurchaseSlip,
   emptySatisfactoryNote,
@@ -28,6 +27,7 @@ import {
 import {
   computePurchaseItemsTotal,
   emptyPurchaseItem,
+  formatPurchaseMoney,
   purchaseItemsFromInvoiceFields,
   syncPurchaseItemTotals,
 } from '../utils/pettyCashPurchaseSlip';
@@ -710,7 +710,7 @@ export default function PettyCashRecord() {
                   Total Estimated Cost (Rs.)
                 </td>
                 <td className="px-3 py-2 font-semibold text-emerald-200">
-                  {formatPKR(purchaseTotal)}
+                  {formatPurchaseMoney(purchaseTotal)}
                 </td>
                 <td />
               </tr>
@@ -1049,7 +1049,7 @@ export default function PettyCashRecord() {
                     <p className="font-medium text-zinc-100">{c.caseNo}</p>
                     <p className="text-sm text-zinc-400">
                       {c.meetingTitle || '—'} ·{' '}
-                      {formatPKR(
+                      {formatPurchaseMoney(
                         c.purchaseSlip?.totalEstimatedCost ||
                           computePurchaseItemsTotal(c.purchaseSlip?.items),
                       )}

@@ -2,6 +2,10 @@
 
 export const PETTY_CASH_BLANK = '___________________________';
 
+export const PETTY_CASH_ORG_TITLE =
+  'Punjab Agriculture, Food & Drug Authority (PAFDA)';
+export const PETTY_CASH_GOV_LINE = 'Government of the Punjab';
+
 export function escapePettyCashHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -20,24 +24,57 @@ export function signatureLineHtml() {
   return `<span style="display:inline-block; min-width:220pt; border-bottom:1px solid #333;">&nbsp;</span>`;
 }
 
-export function buildSignatureIdentityHtml(name, designation) {
-  const sigName = String(name ?? '').trim();
-  const sigDes = String(designation ?? '').trim();
-  if (!sigName && !sigDes) return signatureLineHtml();
-  const lines = [sigName, sigDes].filter(Boolean).map(escapePettyCashHtml);
-  return `<span style="display:inline-block; vertical-align:top;">${lines.join('<br/>')}</span>`;
+const QTY_UNIT_RE =
+  /\b(kgs?|g|gm|grams?|ml|ltrs?|litres?|liters?|l|pcs?|pc|pkt|packs?|packets?|dozen|doz|nos?|units?|pieces?|boxes?|bottles?|tins?)\b/i;
+
+export function formatPettyCashQuantity(raw) {
+  const text = String(raw ?? '').trim();
+  if (!text) return '—';
+  if (QTY_UNIT_RE.test(text)) return text.replace(/\s+/g, ' ');
+  const n = Number(String(text).replace(/,/g, ''));
+  if (!Number.isFinite(n) || n <= 0) return text;
+  if (!Number.isInteger(n) || String(text).includes('.')) return `${n} kg`;
+  return `${n} pcs`;
+}
+
+export function formatPettyCashTableMoney(value) {
+  const cleaned = String(value ?? '')
+    .replace(/\brs\.?\s*/gi, '')
+    .replace(/,/g, '')
+    .replace(/[^\d.-]/g, '');
+  const n = Number(cleaned);
+  if (!Number.isFinite(n) || n <= 0) return '—';
+  return n.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function designationRepeatsTitle(title, designation) {
+  const des = String(designation ?? '').trim().toLowerCase();
+  const heading = String(title ?? '').toLowerCase();
+  if (!des) return true;
+  return heading.includes(des);
+}
+
+export function buildOfficialHeaderHtml() {
+  return `<p style="text-align:center; font-size:14pt; font-weight:bold; margin:0 0 2pt 0; font-family:'Times New Roman',Times,serif;">${escapePettyCashHtml(PETTY_CASH_ORG_TITLE)}</p>
+<p style="text-align:center; font-size:11pt; margin:0 0 16pt 0; font-family:'Times New Roman',Times,serif;">${escapePettyCashHtml(PETTY_CASH_GOV_LINE)}</p>`;
 }
 
 export function buildSignatoryBlockHtml({ title, name, designation = '', date }) {
+  const shownDesignation = designationRepeatsTitle(title, designation)
+    ? ''
+    : String(designation ?? '').trim();
   return `<p style="margin:18pt 0 6pt 0; font-weight:bold;">${title}</p>
 <p style="margin:0 0 6pt 0;">Name: ${underlineValueHtml(name)}</p>
-<p style="margin:0 0 6pt 0;">Designation: ${underlineValueHtml(designation)}</p>
+<p style="margin:0 0 6pt 0;">Designation: ${underlineValueHtml(shownDesignation)}</p>
 <p style="margin:0 0 6pt 0;">Date: ${underlineValueHtml(date)}</p>
-<p style="margin:0 0 12pt 0;">Signature: ${buildSignatureIdentityHtml(name, designation)}</p>`;
+<p style="margin:0 0 12pt 0;">Signature: ${signatureLineHtml()}</p>`;
 }
 
 export const PETTY_CASH_DOC_TITLE_STYLE =
-  'text-align:center; font-size:14pt; font-weight:bold; margin:18pt 0 12pt 0;';
+  'text-align:center; font-size:14pt; font-weight:bold; margin:6pt 0 12pt 0;';
 
 export const PETTY_CASH_TABLE_CELL =
   "border:1px solid #333; padding:6pt 8pt; font-family:'Times New Roman',Times,serif; font-size:11pt;";

@@ -4,8 +4,10 @@ import { formatDisplayDate, getTodayISO } from './dates';
 import { loadPafdaLetterheadDataUrl } from './composeLetterheadImage';
 import { loadReceivingNoteSignatureDataUrl } from './receivingNoteSignatureImage';
 import {
+  computePurchaseItemTotal,
   computePurchaseItemsTotal,
   formatPurchaseMoney,
+  formatPurchaseQuantity,
   normalizePurchaseItems,
   resolveApproverSignatory,
   resolveRequestedByDate,
@@ -17,7 +19,12 @@ import {
   resolveSatisfactoryReceivedName,
   resolveSatisfactoryVerifier,
 } from './pettyCashSatisfactoryNote';
-import { PETTY_CASH_BLANK } from './pettyCashDocFormat';
+import {
+  designationRepeatsTitle,
+  PETTY_CASH_BLANK,
+  PETTY_CASH_GOV_LINE,
+  PETTY_CASH_ORG_TITLE,
+} from './pettyCashDocFormat';
 
 const PAGE = { width: 210, height: 297, marginX: 18, marginTop: 14, line: 6 };
 const SIG_IMG_W = 48;
@@ -35,6 +42,18 @@ function resolveDateLine(dateISO) {
   return dateRaw || formatDisplayDate(getTodayISO());
 }
 
+function drawOfficialHeader(doc, yStart) {
+  let y = yStart;
+  doc.setFont('times', 'bold');
+  doc.setFontSize(13);
+  doc.text(PETTY_CASH_ORG_TITLE, PAGE.width / 2, y, { align: 'center' });
+  y += 7;
+  doc.setFont('times', 'normal');
+  doc.setFontSize(11);
+  doc.text(PETTY_CASH_GOV_LINE, PAGE.width / 2, y, { align: 'center' });
+  return y + 10;
+}
+
 async function drawLetterhead(doc, leftX, contentWidth, yStart) {
   let y = yStart;
   try {
@@ -45,7 +64,7 @@ async function drawLetterhead(doc, leftX, contentWidth, yStart) {
   } catch {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text('PUNJAB AGRICULTURE, FOOD & DRUG AUTHORITY', PAGE.width / 2, y, {
+    doc.text(PETTY_CASH_ORG_TITLE, PAGE.width / 2, y, {
       align: 'center',
     });
     y += 10;
@@ -126,6 +145,9 @@ function formatPdfField(value) {
 }
 
 function drawSignatoryBlock(doc, leftX, y, title, { name, designation, date }) {
+  const shownDesignation = designationRepeatsTitle(title, designation)
+    ? ''
+    : String(designation ?? '').trim();
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text(title, leftX, y);
@@ -133,20 +155,12 @@ function drawSignatoryBlock(doc, leftX, y, title, { name, designation, date }) {
   doc.setFont('helvetica', 'normal');
   doc.text(`Name: ${formatPdfField(name)}`, leftX, y);
   y += PAGE.line;
-  doc.text(`Designation: ${formatPdfField(designation)}`, leftX, y);
+  doc.text(`Designation: ${formatPdfField(shownDesignation)}`, leftX, y);
   y += PAGE.line;
   doc.text(`Date: ${formatPdfField(date)}`, leftX, y);
   y += PAGE.line;
-  const sigName = String(name ?? '').trim();
-  const sigDes = String(designation ?? '').trim();
   doc.text('Signature:', leftX, y);
-  if (sigName || sigDes) {
-    const identity = [sigName, sigDes].filter(Boolean).join(', ');
-    doc.text(identity, leftX + 28, y);
-    y += PAGE.line;
-  } else {
-    y = drawInlineSignatureLine(doc, leftX + 28, y);
-  }
+  y = drawInlineSignatureLine(doc, leftX + 28, y);
   return y + 6;
 }
 
@@ -158,7 +172,7 @@ export async function downloadPurchaseSlipPdf({
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const contentWidth = PAGE.width - PAGE.marginX * 2;
   const leftX = PAGE.marginX;
-  let y = await drawLetterhead(doc, leftX, contentWidth, PAGE.marginTop);
+  let y = drawOfficialHeader(doc, PAGE.marginTop);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
@@ -171,11 +185,11 @@ export async function downloadPurchaseSlipPdf({
   const body = items.map((row, index) => [
     String(index + 1),
     row.description || '—',
-    row.quantity || '—',
+    formatPurchaseQuantity(row.quantity),
     formatPurchaseMoney(row.unitCost),
     row.totalCost
       ? formatPurchaseMoney(row.totalCost)
-      : formatPurchaseMoney((Number(row.quantity) || 0) * (Number(row.unitCost) || 0)),
+      : formatPurchaseMoney(computePurchaseItemTotal(row.quantity, row.unitCost)),
   ]);
   body.push(['', '', '', 'Total Estimated Cost (Rs.)', formatPurchaseMoney(total)]);
 

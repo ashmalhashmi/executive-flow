@@ -34,12 +34,8 @@ async function loadSignatureForWord() {
 }
 
 export async function downloadPurchaseSlipWord(caseRecord, signatories, approverSignatory) {
-  const lh = await loadLetterheadForWord();
   const html = buildPurchaseSlipDocHtml({
     purchaseSlip: caseRecord.purchaseSlip,
-    letterheadDataUrl: lh.dataUrl,
-    letterheadWidth: lh.width,
-    letterheadHeight: lh.height,
     signatories,
     approverSignatory,
   });
@@ -95,10 +91,12 @@ export async function sendPettyCashEmail({ email, docType, payload }) {
   let signatureHeight = 0;
 
   try {
-    const lh = await loadLetterheadForWord();
-    letterheadDataUrl = lh.dataUrl;
-    letterheadWidth = lh.width;
-    letterheadHeight = lh.height;
+    if (docType !== 'purchase_slip') {
+      const lh = await loadLetterheadForWord();
+      letterheadDataUrl = lh.dataUrl;
+      letterheadWidth = lh.width;
+      letterheadHeight = lh.height;
+    }
   } catch {
     /* optional */
   }

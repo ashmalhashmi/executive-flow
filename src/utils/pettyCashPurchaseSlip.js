@@ -1,8 +1,9 @@
-import { formatPKR } from './currency';
 import { formatDisplayDate } from './dates';
 import {
   buildSignatoryBlockHtml,
   escapePettyCashHtml,
+  formatPettyCashQuantity,
+  formatPettyCashTableMoney,
   PETTY_CASH_TABLE_CELL,
   pettyCashHeadCellStyle,
 } from './pettyCashDocFormat';
@@ -17,7 +18,11 @@ export function emptyPurchaseItem() {
 }
 
 export function parsePurchaseNumber(raw) {
-  const n = Number(String(raw ?? '').replace(/[^\d.]/g, ''));
+  const cleaned = String(raw ?? '')
+    .replace(/\brs\.?\s*/gi, '')
+    .replace(/,/g, '')
+    .replace(/[^\d.]/g, '');
+  const n = Number(cleaned);
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
@@ -77,9 +82,11 @@ export function normalizePurchaseItems(rawItems, legacyPurchase = {}) {
 }
 
 export function formatPurchaseMoney(value) {
-  const n = parsePurchaseNumber(value);
-  if (!n) return '—';
-  return formatPKR(n);
+  return formatPettyCashTableMoney(value);
+}
+
+export function formatPurchaseQuantity(value) {
+  return formatPettyCashQuantity(value);
 }
 
 export function resolvePurchaseDateLine(dateISO) {
@@ -218,7 +225,7 @@ export function buildPurchaseItemsTableHtml(items) {
       return `<tr>
 <td style="${cell}; text-align:center; width:8%;">${index + 1}</td>
 <td style="${cell}">${escapePurchaseHtml(row.description || '—')}</td>
-<td style="${cell}; text-align:center;">${escapePurchaseHtml(row.quantity || '—')}</td>
+<td style="${cell}; text-align:center;">${escapePurchaseHtml(formatPurchaseQuantity(row.quantity))}</td>
 <td style="${cell}; text-align:right;">${formatPurchaseMoney(row.unitCost)}</td>
 <td style="${cell}; text-align:right;">${totalCell}</td>
 </tr>`;

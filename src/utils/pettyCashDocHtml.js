@@ -1,5 +1,4 @@
 import { formatDisplayDate, getTodayISO } from './dates';
-import { formatPKR } from './currency';
 import {
   buildPurchaseItemsTableHtml,
   buildPurchaseSlipFooterHtml,
@@ -8,7 +7,7 @@ import {
   buildSatisfactoryItemsTableHtml,
   buildSatisfactoryNoteFooterHtml,
 } from './pettyCashSatisfactoryNote';
-import { PETTY_CASH_DOC_TITLE_STYLE } from './pettyCashDocFormat';
+import { buildOfficialHeaderHtml, PETTY_CASH_DOC_TITLE_STYLE } from './pettyCashDocFormat';
 function escapeHtml(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')
@@ -79,9 +78,6 @@ function tableRow(label, value) {
 
 export function buildPurchaseSlipDocHtml({
   purchaseSlip,
-  letterheadDataUrl = '',
-  letterheadWidth = 0,
-  letterheadHeight = 0,
   signatories = [],
   approverSignatory = null,
 }) {
@@ -92,7 +88,7 @@ export function buildPurchaseSlipDocHtml({
 <title>Purchase Slip (Petty Cash)</title>
 </head>
 <body style="font-family:'Times New Roman',Times,serif; font-size:12pt; margin:36pt;">
-${buildLetterheadHtml(letterheadDataUrl, letterheadWidth, letterheadHeight)}
+${buildOfficialHeaderHtml()}
 <p style="${PETTY_CASH_DOC_TITLE_STYLE}">Purchase Slip (Petty Cash)</p>
 ${buildPurchaseItemsTableHtml(ps.items)}
 ${buildPurchaseSlipFooterHtml({
