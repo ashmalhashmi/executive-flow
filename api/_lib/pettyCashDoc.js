@@ -217,7 +217,11 @@ function buildHtml(docType, payload, assets) {
     const ps = payload.purchaseSlip || {};
     return `<!DOCTYPE html><html><head><meta charset="utf-8" /></head>
 <body style="font-family:'Times New Roman',Times,serif; font-size:12pt; margin:36pt;">
-${buildOfficialHeaderHtml()}
+${buildOfficialHeaderHtml({
+      logoDataUrl: lh,
+      logoWidth: lw,
+      logoHeight: lhH,
+    })}
 <p style="${PETTY_CASH_DOC_TITLE_STYLE}">Purchase Slip (Petty Cash)</p>
 ${buildPurchaseItemsTable(ps)}
 ${buildPurchaseFooter(ps, signatories, approver)}

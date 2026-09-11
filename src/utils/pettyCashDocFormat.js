@@ -57,8 +57,22 @@ export function designationRepeatsTitle(title, designation) {
   return heading.includes(des);
 }
 
-export function buildOfficialHeaderHtml() {
-  return `<p style="text-align:center; font-size:14pt; font-weight:bold; margin:0 0 2pt 0; font-family:'Times New Roman',Times,serif;">${escapePettyCashHtml(PETTY_CASH_ORG_TITLE)}</p>
+function buildHeaderLogoHtml({ logoDataUrl = '', logoWidth = 0, logoHeight = 0 } = {}) {
+  const src = String(logoDataUrl || '').trim();
+  if (!src.startsWith('data:image/')) return '';
+  const w = Number(logoWidth) || 210;
+  const h = Number(logoHeight) || 0;
+  const sizeAttrs =
+    h > 0
+      ? `width="${w}" height="${h}" style="width:${w}px;height:${h}px;display:block;margin:0 auto;"`
+      : `width="${w}" style="width:${w}px;height:auto;display:block;margin:0 auto;"`;
+  return `<p style="text-align:center; margin:0 0 8pt 0;">
+<img src="${src}" ${sizeAttrs} alt="PAFDA" />
+</p>`;
+}
+
+export function buildOfficialHeaderHtml(logo = {}) {
+  return `${buildHeaderLogoHtml(logo)}<p style="text-align:center; font-size:14pt; font-weight:bold; margin:0 0 2pt 0; font-family:'Times New Roman',Times,serif;">${escapePettyCashHtml(PETTY_CASH_ORG_TITLE)}</p>
 <p style="text-align:center; font-size:11pt; margin:0 0 16pt 0; font-family:'Times New Roman',Times,serif;">${escapePettyCashHtml(PETTY_CASH_GOV_LINE)}</p>`;
 }
 

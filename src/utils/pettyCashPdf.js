@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDisplayDate, getTodayISO } from './dates';
 import { loadPafdaLetterheadDataUrl } from './composeLetterheadImage';
+import { loadPafdaLogoDataUrl } from './pafdaLogoImage';
 import { loadReceivingNoteSignatureDataUrl } from './receivingNoteSignatureImage';
 import {
   computePurchaseItemTotal,
@@ -42,8 +43,21 @@ function resolveDateLine(dateISO) {
   return dateRaw || formatDisplayDate(getTodayISO());
 }
 
-function drawOfficialHeader(doc, yStart) {
+async function drawOfficialHeader(doc, yStart) {
   let y = yStart;
+  try {
+    const dataUrl = await loadPafdaLogoDataUrl();
+    const props = doc.getImageProperties(dataUrl);
+    const maxW = 52;
+    const maxH = 18;
+    const scale = Math.min(maxW / props.width, maxH / props.height, 1);
+    const w = props.width * scale;
+    const h = props.height * scale;
+    doc.addImage(dataUrl, 'PNG', (PAGE.width - w) / 2, y, w, h, undefined, 'FAST');
+    y += h + 6;
+  } catch {
+    /* typed header still prints */
+  }
   doc.setFont('times', 'bold');
   doc.setFontSize(13);
   doc.text(PETTY_CASH_ORG_TITLE, PAGE.width / 2, y, { align: 'center' });
@@ -172,7 +186,7 @@ export async function downloadPurchaseSlipPdf({
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const contentWidth = PAGE.width - PAGE.marginX * 2;
   const leftX = PAGE.marginX;
-  let y = drawOfficialHeader(doc, PAGE.marginTop);
+  let y = await drawOfficialHeader(doc, PAGE.marginTop);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);

@@ -3,6 +3,10 @@ import {
   loadPafdaLetterheadForWord,
   PAFDA_LETTERHEAD_WORD_MAX_WIDTH_PX,
 } from './composeLetterheadImage';
+import {
+  loadPafdaLogoForWord,
+  PAFDA_PURCHASE_SLIP_HEADER_LOGO,
+} from './pafdaLogoImage';
 import { loadReceivingNoteSignatureForWord } from './receivingNoteSignatureImage';
 import {
   buildPurchaseSlipDocHtml,
@@ -33,11 +37,26 @@ async function loadSignatureForWord() {
   }
 }
 
+async function loadPurchaseSlipLogoForWord() {
+  try {
+    return await loadPafdaLogoForWord(
+      PAFDA_PURCHASE_SLIP_HEADER_LOGO.maxWidth,
+      PAFDA_PURCHASE_SLIP_HEADER_LOGO.maxHeight,
+    );
+  } catch {
+    return { dataUrl: '', width: 0, height: 0 };
+  }
+}
+
 export async function downloadPurchaseSlipWord(caseRecord, signatories, approverSignatory) {
+  const logo = await loadPurchaseSlipLogoForWord();
   const html = buildPurchaseSlipDocHtml({
     purchaseSlip: caseRecord.purchaseSlip,
     signatories,
     approverSignatory,
+    logoDataUrl: logo.dataUrl,
+    logoWidth: logo.width,
+    logoHeight: logo.height,
   });
   downloadWordHtml(html, `purchase-slip-${caseRecord.caseNo}.doc`);
 }
@@ -91,7 +110,12 @@ export async function sendPettyCashEmail({ email, docType, payload }) {
   let signatureHeight = 0;
 
   try {
-    if (docType !== 'purchase_slip') {
+    if (docType === 'purchase_slip') {
+      const logo = await loadPurchaseSlipLogoForWord();
+      letterheadDataUrl = logo.dataUrl;
+      letterheadWidth = logo.width;
+      letterheadHeight = logo.height;
+    } else {
       const lh = await loadLetterheadForWord();
       letterheadDataUrl = lh.dataUrl;
       letterheadWidth = lh.width;

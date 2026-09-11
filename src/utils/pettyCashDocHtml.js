@@ -80,6 +80,9 @@ export function buildPurchaseSlipDocHtml({
   purchaseSlip,
   signatories = [],
   approverSignatory = null,
+  logoDataUrl = '',
+  logoWidth = 0,
+  logoHeight = 0,
 }) {
   const ps = purchaseSlip || {};
 
@@ -88,7 +91,7 @@ export function buildPurchaseSlipDocHtml({
 <title>Purchase Slip (Petty Cash)</title>
 </head>
 <body style="font-family:'Times New Roman',Times,serif; font-size:12pt; margin:36pt;">
-${buildOfficialHeaderHtml()}
+${buildOfficialHeaderHtml({ logoDataUrl, logoWidth, logoHeight })}
 <p style="${PETTY_CASH_DOC_TITLE_STYLE}">Purchase Slip (Petty Cash)</p>
 ${buildPurchaseItemsTableHtml(ps.items)}
 ${buildPurchaseSlipFooterHtml({

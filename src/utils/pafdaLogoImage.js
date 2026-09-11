@@ -3,6 +3,9 @@ import { resizeDataUrlToFit } from './imageDataUrlResize';
 /** Official PAFDA wordmark — operator-supplied PNG, never stretched. */
 export const PAFDA_LOGO_PATH = '/pafda-logo.png';
 
+/** Centered Purchase Slip header — keep landscape proportions. */
+export const PAFDA_PURCHASE_SLIP_HEADER_LOGO = { maxWidth: 210, maxHeight: 78 };
+
 let cachedFull = null;
 let cachedWord = null;
 
