@@ -10,6 +10,7 @@ import {
   Trash2,
   Loader2,
   Image,
+  PenLine,
 } from 'lucide-react';
 import {
   useMeetingsExecutive,
@@ -27,6 +28,7 @@ import {
 import {
   computePurchaseItemsTotal,
   emptyPurchaseItem,
+  purchaseItemsFromInvoiceFields,
   syncPurchaseItemTotals,
 } from '../utils/pettyCashPurchaseSlip';
 import {
@@ -54,6 +56,33 @@ function loadEmail() {
   } catch {
     return '';
   }
+}
+
+function SignatoryPair({ title, nameId, desId, name, designation, onName, onDesignation, hint }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+      <p className="mb-3 text-xs font-medium text-zinc-300">{title}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <FormField label="Name" id={nameId}>
+          <TextInput
+            id={nameId}
+            value={name}
+            onChange={(e) => onName(e.target.value)}
+            placeholder="Signatory name"
+          />
+        </FormField>
+        <FormField label="Designation" id={desId}>
+          <TextInput
+            id={desId}
+            value={designation}
+            onChange={(e) => onDesignation(e.target.value)}
+            placeholder="Designation"
+          />
+        </FormField>
+      </div>
+      {hint ? <p className="mt-2 text-xs text-zinc-500">{hint}</p> : null}
+    </div>
+  );
 }
 
 function ExportButtons({ busy, onPdf, onWord, onEmail, disabled }) {
@@ -100,7 +129,12 @@ export default function PettyCashRecord() {
     removePettyCashCase,
     addRefreshmentNote,
     removeRefreshmentNote,
+    updatePettyCashSignatures,
   } = usePettyCashExecutive();
+
+  const patchSignatures = (patchFn) => {
+    updatePettyCashSignatures((prev) => patchFn(prev));
+  };
 
   const [email, setEmail] = useState(loadEmail);
   const [message, setMessage] = useState('');
@@ -153,28 +187,23 @@ export default function PettyCashRecord() {
         imageFile: file,
       });
       setInvoicePhotoUrl(url || '');
-      setPurchaseSlip((p) => {
-        const items = [...(p.items || [emptyPurchaseItem()])];
-        const first = syncPurchaseItemTotals({
-          ...items[0],
-          description: fields.description || items[0].description,
-          quantity: fields.quantity || items[0].quantity,
-          totalCost: fields.amountPkr || items[0].totalCost,
-        });
-        items[0] = first;
-        return {
-          ...p,
-          vendor: fields.vendor || p.vendor,
-          invoiceNo: fields.invoiceNo || p.invoiceNo,
-          date: fields.date || p.date,
-          paymentMode: fields.paymentMode || p.paymentMode,
-          items,
-          description: fields.description || p.description,
-          quantity: fields.quantity || p.quantity,
-          amountPkr: fields.amountPkr || p.amountPkr,
-        };
-      });
-      setMessage(storageWarning || 'Invoice scan complete — fields verify karein');
+      const scannedItems = purchaseItemsFromInvoiceFields(fields);
+      setPurchaseSlip((p) => ({
+        ...p,
+        vendor: fields.vendor || p.vendor,
+        invoiceNo: fields.invoiceNo || p.invoiceNo,
+        date: fields.date || p.date,
+        paymentMode: fields.paymentMode || p.paymentMode,
+        items: scannedItems,
+        description: fields.description || p.description,
+        quantity: fields.quantity || p.quantity,
+        amountPkr: fields.amountPkr || p.amountPkr,
+      }));
+      setSatisfactoryNote((p) => ({
+        ...p,
+        items: satisfactoryItemsFromPurchase({ items: scannedItems }),
+      }));
+      setMessage(storageWarning || 'Invoice scan complete — har item alag row mein verify karein');
     } catch (err) {
       setMessage(err.message || 'Scan fail');
     } finally {
@@ -265,6 +294,21 @@ export default function PettyCashRecord() {
             String(purchaseSlip.requestedBy?.name ?? '').trim() ||
             pettyCashSignatures.purchaseSlip[0]?.name ||
             '',
+          designation:
+            String(purchaseSlip.requestedBy?.designation ?? '').trim() ||
+            pettyCashSignatures.purchaseSlip[0]?.designation ||
+            '',
+        },
+        approvedBy: {
+          ...purchaseSlip.approvedBy,
+          name:
+            String(purchaseSlip.approvedBy?.name ?? '').trim() ||
+            pettyCashSignatures.purchaseSlipApprover?.name ||
+            '',
+          designation:
+            String(purchaseSlip.approvedBy?.designation ?? '').trim() ||
+            pettyCashSignatures.purchaseSlipApprover?.designation ||
+            '',
         },
       },
       satisfactoryNote: {
@@ -275,12 +319,20 @@ export default function PettyCashRecord() {
             String(satisfactoryNote.receivedBy?.name ?? '').trim() ||
             pettyCashSignatures.satisfactoryNote[0]?.name ||
             '',
+          designation:
+            String(satisfactoryNote.receivedBy?.designation ?? '').trim() ||
+            pettyCashSignatures.satisfactoryNote[0]?.designation ||
+            '',
         },
         verifiedBy: {
           ...satisfactoryNote.verifiedBy,
           name:
             String(satisfactoryNote.verifiedBy?.name ?? '').trim() ||
             pettyCashSignatures.purchaseSlipApprover?.name ||
+            '',
+          designation:
+            String(satisfactoryNote.verifiedBy?.designation ?? '').trim() ||
+            pettyCashSignatures.purchaseSlipApprover?.designation ||
             '',
         },
       },
@@ -449,6 +501,100 @@ export default function PettyCashRecord() {
         )}
       </GlassCard>
 
+      <GlassCard className="border-amber-500/20 bg-amber-500/5 p-5 sm:p-6">
+        <div className="mb-4 flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/15">
+            <PenLine className="h-5 w-5 text-amber-300" />
+          </span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-amber-300/90">
+              Adding Signature
+            </p>
+            <p className="text-sm text-zinc-500">
+              Name + designation — PDF / Word / Email ke sahi signature slots par
+            </p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <SignatoryPair
+            title="Purchase Slip — Requested By"
+            nameId="sig-ps-name"
+            desId="sig-ps-des"
+            name={pettyCashSignatures.purchaseSlip[0]?.name || ''}
+            designation={pettyCashSignatures.purchaseSlip[0]?.designation || ''}
+            onName={(name) =>
+              patchSignatures((prev) => ({
+                ...prev,
+                purchaseSlip: [{ ...(prev.purchaseSlip[0] || {}), name }],
+              }))
+            }
+            onDesignation={(designation) =>
+              patchSignatures((prev) => ({
+                ...prev,
+                purchaseSlip: [{ ...(prev.purchaseSlip[0] || {}), designation }],
+              }))
+            }
+          />
+          <SignatoryPair
+            title="Section Head (Purchase Slip + Satisfactory Note)"
+            nameId="sig-sh-name"
+            desId="sig-sh-des"
+            name={pettyCashSignatures.purchaseSlipApprover?.name || ''}
+            designation={pettyCashSignatures.purchaseSlipApprover?.designation || ''}
+            onName={(name) =>
+              patchSignatures((prev) => ({
+                ...prev,
+                purchaseSlipApprover: { ...prev.purchaseSlipApprover, name },
+              }))
+            }
+            onDesignation={(designation) =>
+              patchSignatures((prev) => ({
+                ...prev,
+                purchaseSlipApprover: { ...prev.purchaseSlipApprover, designation },
+              }))
+            }
+          />
+          <SignatoryPair
+            title="Satisfactory Note — Received & Verified By"
+            nameId="sig-sn-name"
+            desId="sig-sn-des"
+            name={pettyCashSignatures.satisfactoryNote[0]?.name || ''}
+            designation={pettyCashSignatures.satisfactoryNote[0]?.designation || ''}
+            onName={(name) =>
+              patchSignatures((prev) => ({
+                ...prev,
+                satisfactoryNote: [{ ...(prev.satisfactoryNote[0] || {}), name }],
+              }))
+            }
+            onDesignation={(designation) =>
+              patchSignatures((prev) => ({
+                ...prev,
+                satisfactoryNote: [{ ...(prev.satisfactoryNote[0] || {}), designation }],
+              }))
+            }
+          />
+          <SignatoryPair
+            title="Refreshment Receiving — Issuer"
+            nameId="sig-rf-name"
+            desId="sig-rf-des"
+            name={pettyCashSignatures.refreshmentIssuer?.name || ''}
+            designation={pettyCashSignatures.refreshmentIssuer?.designation || ''}
+            onName={(name) =>
+              patchSignatures((prev) => ({
+                ...prev,
+                refreshmentIssuer: { ...prev.refreshmentIssuer, name },
+              }))
+            }
+            onDesignation={(designation) =>
+              patchSignatures((prev) => ({
+                ...prev,
+                refreshmentIssuer: { ...prev.refreshmentIssuer, designation },
+              }))
+            }
+          />
+        </div>
+      </GlassCard>
+
       <GlassCard className="border-violet-500/20 p-5 sm:p-6">
         <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-violet-300/90">
           New — Purchase Slip + Satisfactory Note
@@ -591,7 +737,7 @@ export default function PettyCashRecord() {
         </FormField>
 
         <p className="mb-2 mt-5 text-xs font-medium text-zinc-400">Requested By</p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <FormField label="Name" id="ps-req-name">
             <TextInput
               id="ps-req-name"
@@ -606,7 +752,24 @@ export default function PettyCashRecord() {
                   requestedBy: { ...p.requestedBy, name: e.target.value },
                 }))
               }
-              placeholder="Optional — initiator name se auto"
+              placeholder="Optional — Adding Signature se auto"
+            />
+          </FormField>
+          <FormField label="Designation" id="ps-req-des">
+            <TextInput
+              id="ps-req-des"
+              value={
+                purchaseSlip.requestedBy?.designation ||
+                pettyCashSignatures.purchaseSlip[0]?.designation ||
+                ''
+              }
+              onChange={(e) =>
+                setPurchaseSlip((p) => ({
+                  ...p,
+                  requestedBy: { ...p.requestedBy, designation: e.target.value },
+                }))
+              }
+              placeholder="Optional — Adding Signature se auto"
             />
           </FormField>
           <FormField label="Date" id="ps-req-date">
@@ -623,22 +786,39 @@ export default function PettyCashRecord() {
             />
           </FormField>
         </div>
-        <p className="mt-1 text-xs text-zinc-500">
-          Signature line print par manual — digital image nahi
-        </p>
 
         <p className="mb-2 mt-5 text-xs font-medium text-zinc-400">
           Approved by (Section Head):
         </p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <FormField label="Name" id="ps-app-name">
             <TextInput
               id="ps-app-name"
-              value={purchaseSlip.approvedBy?.name || ''}
+              value={
+                purchaseSlip.approvedBy?.name ||
+                pettyCashSignatures.purchaseSlipApprover?.name ||
+                ''
+              }
               onChange={(e) =>
                 setPurchaseSlip((p) => ({
                   ...p,
                   approvedBy: { ...p.approvedBy, name: e.target.value },
+                }))
+              }
+            />
+          </FormField>
+          <FormField label="Designation" id="ps-app-des">
+            <TextInput
+              id="ps-app-des"
+              value={
+                purchaseSlip.approvedBy?.designation ||
+                pettyCashSignatures.purchaseSlipApprover?.designation ||
+                ''
+              }
+              onChange={(e) =>
+                setPurchaseSlip((p) => ({
+                  ...p,
+                  approvedBy: { ...p.approvedBy, designation: e.target.value },
                 }))
               }
             />
@@ -657,9 +837,6 @@ export default function PettyCashRecord() {
             />
           </FormField>
         </div>
-        <p className="mt-1 text-xs text-zinc-500">
-          Signature line print par manual — digital image nahi
-        </p>
 
         <p className="mb-2 mt-5 text-xs font-medium text-zinc-400">Satisfactory Note</p>
         <button
@@ -745,7 +922,7 @@ export default function PettyCashRecord() {
         <p className="mb-2 mt-5 text-xs font-medium text-zinc-400">
           Received &amp; Verified By (End User / Requestor)
         </p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <FormField label="Name" id="sn-recv-name">
             <TextInput
               id="sn-recv-name"
@@ -760,7 +937,24 @@ export default function PettyCashRecord() {
                   receivedBy: { ...p.receivedBy, name: e.target.value },
                 }))
               }
-              placeholder="Optional — requestor name se auto"
+              placeholder="Optional — Adding Signature se auto"
+            />
+          </FormField>
+          <FormField label="Designation" id="sn-recv-des">
+            <TextInput
+              id="sn-recv-des"
+              value={
+                satisfactoryNote.receivedBy?.designation ||
+                pettyCashSignatures.satisfactoryNote[0]?.designation ||
+                ''
+              }
+              onChange={(e) =>
+                setSatisfactoryNote((p) => ({
+                  ...p,
+                  receivedBy: { ...p.receivedBy, designation: e.target.value },
+                }))
+              }
+              placeholder="Optional — Adding Signature se auto"
             />
           </FormField>
           <FormField label="Date" id="sn-recv-date">
@@ -777,22 +971,39 @@ export default function PettyCashRecord() {
             />
           </FormField>
         </div>
-        <p className="mt-1 text-xs text-zinc-500">
-          Signature line print par manual — digital image nahi
-        </p>
 
         <p className="mb-2 mt-5 text-xs font-medium text-zinc-400">
           Verified By (Section Head)
         </p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <FormField label="Name" id="sn-ver-name">
             <TextInput
               id="sn-ver-name"
-              value={satisfactoryNote.verifiedBy?.name || ''}
+              value={
+                satisfactoryNote.verifiedBy?.name ||
+                pettyCashSignatures.purchaseSlipApprover?.name ||
+                ''
+              }
               onChange={(e) =>
                 setSatisfactoryNote((p) => ({
                   ...p,
                   verifiedBy: { ...p.verifiedBy, name: e.target.value },
+                }))
+              }
+            />
+          </FormField>
+          <FormField label="Designation" id="sn-ver-des">
+            <TextInput
+              id="sn-ver-des"
+              value={
+                satisfactoryNote.verifiedBy?.designation ||
+                pettyCashSignatures.purchaseSlipApprover?.designation ||
+                ''
+              }
+              onChange={(e) =>
+                setSatisfactoryNote((p) => ({
+                  ...p,
+                  verifiedBy: { ...p.verifiedBy, designation: e.target.value },
                 }))
               }
             />
@@ -811,9 +1022,6 @@ export default function PettyCashRecord() {
             />
           </FormField>
         </div>
-        <p className="mt-1 text-xs text-zinc-500">
-          Signature line print par manual — digital image nahi
-        </p>
 
         <button
           type="button"

@@ -15,8 +15,8 @@ export function emptyPurchaseSlip() {
     date: getTodayISO(),
     items: [emptyPurchaseItem()],
     justification: '',
-    requestedBy: { name: '', date: getTodayISO() },
-    approvedBy: { name: '', date: '' },
+    requestedBy: { name: '', designation: '', date: getTodayISO() },
+    approvedBy: { name: '', designation: '', date: '' },
     vendor: '',
     invoiceNo: '',
     description: '',
@@ -61,10 +61,12 @@ function normalizePurchaseSlipFields(purchase) {
     justification: String(p.justification ?? '').trim(),
     requestedBy: {
       name: String(requested.name ?? requested.names ?? '').trim(),
+      designation: String(requested.designation ?? '').trim(),
       date: String(requested.date ?? '').trim() || String(p.date ?? '').trim() || getTodayISO(),
     },
     approvedBy: {
       name: String(approved.name ?? '').trim(),
+      designation: String(approved.designation ?? '').trim(),
       date: String(approved.date ?? '').trim(),
     },
     vendor: String(p.vendor ?? '').trim(),
@@ -173,10 +175,12 @@ function normalizeSatisfactoryNoteFields(satisfactory, purchaseSlip) {
     items: normalizeSatisfactoryItems(s.items, s, purchaseSlip),
     receivedBy: {
       name: String(received.name ?? '').trim(),
+      designation: String(received.designation ?? '').trim(),
       date: String(received.date ?? '').trim() || legacyDate || getTodayISO(),
     },
     verifiedBy: {
       name: String(verified.name ?? '').trim(),
+      designation: String(verified.designation ?? '').trim(),
       date: String(verified.date ?? '').trim(),
     },
   };

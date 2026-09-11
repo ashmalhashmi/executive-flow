@@ -936,9 +936,13 @@ export function ExecutiveProvider({ children }) {
     }));
   }, []);
 
-  const updatePettyCashSignatures = useCallback((settings) => {
-    const next = savePettyCashSignatures(settings);
-    setPettyCashSignaturesState(next);
+  const updatePettyCashSignatures = useCallback((settingsOrFn) => {
+    let next = null;
+    setPettyCashSignaturesState((prev) => {
+      const incoming = typeof settingsOrFn === 'function' ? settingsOrFn(prev) : settingsOrFn;
+      next = savePettyCashSignatures(incoming);
+      return next;
+    });
     return next;
   }, []);
 

@@ -94,19 +94,109 @@ export function resolvePurchaseDateLine(dateISO) {
   return dateRaw || '—';
 }
 
+export function splitInvoiceDescription(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return [];
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*(?:\d+[.)]|[-*])\s*/, '').trim())
+    .filter(Boolean);
+  if (lines.length > 1) return lines;
+  const parts = raw
+    .split(/\s*(?:,|;|&|\band\b)\s+/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.length ? parts : [raw];
+}
+
+export function purchaseItemsFromInvoiceFields(fields = {}) {
+  const rawItems = Array.isArray(fields.items) ? fields.items : [];
+  const mapped = rawItems
+    .map((row) =>
+      syncPurchaseItemTotals({
+        description: String(row?.description ?? '').trim(),
+        quantity: String(row?.quantity ?? '').trim(),
+        unitCost: row?.unitCost ?? '',
+        totalCost: row?.totalCost ?? '',
+      }),
+    )
+    .filter((row) => String(row.description || '').trim());
+
+  if (mapped.length === 1) {
+    const parts = splitInvoiceDescription(mapped[0].description);
+    if (parts.length > 1) {
+      return parts.map((description) =>
+        syncPurchaseItemTotals({
+          ...emptyPurchaseItem(),
+          description,
+        }),
+      );
+    }
+  }
+
+  if (mapped.length) {
+    if (mapped.length === 1 && !mapped[0].totalCost && fields.amountPkr) {
+      mapped[0] = syncPurchaseItemTotals({
+        ...mapped[0],
+        totalCost: fields.amountPkr,
+      });
+    }
+    return mapped;
+  }
+
+  const parts = splitInvoiceDescription(fields.description);
+  if (parts.length > 1) {
+    return parts.map((description) =>
+      syncPurchaseItemTotals({
+        ...emptyPurchaseItem(),
+        description,
+      }),
+    );
+  }
+
+  const fallback = syncPurchaseItemTotals({
+    ...emptyPurchaseItem(),
+    description: String(fields.description ?? '').trim(),
+    quantity: String(fields.quantity ?? '').trim(),
+    totalCost: fields.amountPkr || '',
+  });
+  return String(fallback.description || '').trim() ? [fallback] : [emptyPurchaseItem()];
+}
+
+function firstSignatory(requestedSignatories = []) {
+  return Array.isArray(requestedSignatories) ? requestedSignatories[0] : requestedSignatories || null;
+}
+
 /** Requester name from form field or purchase-slip initiator signature settings. */
 export function resolveRequestedByName(purchaseSlip, requestedSignatories = []) {
   const requested = purchaseSlip?.requestedBy || {};
   const fromField = String(requested.name ?? requested.names ?? '').trim();
   if (fromField) return fromField;
-  const sig = Array.isArray(requestedSignatories) ? requestedSignatories[0] : null;
-  return String(sig?.name ?? '').trim();
+  return String(firstSignatory(requestedSignatories)?.name ?? '').trim();
+}
+
+export function resolveRequestedByDesignation(purchaseSlip, requestedSignatories = []) {
+  const requested = purchaseSlip?.requestedBy || {};
+  const fromField = String(requested.designation ?? '').trim();
+  if (fromField) return fromField;
+  return String(firstSignatory(requestedSignatories)?.designation ?? '').trim();
 }
 
 export function resolveRequestedByDate(purchaseSlip) {
   const requested = purchaseSlip?.requestedBy || {};
   const date = String(requested.date ?? purchaseSlip?.date ?? '').trim();
   return date ? resolvePurchaseDateLine(date) : '—';
+}
+
+export function resolveApproverSignatory(purchaseSlip, approverSignatory) {
+  const approved = purchaseSlip?.approvedBy || {};
+  return {
+    name: String(approved.name ?? '').trim() || String(approverSignatory?.name ?? '').trim(),
+    designation:
+      String(approved.designation ?? '').trim() ||
+      String(approverSignatory?.designation ?? '').trim(),
+    date: approved.date ? resolvePurchaseDateLine(approved.date) : '',
+  };
 }
 
 function escapePurchaseHtml(value) {
@@ -157,13 +247,13 @@ export function buildPurchaseItemsTableHtml(items) {
 export function buildPurchaseSlipFooterHtml({
   purchaseSlip,
   requestedSignatories = [],
+  approverSignatory = null,
 }) {
   const ps = purchaseSlip || {};
-  const approved = ps.approvedBy || {};
   const requestedName = resolveRequestedByName(ps, requestedSignatories);
+  const requestedDesignation = resolveRequestedByDesignation(ps, requestedSignatories);
   const requestedDate = resolveRequestedByDate(ps);
-  const approvedName = String(approved.name ?? '').trim();
-  const approvedDate = approved.date ? resolvePurchaseDateLine(approved.date) : '—';
+  const approved = resolveApproverSignatory(ps, approverSignatory);
 
   let html = `<p style="margin:12pt 0 6pt 0; font-weight:bold;">Justification</p>
 <p style="margin:0 0 18pt 0; line-height:1.5;">${escapePurchaseHtml(ps.justification || '—')}</p>`;
@@ -171,13 +261,15 @@ export function buildPurchaseSlipFooterHtml({
   html += buildSignatoryBlockHtml({
     title: 'Requested By:',
     name: requestedName,
+    designation: requestedDesignation,
     date: requestedDate,
   });
 
   html += buildSignatoryBlockHtml({
     title: 'Approved by (Section Head):',
-    name: approvedName,
-    date: approvedDate,
+    name: approved.name,
+    designation: approved.designation,
+    date: approved.date,
   });
 
   return html;

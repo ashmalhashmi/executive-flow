@@ -119,6 +119,25 @@ function resolveRequestedByName(ps, signatories) {
   return String(sig?.name ?? '').trim();
 }
 
+function resolveRequestedByDesignation(ps, signatories) {
+  const requested = ps?.requestedBy || {};
+  const fromField = String(requested.designation ?? '').trim();
+  if (fromField) return fromField;
+  const sig = Array.isArray(signatories) ? signatories[0] : null;
+  return String(sig?.designation ?? '').trim();
+}
+
+function resolveApprover(ps, approverSignatory) {
+  const approved = ps?.approvedBy || {};
+  return {
+    name: String(approved.name ?? '').trim() || String(approverSignatory?.name ?? '').trim(),
+    designation:
+      String(approved.designation ?? '').trim() ||
+      String(approverSignatory?.designation ?? '').trim(),
+    date: approved.date ? resolveDateLine(approved.date) : '',
+  };
+}
+
 function buildPurchaseItemsTable(ps) {
   const items = normalizeItems(ps);
   const total = itemsTotal(items);
@@ -153,24 +172,27 @@ function buildPurchaseItemsTable(ps) {
 </tr></thead><tbody>${body}</tbody></table>`;
 }
 
-function buildPurchaseFooter(ps, signatories) {
-  const approved = ps.approvedBy || {};
+function buildPurchaseFooter(ps, signatories, approverSignatory) {
   const requestedName = resolveRequestedByName(ps, signatories);
+  const requestedDesignation = resolveRequestedByDesignation(ps, signatories);
   const requestedDate = ps.requestedBy?.date
     ? resolveDateLine(ps.requestedBy.date)
     : ps.date
       ? resolveDateLine(ps.date)
       : '—';
+  const approved = resolveApprover(ps, approverSignatory);
   return `<p style="margin:12pt 0 6pt 0; font-weight:bold;">Justification</p>
 <p style="margin:0 0 18pt 0; line-height:1.5;">${escapeHtml(ps.justification || '—')}</p>
 ${buildSignatoryBlockHtml({
   title: 'Requested By:',
   name: requestedName,
+  designation: requestedDesignation,
   date: requestedDate,
 })}${buildSignatoryBlockHtml({
   title: 'Approved by (Section Head):',
   name: approved.name,
-  date: approved.date ? resolveDateLine(approved.date) : '',
+  designation: approved.designation,
+  date: approved.date,
 })}`;
 }
 
@@ -192,7 +214,7 @@ function buildHtml(docType, payload, assets) {
 ${buildLetterheadHtml(lh, lw, lhH)}
 <p style="${PETTY_CASH_DOC_TITLE_STYLE}">Purchase Slip (Petty Cash)</p>
 ${buildPurchaseItemsTable(ps)}
-${buildPurchaseFooter(ps, signatories)}
+${buildPurchaseFooter(ps, signatories, approver)}
 </body></html>`;
   }
 
@@ -222,15 +244,24 @@ ${buildPurchaseFooter(ps, signatories)}
 
     const received = sn.receivedBy || {};
     const verified = sn.verifiedBy || {};
+    const sectionHead = payload.sectionHeadSignatory || approver;
     const receivedName =
       String(received.name ?? '').trim() || String(signatories[0]?.name ?? '').trim();
+    const receivedDesignation =
+      String(received.designation ?? '').trim() || String(signatories[0]?.designation ?? '').trim();
+    const verifiedName =
+      String(verified.name ?? '').trim() || String(sectionHead?.name ?? '').trim();
+    const verifiedDesignation =
+      String(verified.designation ?? '').trim() || String(sectionHead?.designation ?? '').trim();
     const footer = `${buildSignatoryBlockHtml({
       title: 'Received &amp; Verified By (End User / Requestor):',
       name: receivedName,
+      designation: receivedDesignation,
       date: received.date ? resolveDateLine(received.date) : '',
     })}${buildSignatoryBlockHtml({
       title: 'Verified By (Section Head):',
-      name: verified.name,
+      name: verifiedName,
+      designation: verifiedDesignation,
       date: verified.date ? resolveDateLine(verified.date) : '',
     })}`;
 

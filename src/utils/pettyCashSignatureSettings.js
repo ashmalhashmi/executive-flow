@@ -23,7 +23,7 @@ function normalizeSignatory(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const name = String(raw.name ?? '').trim();
   const designation = String(raw.designation ?? '').trim();
-  if (!name) return null;
+  if (!name && !designation) return null;
   return {
     name,
     designation,

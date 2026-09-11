@@ -1,19 +1,21 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDisplayDate, getTodayISO } from './dates';
-import { formatPKR } from './currency';
 import { loadPafdaLetterheadDataUrl } from './composeLetterheadImage';
 import { loadReceivingNoteSignatureDataUrl } from './receivingNoteSignatureImage';
 import {
   computePurchaseItemsTotal,
   formatPurchaseMoney,
   normalizePurchaseItems,
+  resolveApproverSignatory,
   resolveRequestedByDate,
+  resolveRequestedByDesignation,
   resolveRequestedByName,
 } from './pettyCashPurchaseSlip';
 import {
-  resolveSatisfactoryDateLine,
+  resolveSatisfactoryReceivedDesignation,
   resolveSatisfactoryReceivedName,
+  resolveSatisfactoryVerifier,
 } from './pettyCashSatisfactoryNote';
 import { PETTY_CASH_BLANK } from './pettyCashDocFormat';
 
@@ -123,7 +125,7 @@ function formatPdfField(value) {
   return text && text !== '—' ? text : PETTY_CASH_BLANK;
 }
 
-function drawSignatoryBlock(doc, leftX, y, title, { name, date }) {
+function drawSignatoryBlock(doc, leftX, y, title, { name, designation, date }) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text(title, leftX, y);
@@ -131,10 +133,20 @@ function drawSignatoryBlock(doc, leftX, y, title, { name, date }) {
   doc.setFont('helvetica', 'normal');
   doc.text(`Name: ${formatPdfField(name)}`, leftX, y);
   y += PAGE.line;
+  doc.text(`Designation: ${formatPdfField(designation)}`, leftX, y);
+  y += PAGE.line;
   doc.text(`Date: ${formatPdfField(date)}`, leftX, y);
   y += PAGE.line;
+  const sigName = String(name ?? '').trim();
+  const sigDes = String(designation ?? '').trim();
   doc.text('Signature:', leftX, y);
-  y = drawInlineSignatureLine(doc, leftX + 28, y);
+  if (sigName || sigDes) {
+    const identity = [sigName, sigDes].filter(Boolean).join(', ');
+    doc.text(identity, leftX + 28, y);
+    y += PAGE.line;
+  } else {
+    y = drawInlineSignatureLine(doc, leftX + 28, y);
+  }
   return y + 6;
 }
 
@@ -204,13 +216,15 @@ export async function downloadPurchaseSlipPdf({
 
   y = drawSignatoryBlock(doc, leftX, y, 'Requested By:', {
     name: resolveRequestedByName(ps, signatories),
+    designation: resolveRequestedByDesignation(ps, signatories),
     date: resolveRequestedByDate(ps),
   });
 
-  const approved = ps.approvedBy || {};
+  const approved = resolveApproverSignatory(ps, approverSignatory);
   y = drawSignatoryBlock(doc, leftX, y, 'Approved by (Section Head):', {
     name: approved.name,
-    date: approved.date ? resolveDateLine(approved.date) : '',
+    designation: approved.designation,
+    date: approved.date,
   });
 
   doc.save('purchase-slip-petty-cash.pdf');
@@ -254,16 +268,18 @@ export async function downloadSatisfactoryNotePdf({
   y = doc.lastAutoTable.finalY + 8;
 
   const received = sn.receivedBy || {};
-  const verified = sn.verifiedBy || {};
+  const verified = resolveSatisfactoryVerifier(sn, sectionHeadSignatory);
 
   y = drawSignatoryBlock(doc, leftX, y, 'Received & Verified By (End User / Requestor):', {
     name: resolveSatisfactoryReceivedName(sn, signatories),
-    date: received.date ? resolveSatisfactoryDateLine(received.date) : '',
+    designation: resolveSatisfactoryReceivedDesignation(sn, signatories),
+    date: received.date ? resolveDateLine(received.date) : '',
   });
 
   drawSignatoryBlock(doc, leftX, y, 'Verified By (Section Head):', {
     name: verified.name,
-    date: verified.date ? resolveSatisfactoryDateLine(verified.date) : '',
+    designation: verified.designation,
+    date: verified.date,
   });
 
   doc.save('satisfactory-note.pdf');

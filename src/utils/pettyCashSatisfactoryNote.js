@@ -21,8 +21,8 @@ export function emptySatisfactoryItem() {
 export function emptySatisfactoryNoteFields() {
   return {
     items: [emptySatisfactoryItem()],
-    receivedBy: { name: '', date: getTodayISO() },
-    verifiedBy: { name: '', date: '' },
+    receivedBy: { name: '', designation: '', date: getTodayISO() },
+    verifiedBy: { name: '', designation: '', date: '' },
   };
 }
 
@@ -51,7 +51,7 @@ export function normalizeSatisfactoryItems(rawItems, legacyNote = {}, purchaseSl
   const purchaseItems = purchaseSlip?.items;
   if (Array.isArray(purchaseItems) && purchaseItems.length) {
     return purchaseItems.map((row) => ({
-      description: '',
+      description: String(row?.description ?? '').trim(),
       qtyReceived: String(row?.quantity ?? '').trim(),
       condition: 'Satisfactory',
       remarks: DEFAULT_SATISFACTORY_REMARKS,
@@ -61,12 +61,33 @@ export function normalizeSatisfactoryItems(rawItems, legacyNote = {}, purchaseSl
   return [emptySatisfactoryItem()];
 }
 
+function firstSignatory(requestorSignatories = []) {
+  return Array.isArray(requestorSignatories) ? requestorSignatories[0] : requestorSignatories || null;
+}
+
 export function resolveSatisfactoryReceivedName(note, requestorSignatories = []) {
   const received = note?.receivedBy || {};
   const fromField = String(received.name ?? '').trim();
   if (fromField) return fromField;
-  const sig = Array.isArray(requestorSignatories) ? requestorSignatories[0] : null;
-  return String(sig?.name ?? '').trim();
+  return String(firstSignatory(requestorSignatories)?.name ?? '').trim();
+}
+
+export function resolveSatisfactoryReceivedDesignation(note, requestorSignatories = []) {
+  const received = note?.receivedBy || {};
+  const fromField = String(received.designation ?? '').trim();
+  if (fromField) return fromField;
+  return String(firstSignatory(requestorSignatories)?.designation ?? '').trim();
+}
+
+export function resolveSatisfactoryVerifier(note, sectionHeadSignatory) {
+  const verified = note?.verifiedBy || {};
+  return {
+    name: String(verified.name ?? '').trim() || String(sectionHeadSignatory?.name ?? '').trim(),
+    designation:
+      String(verified.designation ?? '').trim() ||
+      String(sectionHeadSignatory?.designation ?? '').trim(),
+    date: verified.date ? resolveSatisfactoryDateLine(verified.date) : '',
+  };
 }
 
 export function resolveSatisfactoryDateLine(dateISO) {
@@ -111,23 +132,25 @@ export function buildSatisfactoryItemsTableHtml(items) {
 export function buildSatisfactoryNoteFooterHtml({
   satisfactoryNote,
   requestorSignatories = [],
+  sectionHeadSignatory = null,
 }) {
   const sn = satisfactoryNote || {};
   const received = sn.receivedBy || {};
-  const verified = sn.verifiedBy || {};
   const receivedName = resolveSatisfactoryReceivedName(sn, requestorSignatories);
+  const receivedDesignation = resolveSatisfactoryReceivedDesignation(sn, requestorSignatories);
   const receivedDate = received.date ? resolveSatisfactoryDateLine(received.date) : '—';
-  const verifiedName = String(verified.name ?? '').trim();
-  const verifiedDate = verified.date ? resolveSatisfactoryDateLine(verified.date) : '—';
+  const verified = resolveSatisfactoryVerifier(sn, sectionHeadSignatory);
 
   return `${buildSignatoryBlockHtml({
     title: 'Received &amp; Verified By (End User / Requestor):',
     name: receivedName,
+    designation: receivedDesignation,
     date: receivedDate,
   })}${buildSignatoryBlockHtml({
     title: 'Verified By (Section Head):',
-    name: verifiedName,
-    date: verifiedDate,
+    name: verified.name,
+    designation: verified.designation,
+    date: verified.date,
   })}`;
 }
 
@@ -135,7 +158,7 @@ export function satisfactoryItemsFromPurchase(purchaseSlip) {
   const items = purchaseSlip?.items;
   if (!Array.isArray(items) || !items.length) return [emptySatisfactoryItem()];
   return items.map((row) => ({
-    description: '',
+    description: String(row?.description ?? '').trim(),
     qtyReceived: String(row?.quantity ?? '').trim(),
     condition: 'Satisfactory',
     remarks: DEFAULT_SATISFACTORY_REMARKS,

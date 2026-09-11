@@ -17,8 +17,8 @@ Meeting petty-cash paperwork: **Purchase Slip**, **Satisfactory Note**, and **Re
 
 ## Flow
 
-1. **Signatures** — set who signs Purchase Slip, Satisfactory Note, Refreshment issuer (optional handwritten image via default PS signature).
-2. **Purchase case** — optional meeting link → scan invoice → verify fields → save.
+1. **Adding Signature** — Name + designation for Purchase Slip, Section Head, Satisfactory Note, Refreshment issuer. Printed on PDF / Word / Email at the matching signature slots.
+2. **Purchase case** — optional meeting link → scan invoice → **each product becomes its own item row** → verify → save.
 3. **Export** — PDF · Word · Email (Word attach) per document type.
 4. **Refreshment Receiving** — items issued from office → receiver details → save → export.
 

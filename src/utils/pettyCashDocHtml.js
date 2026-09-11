@@ -83,6 +83,7 @@ export function buildPurchaseSlipDocHtml({
   letterheadWidth = 0,
   letterheadHeight = 0,
   signatories = [],
+  approverSignatory = null,
 }) {
   const ps = purchaseSlip || {};
 
@@ -97,6 +98,7 @@ ${buildPurchaseItemsTableHtml(ps.items)}
 ${buildPurchaseSlipFooterHtml({
   purchaseSlip: ps,
   requestedSignatories: signatories,
+  approverSignatory,
 })}
 </body></html>`;
 }
@@ -107,6 +109,7 @@ export function buildSatisfactoryNoteDocHtml({
   letterheadWidth = 0,
   letterheadHeight = 0,
   signatories = [],
+  sectionHeadSignatory = null,
 }) {
   const sn = satisfactoryNote || {};
 
@@ -121,6 +124,7 @@ ${buildSatisfactoryItemsTableHtml(sn.items)}
 ${buildSatisfactoryNoteFooterHtml({
   satisfactoryNote: sn,
   requestorSignatories: signatories,
+  sectionHeadSignatory,
 })}
 </body></html>`;
 }

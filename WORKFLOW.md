@@ -82,8 +82,8 @@ Souvenir for that meeting? → go to flow **D** (or souvenir panel on the meetin
 
 | Step | Who | What | Click |
 |------|-----|------|-------|
-| 1 | You (once) | Set signatories | **Petty Cash Record** → Signatures section → names / optional signature image |
-| 2 | You | New purchase case | Optional meeting link → **Scan invoice** (camera/upload) → verify AI fields → **Save case** |
+| 1 | You (once) | Set signatories | **Petty Cash Record** → **Adding Signature** → Name + Designation per slot |
+| 2 | You | New purchase case | Optional meeting link → **Scan invoice** (each item = own row) → verify → **Save case** |
 | 3 | You | Export paperwork | Row **PDF** / **Word** / **Email** for Purchase Slip or Satisfactory Note |
 | 4 | Optional | Refreshment leaving office | **Refreshment Receiving** form → save → export same trio |
 

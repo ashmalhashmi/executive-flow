@@ -30,11 +30,20 @@ export function signatureLineHtml() {
   return `<span style="display:inline-block; min-width:220pt; border-bottom:1px solid #333;">&nbsp;</span>`;
 }
 
-export function buildSignatoryBlockHtml({ title, name, date }) {
+export function buildSignatureIdentityHtml(name, designation) {
+  const sigName = String(name ?? '').trim();
+  const sigDes = String(designation ?? '').trim();
+  if (!sigName && !sigDes) return signatureLineHtml();
+  const lines = [sigName, sigDes].filter(Boolean).map(escapePettyCashHtml);
+  return `<span style="display:inline-block; vertical-align:top;">${lines.join('<br/>')}</span>`;
+}
+
+export function buildSignatoryBlockHtml({ title, name, designation = '', date }) {
   return `<p style="margin:18pt 0 6pt 0; font-weight:bold;">${title}</p>
 <p style="margin:0 0 6pt 0;">Name: ${underlineValueHtml(name)}</p>
+<p style="margin:0 0 6pt 0;">Designation: ${underlineValueHtml(designation)}</p>
 <p style="margin:0 0 6pt 0;">Date: ${underlineValueHtml(date)}</p>
-<p style="margin:0 0 12pt 0;">Signature: ${signatureLineHtml()}</p>`;
+<p style="margin:0 0 12pt 0;">Signature: ${buildSignatureIdentityHtml(name, designation)}</p>`;
 }
 
 export function formatPettyCashMoney(value) {
