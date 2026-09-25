@@ -81,6 +81,7 @@ export default function DayAppointmentsPanel({
                     <p className="mt-1 break-safe text-xs text-zinc-500">
                       {formatDisplayTime(apt.time)}
                       {apt.location ? ` · ${apt.location}` : ''}
+                      {apt.outlookEventId ? ' · Outlook' : ''}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">

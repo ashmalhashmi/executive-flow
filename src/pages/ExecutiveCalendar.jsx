@@ -5,13 +5,22 @@ import CustomCalendar from '../components/calendar/CustomCalendar';
 import DayAppointmentsPanel from '../components/calendar/DayAppointmentsPanel';
 import ScheduleAppointmentModal from '../components/calendar/ScheduleAppointmentModal';
 import MeetingSouvenirPanel from '../components/calendar/MeetingSouvenirPanel';
+import OutlookCalendarConnect from '../components/calendar/OutlookCalendarConnect';
 import GlassCard from '../components/ui/GlassCard';
 import { formatDisplayDate, getTodayISO } from '../utils/dates';
 import { parseISO } from '../utils/calendar';
+import { useOutlookCalendar } from '../hooks/useOutlookCalendar';
 
 export default function ExecutiveCalendar() {
-  const { meetings, addMeeting, updateMeeting, cancelMeeting } = useMeetingsExecutive();
+  const {
+    meetings,
+    addMeeting,
+    updateMeeting,
+    cancelMeeting,
+    setMeetingOutlookEventId,
+  } = useMeetingsExecutive();
   const { addSouvenirsFromPresentation } = useSouvenirsExecutive();
+  const outlook = useOutlookCalendar();
   const today = getTodayISO();
   const todayParts = parseISO(today);
 
@@ -121,12 +130,28 @@ export default function ExecutiveCalendar() {
     setEditingMeeting(null);
   };
 
-  const handleSchedule = (payload) => {
+  const handleSchedule = async (payload) => {
     const { meetingId, ...data } = payload;
     if (meetingId) {
+      const existing = meetings.find((m) => m.id === meetingId);
       updateMeeting(meetingId, data);
+      if (outlook.connected) {
+        const eventId = await outlook.pushMeeting({
+          ...existing,
+          ...data,
+          id: meetingId,
+          outlookEventId: existing?.outlookEventId,
+        });
+        if (eventId && eventId !== existing?.outlookEventId) {
+          setMeetingOutlookEventId(meetingId, eventId);
+        }
+      }
     } else {
-      addMeeting({ ...data, scheduledViaCalendar: true });
+      const meeting = addMeeting({ ...data, scheduledViaCalendar: true });
+      if (outlook.connected && meeting) {
+        const eventId = await outlook.pushMeeting(meeting);
+        if (eventId) setMeetingOutlookEventId(meeting.id, eventId);
+      }
     }
     setSelectedDate(data.date);
     const viewParts = parseISO(data.date);
@@ -135,6 +160,14 @@ export default function ExecutiveCalendar() {
     window.setTimeout(() => {
       document.getElementById('meeting-board')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 150);
+  };
+
+  const handleCancelMeeting = async (meetingId) => {
+    const existing = meetings.find((m) => m.id === meetingId);
+    cancelMeeting(meetingId);
+    if (existing?.outlookEventId) {
+      await outlook.removeMeetingEvent(existing.outlookEventId);
+    }
   };
 
   const jumpToMeetingDate = (dateISO) => {
@@ -163,6 +196,16 @@ export default function ExecutiveCalendar() {
 
   return (
     <div className="space-y-6">
+      <OutlookCalendarConnect
+        connected={outlook.connected}
+        syncing={outlook.syncing}
+        error={outlook.error}
+        lastMessage={outlook.lastMessage}
+        canUseApi={outlook.canUseApi}
+        onConnect={outlook.connect}
+        onDisconnect={outlook.disconnect}
+      />
+
       {allVisitsSorted.length > 0 && (
         <GlassCard className="border-indigo-500/20 bg-indigo-500/5 p-4 sm:p-5">
           <p className="text-sm font-medium text-indigo-200">
@@ -257,7 +300,7 @@ export default function ExecutiveCalendar() {
             appointments={dayAppointments}
             onScheduleClick={openScheduleModal}
             onEditMeeting={openEditModal}
-            onCancelMeeting={cancelMeeting}
+            onCancelMeeting={handleCancelMeeting}
           />
           <MeetingSouvenirPanel
             selectedDate={selectedDate}

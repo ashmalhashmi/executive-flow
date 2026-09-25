@@ -400,6 +400,7 @@ export function ExecutiveProvider({ children }) {
       automateReminders: payload.automateReminders ?? false,
       status: 'Scheduled',
       scheduledViaCalendar: Boolean(payload.scheduledViaCalendar),
+      outlookEventId: String(payload.outlookEventId || '').trim() || undefined,
     };
     setMeetings((prev) => [...prev, meeting]);
     return meeting;
@@ -429,7 +430,23 @@ export function ExecutiveProvider({ children }) {
               automateReminders: payload.automateReminders ?? m.automateReminders,
               scheduledViaCalendar:
                 payload.scheduledViaCalendar ?? m.scheduledViaCalendar ?? true,
+              outlookEventId:
+                payload.outlookEventId !== undefined
+                  ? String(payload.outlookEventId || '').trim() || undefined
+                  : m.outlookEventId,
             },
+      ),
+    );
+  }, []);
+
+  /** Patch Outlook Graph event id after one-way push (no reminder reset) */
+  const setMeetingOutlookEventId = useCallback((meetingId, outlookEventId) => {
+    const id = String(outlookEventId || '').trim();
+    setMeetings((prev) =>
+      prev.map((m) =>
+        m.id !== meetingId
+          ? m
+          : { ...m, outlookEventId: id || undefined },
       ),
     );
   }, []);
@@ -1210,6 +1227,7 @@ export function ExecutiveProvider({ children }) {
       addMeeting,
       cancelMeeting,
       updateMeeting,
+      setMeetingOutlookEventId,
       importGoogleMeetings,
       stats,
       upcomingMeetings,
@@ -1221,6 +1239,7 @@ export function ExecutiveProvider({ children }) {
       addMeeting,
       cancelMeeting,
       updateMeeting,
+      setMeetingOutlookEventId,
       importGoogleMeetings,
       stats,
       upcomingMeetings,

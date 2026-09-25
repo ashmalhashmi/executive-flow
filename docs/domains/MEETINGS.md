@@ -8,13 +8,22 @@ Calendar appointments, reminders, morning meeting board email/PDF.
 |-------|--------|
 | UI | `src/pages/ExecutiveCalendar.jsx`, `src/components/calendar/`, dashboard meeting widgets |
 | State | `MeetingsContext` via `useMeetingsExecutive` |
-| Logic | `src/utils/calendar.js`, `dates.js`, `reminders.js`, `morningBoardSettings.js`, `meetingBoardPdf.js`, `monthlyMeetingLogPdf.js`, `googleCalendar.js`, `diaryImport.js` |
+| Logic | `src/utils/calendar.js`, `dates.js`, `reminders.js`, `morningBoardSettings.js`, `meetingBoardPdf.js`, `monthlyMeetingLogPdf.js`, `googleCalendar.js`, `outlookCalendar.js`, `diaryImport.js` |
 | API | `api/morning-meeting-board.js`, `api/_lib/meetingBoardPdf.js`, `sendMeetingBoardEmail.js`, `loadMorningBoardJobs.js`, `karachiDate.js` |
 
 ## Storage
 
 - Key: `executive_flow_meetings`
 - Normalize with helpers in `dates.js` (`normalizeMeetingForCalendar`, etc.)
+- Optional `outlookEventId` — Microsoft Graph event id after one-way Outlook push
+
+## Outlook (one-way push)
+
+1. Set `VITE_MSAL_CLIENT_ID` (Azure SPA app + `Calendars.ReadWrite`).
+2. **My Calendar** → **Connect Outlook**.
+3. Save / edit / cancel appointment → create / update / delete on Outlook primary calendar (`Asia/Karachi`, 1 hour duration).
+
+Not two-way: Outlook → app import is out of scope for this path.
 
 ## Related (not this domain)
 

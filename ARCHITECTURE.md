@@ -17,7 +17,7 @@ Premium executive assistant for office ops: meetings, souvenirs, money, orders, 
 | Domain | Nav / tab id | Purpose | Touch these first |
 |--------|--------------|---------|-------------------|
 | **Shell** | — | Layout, tabs, providers | `App.jsx`, `components/layout/`, `constants/navigation.js`, `utils/tabImports.js` |
-| **Meetings** | `calendar`, dashboard widgets | Appointments, reminders, morning board | `pages/ExecutiveCalendar.jsx`, `utils/calendar.js`, `utils/reminders.js`, `utils/morningBoardSettings.js`, `api/morning-meeting-board.js` |
+| **Meetings** | `calendar`, dashboard widgets | Appointments, reminders, morning board · Outlook one-way push | `pages/ExecutiveCalendar.jsx`, `utils/calendar.js`, `utils/outlookCalendar.js`, `utils/reminders.js`, `utils/morningBoardSettings.js`, `api/morning-meeting-board.js` |
 | **Souvenirs** | `souvenirs` | Meeting gift / stock log | `pages/SouvenirLog.jsx`, `utils/souvenirLog.js`, `components/souvenirs/` |
 | **Expenditure** | `expenditure` | PKR expenses, categories, weekly email · PDF grouped by category (opening→today) | `pages/ExpenditureLog.jsx`, `utils/expenditure*.js`, `api/categorize-expenditure.js`, `api/weekly-expenditure-summary.js` |
 | **Petty Cash** | `pettyCash` | Purchase Slip · Satisfactory Note · Refreshment Receiving · invoice scan · PDF/Word/Email | `pages/PettyCashRecord.jsx`, `utils/pettyCash*.js`, `api/extract-petty-invoice.js`, `api/petty-cash-email.js` |

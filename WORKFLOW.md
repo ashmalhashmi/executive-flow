@@ -50,8 +50,9 @@ Detail: [docs/CLOUD_SYNC.md](./docs/CLOUD_SYNC.md)
 | Step | Who | What | Click |
 |------|-----|------|-------|
 | 1 | You | Open calendar | **My Calendar** |
-| 2 | You | Pick day → create appointment | Day cell / schedule controls → fill form → save |
-| 3 | System | Reminder when due | No click — alert appears in-app when time comes |
+| 2 | Optional | Connect Outlook (one-way push) | **Connect Outlook** → Microsoft login (needs `VITE_MSAL_CLIENT_ID`) |
+| 3 | You | Pick day → create appointment | Day cell / schedule controls → fill form → save |
+| 4 | System | Reminder when due · Outlook update if connected | No click — alert appears in-app when time comes |
 
 Souvenir for that meeting? → go to flow **D** (or souvenir panel on the meeting).
 
