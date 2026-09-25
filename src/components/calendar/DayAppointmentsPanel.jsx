@@ -8,6 +8,7 @@ import {
   getRelativeDayLabel,
 } from '../../utils/dates';
 import { getMeetingBoardWhatsAppUrl, getSingleMeetingWhatsAppUrl } from '../../utils/whatsappShare';
+import OutlookCalendarButton from '../ui/OutlookCalendarButton';
 
 export default function DayAppointmentsPanel({
   selectedDate,
@@ -85,6 +86,7 @@ export default function DayAppointmentsPanel({
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
+                    <OutlookCalendarButton meeting={apt} />
                     <a
                       href={getSingleMeetingWhatsAppUrl(apt, selectedDate)}
                       target="_blank"

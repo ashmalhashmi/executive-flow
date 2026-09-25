@@ -195,6 +195,88 @@ export function meetingToOutlookEventBody(meeting) {
   return body;
 }
 
+/** Outlook web compose — no Azure Client ID needed (user confirms in browser). */
+export function buildOutlookWebComposeUrl(meeting) {
+  const { start, end } = buildOutlookEventDateTimes(meeting);
+  const params = new URLSearchParams({
+    path: '/calendar/action/compose',
+    rru: 'addevent',
+    subject: String(meeting?.title || 'Meeting').trim() || 'Meeting',
+    body: String(meeting?.agenda || '').trim(),
+    location: String(meeting?.location || '').trim(),
+    startdt: start,
+    enddt: end,
+  });
+  return `https://outlook.office.com/calendar/0/deeplink/compose?${params.toString()}`;
+}
+
+export function openInOutlookCalendar(meeting) {
+  if (typeof window === 'undefined') return;
+  window.open(buildOutlookWebComposeUrl(meeting), '_blank', 'noopener,noreferrer');
+}
+
+function icsEscape(text) {
+  return String(text || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\n/g, '\\n');
+}
+
+function toIcsLocalStamp(dateTime) {
+  // "YYYY-MM-DDTHH:mm:ss" → "YYYYMMDDTHHmmss"
+  return String(dateTime || '').replace(/[-:]/g, '').slice(0, 15);
+}
+
+/** Download .ics — desktop Outlook / Calendar apps open it (zero Azure config). */
+export function downloadOutlookIcs(meeting) {
+  if (typeof window === 'undefined') return;
+  const { start, end } = buildOutlookEventDateTimes(meeting);
+  const uid = `${meeting?.id || `mtg-${Date.now()}`}@executive-flow`;
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}Z$/, 'Z');
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Executive Flow//Petty Meetings//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART;TZID=Asia/Karachi:${toIcsLocalStamp(start)}`,
+    `DTEND;TZID=Asia/Karachi:${toIcsLocalStamp(end)}`,
+    `SUMMARY:${icsEscape(meeting?.title || 'Meeting')}`,
+    `DESCRIPTION:${icsEscape(meeting?.agenda || '')}`,
+    `LOCATION:${icsEscape(meeting?.location || '')}`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ];
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safeName = String(meeting?.title || 'meeting')
+    .replace(/[^\w\-]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40);
+  a.href = url;
+  a.download = `${safeName || 'meeting'}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Zero-config one-way add: .ics download + Outlook web compose.
+ * Use when Graph Connect is not available / not connected.
+ */
+export function addMeetingToOutlookWithoutApi(meeting) {
+  downloadOutlookIcs(meeting);
+  openInOutlookCalendar(meeting);
+}
+
+
 async function graphFetch(path, { method = 'GET', body, accessToken } = {}) {
   const token = accessToken || (await getOutlookAccessToken());
   const res = await fetch(`${GRAPH_BASE}${path}`, {

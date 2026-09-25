@@ -10,6 +10,7 @@ import GlassCard from '../components/ui/GlassCard';
 import { formatDisplayDate, getTodayISO } from '../utils/dates';
 import { parseISO } from '../utils/calendar';
 import { useOutlookCalendar } from '../hooks/useOutlookCalendar';
+import { addMeetingToOutlookWithoutApi } from '../utils/outlookCalendar';
 
 export default function ExecutiveCalendar() {
   const {
@@ -135,22 +136,27 @@ export default function ExecutiveCalendar() {
     if (meetingId) {
       const existing = meetings.find((m) => m.id === meetingId);
       updateMeeting(meetingId, data);
+      const merged = {
+        ...existing,
+        ...data,
+        id: meetingId,
+        outlookEventId: existing?.outlookEventId,
+      };
       if (outlook.connected) {
-        const eventId = await outlook.pushMeeting({
-          ...existing,
-          ...data,
-          id: meetingId,
-          outlookEventId: existing?.outlookEventId,
-        });
+        const eventId = await outlook.pushMeeting(merged);
         if (eventId && eventId !== existing?.outlookEventId) {
           setMeetingOutlookEventId(meetingId, eventId);
         }
+      } else {
+        addMeetingToOutlookWithoutApi(merged);
       }
     } else {
       const meeting = addMeeting({ ...data, scheduledViaCalendar: true });
       if (outlook.connected && meeting) {
         const eventId = await outlook.pushMeeting(meeting);
         if (eventId) setMeetingOutlookEventId(meeting.id, eventId);
+      } else if (meeting) {
+        addMeetingToOutlookWithoutApi(meeting);
       }
     }
     setSelectedDate(data.date);

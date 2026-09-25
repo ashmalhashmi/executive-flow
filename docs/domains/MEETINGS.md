@@ -17,13 +17,11 @@ Calendar appointments, reminders, morning meeting board email/PDF.
 - Normalize with helpers in `dates.js` (`normalizeMeetingForCalendar`, etc.)
 - Optional `outlookEventId` — Microsoft Graph event id after one-way Outlook push
 
-## Outlook (one-way push)
+## Outlook (one-way)
 
-1. Set `VITE_MSAL_CLIENT_ID` (Azure SPA app + `Calendars.ReadWrite`).
-2. **My Calendar** → **Connect Outlook**.
-3. Save / edit / cancel appointment → create / update / delete on Outlook primary calendar (`Asia/Karachi`, 1 hour duration).
+**Works now (no Azure):** save / edit opens Outlook web compose + downloads `.ics`. Each appointment has an **Outlook** button.
 
-Not two-way: Outlook → app import is out of scope for this path.
+**Silent Graph push (optional):** set `VITE_MSAL_CLIENT_ID` via `scripts/setup-outlook-env.ps1`, redeploy, then **Connect Outlook**. Create / update / delete sync to primary calendar (`Asia/Karachi`, 1 hour).
 
 ## Related (not this domain)
 
