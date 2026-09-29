@@ -1,4 +1,4 @@
-/** Client helper — evaluate a deed via /api/muhasaba-evaluate */
+/** Client helper — evaluate a deed via /api/compose-draft (action: muhasaba) */
 
 export async function evaluateMuhasabaDeed(deedText) {
   const text = String(deedText || '').trim();
@@ -6,10 +6,10 @@ export async function evaluateMuhasabaDeed(deedText) {
     throw new Error('Deed text required');
   }
 
-  const res = await fetch('/api/muhasaba-evaluate', {
+  const res = await fetch('/api/compose-draft', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ deedText: text }),
+    body: JSON.stringify({ action: 'muhasaba', deedText: text }),
   });
 
   const data = await res.json().catch(() => ({}));
