@@ -37,6 +37,10 @@ export function writeSnapshotToLocalStorage(snapshotData) {
     'executive_flow_file_labels',
     JSON.stringify(Array.isArray(snapshotData.fileLabels) ? snapshotData.fileLabels : []),
   );
+  localStorage.setItem(
+    'executive_flow_muhasaba',
+    JSON.stringify(Array.isArray(snapshotData.muhasaba) ? snapshotData.muhasaba : []),
+  );
 
   const settings = snapshotData.settings && typeof snapshotData.settings === 'object'
     ? snapshotData.settings
@@ -79,5 +83,6 @@ export function summarizeSnapshotCounts(snapshotData) {
     tasks: (d.tasks ?? []).filter((x) => x.status !== 'cancelled').length,
     contacts: (d.contacts ?? []).filter((c) => c.status !== 'archived').length,
     fileLabels: (d.fileLabels ?? []).length,
+    muhasaba: (d.muhasaba ?? []).length,
   };
 }

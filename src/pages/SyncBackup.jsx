@@ -25,6 +25,7 @@ import {
   useSouvenirsExecutive,
   useTasksExecutive,
   useLabelsExecutive,
+  useMuhasabaExecutive,
 } from '../context/ExecutiveContext';
 import { useCloudSyncContext } from '../context/CloudSyncContext';
 import { useGoogleSheetsSyncContext } from '../context/GoogleSheetsSyncContext';
@@ -47,6 +48,7 @@ export default function SyncBackup() {
   const { captureEntries } = useCaptureExecutive();
   const { contacts } = useContactsExecutive();
   const { fileLabels } = useLabelsExecutive();
+  const { muhasabaEntries } = useMuhasabaExecutive();
   const { importAppData, getAppSnapshot } = useAppMetaExecutive();
   const [loginEmail, setLoginEmail] = useState('hashmiashmal57@gmail.com');
   const [otpCode, setOtpCode] = useState('');
@@ -67,6 +69,7 @@ export default function SyncBackup() {
     captures: captureEntries,
     contacts,
     fileLabels,
+    muhasaba: muhasabaEntries,
   });
 
   const cloudDiff = useMemo(() => {
@@ -86,7 +89,7 @@ export default function SyncBackup() {
               {localSummary.souvenirs} souvenirs · {localSummary.expenditures} expenditures ·{' '}
               {localSummary.orders} orders · {localSummary.dak} dak · {localSummary.tasks} tasks ·{' '}
               {localSummary.captures} captures · {localSummary.contacts} contacts ·{' '}
-              {localSummary.fileLabels ?? 0} file labels
+              {localSummary.fileLabels ?? 0} file labels · {localSummary.muhasaba ?? 0} muhasaba
             </p>
           </div>
         </div>

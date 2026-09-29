@@ -13,6 +13,7 @@ import {
   MessageCircleQuestion,
   PenLine,
   Tag,
+  HeartHandshake,
 } from 'lucide-react';
 
 /** Sidebar navigation tabs — id maps to active view in App */
@@ -40,6 +41,12 @@ export const NAV_ITEMS = [
     label: 'File Labels',
     description: 'Box / file labels · Name → PDF / Word',
     icon: Tag,
+  },
+  {
+    id: 'muhasaba',
+    label: 'Muhasaba',
+    description: 'Self-accountability · deed → action',
+    icon: HeartHandshake,
   },
   {
     id: 'calendar',

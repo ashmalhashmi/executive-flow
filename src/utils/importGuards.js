@@ -17,6 +17,7 @@ export function snapshotHasOtherDomainData(data, skipKey = '') {
       (Array.isArray(data?.pettyCash?.refreshmentNotes) &&
         data.pettyCash.refreshmentNotes.length > 0),
     fileLabels: Array.isArray(data?.fileLabels) && data.fileLabels.length > 0,
+    muhasaba: Array.isArray(data?.muhasaba) && data.muhasaba.length > 0,
     expenditures:
       Array.isArray(data?.expenditure?.expenditures) &&
       data.expenditure.expenditures.length > 0,

@@ -12,6 +12,7 @@ export function buildAppSnapshot({
   contacts,
   pettyCashState,
   fileLabels,
+  muhasabaEntries,
   settings,
 }) {
   return {
@@ -40,6 +41,7 @@ export function buildAppSnapshot({
           : [],
       },
       fileLabels: Array.isArray(fileLabels) ? fileLabels : [],
+      muhasaba: Array.isArray(muhasabaEntries) ? muhasabaEntries : [],
       settings: settings && typeof settings === 'object' ? settings : {},
     },
   };
@@ -68,6 +70,7 @@ export function validateBackup(raw) {
     settings,
     pettyCash,
     fileLabels,
+    muhasaba,
   } = raw.data;
 
   if (meetings != null && !Array.isArray(meetings)) {
@@ -97,6 +100,9 @@ export function validateBackup(raw) {
   if (fileLabels != null && !Array.isArray(fileLabels)) {
     return { ok: false, error: 'File labels data invalid hai' };
   }
+  if (muhasaba != null && !Array.isArray(muhasaba)) {
+    return { ok: false, error: 'Muhasaba data invalid hai' };
+  }
 
   return {
     ok: true,
@@ -115,6 +121,7 @@ export function validateBackup(raw) {
       contacts: contacts ?? [],
       pettyCash: pettyCash ?? { cases: [], refreshmentNotes: [] },
       fileLabels: fileLabels ?? [],
+      muhasaba: muhasaba ?? [],
       settings: settings && typeof settings === 'object' ? settings : {},
     },
     exportedAt: raw.exportedAt,
@@ -162,6 +169,7 @@ export function summarizeBackup(data) {
     pettyCash:
       (data.pettyCash?.cases?.length ?? 0) + (data.pettyCash?.refreshmentNotes?.length ?? 0),
     fileLabels: (data.fileLabels ?? []).length,
+    muhasaba: (data.muhasaba ?? []).length,
   };
 }
 
@@ -178,6 +186,7 @@ export function hasAnyAppData(summary) {
     (summary.captures ?? 0) > 0 ||
     (summary.contacts ?? 0) > 0 ||
     (summary.fileLabels ?? 0) > 0 ||
+    (summary.muhasaba ?? 0) > 0 ||
     (summary.openingBalance ?? 0) > 0
   );
 }

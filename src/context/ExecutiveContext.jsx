@@ -51,6 +51,7 @@ import {
   savePettyCashSignatures,
 } from '../utils/pettyCashSignatureSettings';
 import { normalizeFileLabel, normalizeFileLabelList } from '../utils/fileLabelEntries';
+import { normalizeMuhasabaList } from '../utils/muhasabaEntries';
 import { schedulePersist } from '../utils/persistStorage';
 import { computeExpenditureBalance } from '../utils/expenditureAnalytics';
 import {
@@ -67,6 +68,7 @@ import {
   OrdersContext,
   PettyCashContext,
   LabelsContext,
+  MuhasabaContext,
   SouvenirsContext,
   TasksContext,
   CaptureContext,
@@ -82,6 +84,7 @@ const CAPTURE_STORAGE_KEY = 'executive_flow_captures';
 const CONTACTS_STORAGE_KEY = 'executive_flow_contacts';
 const PETTY_CASH_STORAGE_KEY = 'executive_flow_petty_cash';
 const FILE_LABELS_STORAGE_KEY = 'executive_flow_file_labels';
+const MUHASABA_STORAGE_KEY = 'executive_flow_muhasaba';
 
 function loadContacts() {
   try {
@@ -118,6 +121,19 @@ function loadFileLabels() {
     if (raw) {
       const parsed = JSON.parse(raw);
       return normalizeFileLabelList(parsed);
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+function loadMuhasabaEntries() {
+  try {
+    const raw = localStorage.getItem(MUHASABA_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return normalizeMuhasabaList(parsed);
     }
   } catch {
     /* ignore */
@@ -293,6 +309,12 @@ export function ExecutiveProvider({ children }) {
     schedulePersist(FILE_LABELS_STORAGE_KEY, fileLabels);
   }, [fileLabels]);
 
+  const [muhasabaEntries, setMuhasabaEntries] = useState(loadMuhasabaEntries);
+
+  useEffect(() => {
+    schedulePersist(MUHASABA_STORAGE_KEY, muhasabaEntries);
+  }, [muhasabaEntries]);
+
   const [dataRevision, setDataRevision] = useState(0);
   const skipRevisionBump = useRef(true);
 
@@ -302,7 +324,7 @@ export function ExecutiveProvider({ children }) {
       return;
     }
     setDataRevision((v) => v + 1);
-  }, [meetings, souvenirs, expenditureState, orders, dakEntries, dakClearedAt, taskEntries, captureEntries, contacts, pettyCashState, fileLabels]);
+  }, [meetings, souvenirs, expenditureState, orders, dakEntries, dakClearedAt, taskEntries, captureEntries, contacts, pettyCashState, fileLabels, muhasabaEntries]);
 
   const [inventory] = useState(INVENTORY_ITEMS);
 
@@ -1005,6 +1027,43 @@ export function ExecutiveProvider({ children }) {
     setFileLabels((prev) => prev.filter((row) => row.id !== labelId));
   }, []);
 
+  const addMuhasabaEntry = useCallback((payload) => {
+    const now = new Date().toISOString();
+    const entry = {
+      id:
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `muhasaba-${Date.now()}`,
+      deedText: String(payload?.deedText || '').trim(),
+      classification: payload?.classification === 'bad' ? 'bad' : 'good',
+      evaluation: String(payload?.evaluation || '').trim(),
+      divineReference: String(payload?.divineReference || '').trim(),
+      identityStatement: String(payload?.identityStatement || '').trim(),
+      immediateAction: String(payload?.immediateAction || '').trim(),
+      isActionCompleted: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    if (!entry.deedText) return null;
+    setMuhasabaEntries((prev) => [entry, ...prev]);
+    return entry;
+  }, []);
+
+  const completeMuhasabaAction = useCallback((entryId) => {
+    const now = new Date().toISOString();
+    setMuhasabaEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === entryId
+          ? { ...entry, isActionCompleted: true, updatedAt: now }
+          : entry,
+      ),
+    );
+  }, []);
+
+  const removeMuhasabaEntry = useCallback((entryId) => {
+    setMuhasabaEntries((prev) => prev.filter((entry) => entry.id !== entryId));
+  }, []);
+
   const setExpenditureOpeningBalance = useCallback((amount, date) => {
     const effectiveDate = String(date ?? '').trim() || getTodayISO();
     setExpenditureState((prev) => ({
@@ -1176,6 +1235,14 @@ export function ExecutiveProvider({ children }) {
         'fileLabels',
       ),
     );
+    setMuhasabaEntries((prev) =>
+      preferLocalListIfIncomingEmpty(
+        prev,
+        normalizeMuhasabaList(data.muhasaba),
+        data,
+        'muhasaba',
+      ),
+    );
     if (data.settings?.morningMeetingBoard) {
       saveMorningBoardSettings(data.settings.morningMeetingBoard);
     }
@@ -1200,6 +1267,7 @@ export function ExecutiveProvider({ children }) {
         contacts,
         pettyCashState,
         fileLabels,
+        muhasabaEntries,
         settings: {
           morningMeetingBoard: loadMorningBoardSettings(),
           weeklyExpenditureEmail: loadWeeklyExpenditureEmailSettings(),
@@ -1207,7 +1275,7 @@ export function ExecutiveProvider({ children }) {
           ...(dakClearedAt ? { dakClearedAt } : {}),
         },
       }),
-    [meetings, souvenirs, expenditureState, orders, dakEntries, dakClearedAt, taskEntries, captureEntries, contacts, pettyCashState, fileLabels],
+    [meetings, souvenirs, expenditureState, orders, dakEntries, dakClearedAt, taskEntries, captureEntries, contacts, pettyCashState, fileLabels, muhasabaEntries],
   );
 
   const appMetaValue = useMemo(
@@ -1376,6 +1444,16 @@ export function ExecutiveProvider({ children }) {
     [fileLabels, addFileLabel, updateFileLabel, removeFileLabel],
   );
 
+  const muhasabaValue = useMemo(
+    () => ({
+      muhasabaEntries,
+      addMuhasabaEntry,
+      completeMuhasabaAction,
+      removeMuhasabaEntry,
+    }),
+    [muhasabaEntries, addMuhasabaEntry, completeMuhasabaAction, removeMuhasabaEntry],
+  );
+
   const souvenirsValue = useMemo(
     () => ({
       souvenirs,
@@ -1407,6 +1485,7 @@ export function ExecutiveProvider({ children }) {
       ...contactsValue,
       ...pettyCashValue,
       ...labelsValue,
+      ...muhasabaValue,
       ...souvenirsValue,
       ...appMetaValue,
     }),
@@ -1420,6 +1499,7 @@ export function ExecutiveProvider({ children }) {
       contactsValue,
       pettyCashValue,
       labelsValue,
+      muhasabaValue,
       souvenirsValue,
       appMetaValue,
     ],
@@ -1436,11 +1516,13 @@ export function ExecutiveProvider({ children }) {
                   <ContactsContext.Provider value={contactsValue}>
                     <PettyCashContext.Provider value={pettyCashValue}>
                       <LabelsContext.Provider value={labelsValue}>
+                      <MuhasabaContext.Provider value={muhasabaValue}>
                       <SouvenirsContext.Provider value={souvenirsValue}>
                         <ExecutiveContext.Provider value={legacyValue}>
                           {children}
                         </ExecutiveContext.Provider>
                       </SouvenirsContext.Provider>
+                      </MuhasabaContext.Provider>
                       </LabelsContext.Provider>
                     </PettyCashContext.Provider>
                   </ContactsContext.Provider>
@@ -1480,6 +1562,7 @@ export const useCaptureExecutive = () => useDomainContext(CaptureContext, 'useCa
 export const useContactsExecutive = () => useDomainContext(ContactsContext, 'useContactsExecutive');
 export const usePettyCashExecutive = () => useDomainContext(PettyCashContext, 'usePettyCashExecutive');
 export const useLabelsExecutive = () => useDomainContext(LabelsContext, 'useLabelsExecutive');
+export const useMuhasabaExecutive = () => useDomainContext(MuhasabaContext, 'useMuhasabaExecutive');
 export const useSouvenirsExecutive = () =>
   useDomainContext(SouvenirsContext, 'useSouvenirsExecutive');
 export const useAppMetaExecutive = () => useDomainContext(AppMetaContext, 'useAppMetaExecutive');

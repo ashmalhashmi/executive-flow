@@ -39,6 +39,7 @@ function validateBackup(raw) {
       contacts: d.contacts ?? [],
       pettyCash: d.pettyCash ?? { cases: [], refreshmentNotes: [] },
       fileLabels: d.fileLabels ?? [],
+      muhasaba: d.muhasaba ?? [],
       settings: d.settings ?? {},
     },
   };
@@ -58,6 +59,7 @@ function writeSnapshot(data) {
     JSON.stringify(data.pettyCash ?? { cases: [], refreshmentNotes: [] }),
   );
   localStorage.setItem('executive_flow_file_labels', JSON.stringify(data.fileLabels ?? []));
+  localStorage.setItem('executive_flow_muhasaba', JSON.stringify(data.muhasaba ?? []));
   const s = data.settings || {};
   if (s.dakClearedAt) {
     localStorage.setItem('executive_flow_dak_cleared_at', JSON.stringify(s.dakClearedAt));
