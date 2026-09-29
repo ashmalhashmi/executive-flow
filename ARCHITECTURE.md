@@ -31,7 +31,7 @@ Premium executive assistant for office ops: meetings, souvenirs, money, orders, 
 | **Ask** | `ask` | Unified search + NLP math · live app data only | `pages/AskAnythingPage.jsx`, `components/ask/AskAnything.jsx`, `utils/askAnything.js`, `utils/askMath.js`, `utils/askUnifiedSearch.js` |
 | **Compose** | `compose` | Intent → blueprint slots (AI/local) → assembler → editor · Copy/PDF/Word/Email | `pages/ComposeDesk.jsx`, `constants/composePurposes.js`, `constants/composeBlueprints.js`, `utils/composeBlueprintAssemble.js`, `utils/composeDraft.js`, `utils/composeAiDraft.js`, `utils/composeLetterPdf.js`, `utils/composeLetterDoc.js`, `utils/composeLetterEmail.js`, `api/compose-draft.js`, `api/compose-letter-email.js` |
 | **Labels** | `labels` | Official PAFDA plate labels · designation → PDF/Word/Email · Pulse cloud | `pages/LabelGenerator.jsx`, `constants/labelTemplates.js`, `utils/fileLabel*.js`, `utils/labelPdf.js`, `api/compose-letter-email.js` (`file_label`), `docs/domains/LABELS.md` |
-| **Muhasaba** | `muhasaba` | Self-accountability · deed → AI coach · identity · 2-min action | `pages/MuhasabaPage.jsx`, `utils/muhasabaEntries.js`, `utils/muhasabaAi.js`, `api/muhasaba-evaluate.js`, `api/_lib/muhasabaEvaluate.js`, `supabase/muhasaba_logs.sql` (optional) |
+| **Muhasaba** | `muhasaba` | Self-accountability · deed → AI coach · identity · 2-min action | `pages/MuhasabaPage.jsx`, `utils/muhasabaEntries.js`, `utils/muhasabaAi.js`, `api/compose-draft.js` (`action: muhasaba`), `api/_lib/muhasabaEvaluate.js`, `supabase/muhasaba_logs.sql` (optional) |
 
 Shared UI bricks (GlassCard, Modal, FormField, StatusBadge) live in `src/components/ui/`. Prefer reusing them over inventing new chrome.
 
@@ -85,7 +85,7 @@ UI page  →  domain Context hooks  →  utils/*Entries (normalize)  →  localS
 | Compose letter Word email | `composeLetterDoc.js` (client + API) | `compose-letter-email.js` + Resend |
 | Compose blueprint assemble | `composeBlueprints.js`, `composeBlueprintAssemble.js` | `compose-draft.js` returns **slots** only |
 | AI categorize spend | `expenditureAiCategorize.js` | `categorize-expenditure.js` |
-| AI muhasaba coach | `muhasabaAi.js` | `muhasaba-evaluate.js` + `_lib/muhasabaEvaluate.js` |
+| AI muhasaba coach | `muhasabaAi.js` | `compose-draft.js` (`action: muhasaba`) + `_lib/muhasabaEvaluate.js` |
 | AI contact extract | `contactAiExtract.js` | `extract-contact.js` |
 | AI dak register scan | `dakAiExtract.js`, `DakScanCapture.jsx` | `extract-dak.js` + `_lib/dakExtract.js` + `_lib/dakScanStorage.js` (Vercel Blob, Supabase fallback) |
 | Google Sheets mirror backup | `googleSheetsSync.js` | `sheets-sync.js` + `sheetsMirror.js` |

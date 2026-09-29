@@ -7,6 +7,11 @@ import {
   parseComposeSlotsJson,
   parseComposeReferenceJson,
 } from './_lib/composeDraft.js';
+import {
+  MUHASABA_SYSTEM_PROMPT,
+  buildMuhasabaUserPrompt,
+  parseMuhasabaEvaluationJson,
+} from './_lib/muhasabaEvaluate.js';
 
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite';
 
@@ -14,7 +19,7 @@ function getGeminiModel() {
   return process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
 }
 
-async function callGemini({ apiKey, systemAndUser, imageBase64, imageMimeType }) {
+async function callGemini({ apiKey, systemAndUser, imageBase64, imageMimeType, temperature = 0.35 }) {
   const model = getGeminiModel();
   const parts = [{ text: systemAndUser }];
 
@@ -28,7 +33,7 @@ async function callGemini({ apiKey, systemAndUser, imageBase64, imageMimeType })
   }
 
   const generationConfig = {
-    temperature: 0.35,
+    temperature,
     responseMimeType: 'application/json',
   };
   if (model.includes('2.5-flash')) {
@@ -77,7 +82,29 @@ export default async function handler(req, res) {
       slots: incomingSlots = null,
       imageBase64 = '',
       imageMimeType = 'image/jpeg',
+      deedText = '',
     } = req.body || {};
+
+    // Hobby plan: keep ≤12 serverless functions — Muhasaba shares this route.
+    if (action === 'muhasaba') {
+      const text = String(deedText || req.body?.deed_text || '').trim();
+      if (!text) {
+        return res.status(400).json({ error: 'deedText required' });
+      }
+      const raw = await callGemini({
+        apiKey,
+        systemAndUser: `${MUHASABA_SYSTEM_PROMPT}\n\n${buildMuhasabaUserPrompt(text)}`,
+        temperature: 0.4,
+      });
+      const parsed = parseMuhasabaEvaluationJson(raw);
+      if (!parsed) throw new Error('AI response valid JSON nahi thi');
+      return res.status(200).json({
+        ok: true,
+        via: 'ai',
+        model: getGeminiModel(),
+        ...parsed,
+      });
+    }
 
     if (action === 'extract-reference') {
       if (!String(imageBase64).trim() && !String(draftBody).trim()) {
