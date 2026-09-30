@@ -1,9 +1,12 @@
+import { getContactCategoryLabel } from '../../utils/contactCategories';
+
 /** Contact Database only — search query optimization. */
 
 export const CONTACT_SEARCH_FIELDS = [
   'name',
   'department',
   'designation',
+  'category',
   'phone',
   'contactNo',
   'email',
@@ -23,6 +26,7 @@ const PHRASE_INTENTS = [
   { pattern: /\bweb\s*site\b/gi, fields: ['website'] },
   { pattern: /\bwebsite\b/gi, fields: ['website'] },
   { pattern: /\bdesignation\b/gi, fields: ['designation'] },
+  { pattern: /\bcategor(?:y|ies)\b/gi, fields: ['category'] },
   { pattern: /\bemail\b/gi, fields: ['email'] },
   { pattern: /\baddress\b/gi, fields: ['address'] },
   { pattern: /\bnaam\b/gi, fields: ['name'] },
@@ -34,6 +38,7 @@ export const FIELD_ALIAS_TOKENS = {
   name: ['name', 'naam', 'person'],
   department: ['department', 'dept', 'section', 'division', 'branch', 'ministry', 'organization'],
   designation: ['designation', 'title', 'post', 'rank', 'role', 'manzil', 'mansab'],
+  category: ['category', 'bucket', 'type', 'group', 'segment'],
   phone: ['phone', 'mobile', 'cell', 'mob', 'whatsapp', 'cellphone'],
   contactNo: ['contact', 'number', 'contactno', 'office', 'landline', 'tel', 'alternate', 'ext'],
   email: ['email', 'mail', 'e-mail', 'inbox'],
@@ -71,6 +76,9 @@ export function parseContactSearchQuery(rawQuery) {
 
 export function contactFieldValue(contact, field) {
   if (!contact) return '';
+  if (field === 'category') {
+    return getContactCategoryLabel(contact.category || 'unassigned');
+  }
   return String(contact[field] ?? '').trim();
 }
 

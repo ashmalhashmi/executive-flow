@@ -2,6 +2,12 @@
 
 import { normalizePhoneDigits, getContactEmails, getContactPhones, getContactContactNos } from '../../utils/contactEntries';
 import {
+  ALL_CATEGORIES_ID,
+  CONTACT_CATEGORIES,
+  CONTACT_CATEGORY_UNASSIGNED,
+  getContactCategoryLabel,
+} from '../../utils/contactCategories';
+import {
   CONTACT_SEARCH_FIELDS,
   FIELD_ALIAS_TOKENS,
   contactFieldValue,
@@ -11,6 +17,7 @@ import {
 
 export const ALL_DEPARTMENTS_ID = 'all';
 export const UNASSIGNED_DEPARTMENT_ID = 'unassigned';
+export { ALL_CATEGORIES_ID };
 
 function tokenizeContactText(value) {
   return String(value ?? '')
@@ -45,6 +52,10 @@ export function buildContactSearchIndex(contacts) {
   const tokenToIds = new Map();
   const departmentToContactIds = new Map([[ALL_DEPARTMENTS_ID, []]]);
   const departmentLabels = new Map();
+  const categoryToContactIds = new Map([[ALL_CATEGORIES_ID, []]]);
+  for (const cat of CONTACT_CATEGORIES) {
+    categoryToContactIds.set(cat.id, []);
+  }
   const fieldTokenToIds = Object.fromEntries(
     CONTACT_SEARCH_FIELDS.map((field) => [field, new Map()]),
   );
@@ -81,9 +92,15 @@ export function buildContactSearchIndex(contacts) {
     if (!departmentToContactIds.has(departmentId)) departmentToContactIds.set(departmentId, []);
     departmentToContactIds.get(departmentId).push(contact.id);
 
+    const categoryId = contact.category || CONTACT_CATEGORY_UNASSIGNED;
+    categoryToContactIds.get(ALL_CATEGORIES_ID).push(contact.id);
+    if (!categoryToContactIds.has(categoryId)) categoryToContactIds.set(categoryId, []);
+    categoryToContactIds.get(categoryId).push(contact.id);
+
     indexField('name', contact.name, contact.id);
     indexField('department', contact.department, contact.id);
     indexField('designation', contact.designation, contact.id);
+    indexField('category', getContactCategoryLabel(categoryId), contact.id);
     for (const email of getContactEmails(contact)) {
       indexField('email', email, contact.id);
     }
@@ -116,6 +133,12 @@ export function buildContactSearchIndex(contacts) {
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
+  const categoryOptions = CONTACT_CATEGORIES.map((cat) => ({
+    id: cat.id,
+    label: cat.label,
+    count: categoryToContactIds.get(cat.id)?.length ?? 0,
+  })).filter((opt) => opt.count > 0 || opt.id === CONTACT_CATEGORY_UNASSIGNED);
+
   return {
     byId,
     tokenToIds,
@@ -123,12 +146,19 @@ export function buildContactSearchIndex(contacts) {
     orderedIds,
     departmentToContactIds,
     departmentOptions,
+    categoryToContactIds,
+    categoryOptions,
   };
 }
 
 export function getContactIdsForDepartment(index, departmentId = ALL_DEPARTMENTS_ID) {
   const key = departmentId || ALL_DEPARTMENTS_ID;
   return index.departmentToContactIds.get(key) || [];
+}
+
+export function getContactIdsForCategory(index, categoryId = ALL_CATEGORIES_ID) {
+  const key = categoryId || ALL_CATEGORIES_ID;
+  return index.categoryToContactIds.get(key) || [];
 }
 
 function collectIdsForTerm(index, term, fieldScopes = []) {

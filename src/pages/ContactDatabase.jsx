@@ -43,11 +43,19 @@ import {
 } from '../utils/contactEntries';
 import {
   ALL_DEPARTMENTS_ID,
+  ALL_CATEGORIES_ID,
   buildContactSearchIndex,
   getContactIdsForDepartment,
+  getContactIdsForCategory,
   searchContactsIndex,
 } from './contactDatabase/search';
 import { buildGoogleSearchUrl } from './contactDatabase/urls';
+import {
+  CONTACT_CATEGORIES,
+  CONTACT_CATEGORY_UNASSIGNED,
+  getContactCategoryLabel,
+  inferContactCategory,
+} from '../utils/contactCategories';
 import {
   CONTACT_IMPORT_FIELDS,
   emptyContactUiColumnMap,
@@ -92,6 +100,7 @@ const emptyForm = () => ({
   contactNo: '',
   website: '',
   address: '',
+  category: '',
 });
 
 function ContactActions({ contact }) {
@@ -196,6 +205,7 @@ export default function ContactDatabase() {
 
   const [search, setSearch] = useState('');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState(ALL_DEPARTMENTS_ID);
+  const [selectedCategoryId, setSelectedCategoryId] = useState(ALL_CATEGORIES_ID);
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
   const [editingId, setEditingId] = useState('');
@@ -241,17 +251,30 @@ export default function ContactDatabase() {
 
   const searchIndex = useMemo(() => buildContactSearchIndex(contacts), [contacts]);
   const departmentOptions = searchIndex.departmentOptions;
+  const categoryOptions = searchIndex.categoryOptions;
   const departmentContactIds = useMemo(
     () => getContactIdsForDepartment(searchIndex, selectedDepartmentId),
     [searchIndex, selectedDepartmentId],
   );
+  const categoryContactIds = useMemo(
+    () => getContactIdsForCategory(searchIndex, selectedCategoryId),
+    [searchIndex, selectedCategoryId],
+  );
+  const scopedContactIds = useMemo(() => {
+    if (selectedCategoryId === ALL_CATEGORIES_ID) return departmentContactIds;
+    const categorySet = new Set(categoryContactIds);
+    return departmentContactIds.filter((id) => categorySet.has(id));
+  }, [departmentContactIds, categoryContactIds, selectedCategoryId]);
 
   const filtered = useMemo(
-    () => searchContactsIndex(searchIndex, search, { candidateIds: departmentContactIds }),
-    [searchIndex, search, departmentContactIds],
+    () => searchContactsIndex(searchIndex, search, { candidateIds: scopedContactIds }),
+    [searchIndex, search, scopedContactIds],
   );
-  const hasActiveFilters = search.trim() || selectedDepartmentId !== ALL_DEPARTMENTS_ID;
-  const filterResetKey = `${search.trim()}|${selectedDepartmentId}`;
+  const hasActiveFilters =
+    search.trim() ||
+    selectedDepartmentId !== ALL_DEPARTMENTS_ID ||
+    selectedCategoryId !== ALL_CATEGORIES_ID;
+  const filterResetKey = `${search.trim()}|${selectedDepartmentId}|${selectedCategoryId}`;
   const {
     page,
     setPage,
@@ -288,6 +311,7 @@ export default function ContactDatabase() {
       contactNo: formatContactNosForForm(contact),
       website: contact.website || '',
       address: contact.address || '',
+      category: contact.categorySource === 'manual' ? contact.category || '' : '',
     });
     setErrors({});
     setFormOpen(true);
@@ -329,6 +353,14 @@ export default function ContactDatabase() {
       website: form.website.trim(),
       address: form.address.trim(),
     };
+
+    if (form.category) {
+      payload.category = form.category;
+      payload.categorySource = 'manual';
+    } else {
+      payload.categorySource = 'auto';
+      payload.category = undefined;
+    }
 
     const duplicate = findDuplicateContact(contacts, payload, editingId);
     if (duplicate) {
@@ -514,7 +546,7 @@ export default function ContactDatabase() {
     <div className="space-y-6">
       {/* Search — instant retrieval */}
       <GlassCard className="sticky top-0 z-10 border-cyan-500/20 bg-zinc-950/90 p-4 backdrop-blur-md sm:p-5">
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_240px]">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px_200px]">
           <div className="flex items-center gap-3">
             <Search className="h-5 w-5 shrink-0 text-cyan-300" />
             <TextInput
@@ -526,6 +558,24 @@ export default function ContactDatabase() {
               className="text-base"
             />
           </div>
+          <label className="sr-only" htmlFor="contact-category-filter">
+            Category
+          </label>
+          <select
+            id="contact-category-filter"
+            value={selectedCategoryId}
+            onChange={(e) => setSelectedCategoryId(e.target.value)}
+            className="rounded-xl border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/40"
+          >
+            <option value={ALL_CATEGORIES_ID}>
+              All categories ({searchIndex.orderedIds.length})
+            </option>
+            {categoryOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label} ({option.count})
+              </option>
+            ))}
+          </select>
           <label className="sr-only" htmlFor="contact-department-filter">
             Department
           </label>
@@ -616,7 +666,7 @@ export default function ContactDatabase() {
         {filtered.length === 0 ? (
           <p className="py-10 text-center text-sm text-zinc-500">
             {hasActiveFilters
-              ? 'Koi contact match nahi — search ya department change karein'
+              ? 'Koi contact match nahi — search, category ya department change karein'
               : 'Abhi koi contact nahi — Add Contact dabayein'}
           </p>
         ) : (
@@ -643,6 +693,14 @@ export default function ContactDatabase() {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-base font-semibold text-zinc-100">{contact.name}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cyan-200">
+                          {getContactCategoryLabel(contact.category)}
+                        </span>
+                        {contact.categorySource === 'manual' ? (
+                          <span className="text-[10px] text-zinc-500">manual</span>
+                        ) : null}
+                      </div>
                       {contact.department && (
                         <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-cyan-300/80">
                           {contact.department}
@@ -909,16 +967,45 @@ export default function ContactDatabase() {
                 }}
               />
             </FormField>
-            <FormField label="Department" id="contact-department">
+            <FormField label="Department / Organization" id="contact-department">
               <TextInput
                 id="contact-department"
-                placeholder="e.g. Finance, Admin, HR"
+                placeholder="e.g. Ministry of Commerce / FPCCI / Al-Noor Foods Ltd"
                 value={form.department}
                 onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))}
               />
             </FormField>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
+            <FormField label="Category" id="contact-category">
+              <select
+                id="contact-category"
+                value={form.category}
+                onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
+                className="w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/40"
+              >
+                <option value="">
+                  {`Auto — ${getContactCategoryLabel(
+                    inferContactCategory({
+                      name: form.name,
+                      department: form.department,
+                      designation: form.designation,
+                      email: form.email,
+                      website: form.website,
+                      address: form.address,
+                    }),
+                  )}`}
+                </option>
+                {CONTACT_CATEGORIES.filter((c) => c.id !== CONTACT_CATEGORY_UNASSIGNED).map(
+                  (cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.label}
+                    </option>
+                  ),
+                )}
+                <option value={CONTACT_CATEGORY_UNASSIGNED}>Unassigned</option>
+              </select>
+            </FormField>
             <FormField label="Designation" id="contact-designation">
               <TextInput
                 id="contact-designation"
@@ -927,6 +1014,8 @@ export default function ContactDatabase() {
                 onChange={(e) => setForm((p) => ({ ...p, designation: e.target.value }))}
               />
             </FormField>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Phone (mobile)" id="contact-phone" error={errors.phone}>
               <TextInput
                 id="contact-phone"

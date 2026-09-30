@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { getContactEmails, getContactPhones, getContactContactNos } from './contactEntries';
+import { getContactCategoryLabel } from './contactCategories';
 import autoTable from 'jspdf-autotable';
 
 const PAGE = {
@@ -32,10 +33,11 @@ function buildContactDatabaseDoc(contacts) {
 
   autoTable(doc, {
     startY: y,
-    head: [['Sr#', 'Name', 'Department', 'Designation', 'Phone', 'Contact No', 'Email', 'Website', 'Address']],
+    head: [['Sr#', 'Name', 'Category', 'Department', 'Designation', 'Phone', 'Contact No', 'Email', 'Website', 'Address']],
     body: rows.map((c, i) => [
       String(i + 1),
       c.name || '—',
+      getContactCategoryLabel(c.category),
       c.department || '—',
       c.designation || '—',
       getContactPhones(c).join(', ') || '—',

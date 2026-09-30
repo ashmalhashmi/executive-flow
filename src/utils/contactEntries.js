@@ -1,3 +1,5 @@
+import { getContactCategoryLabel, resolveContactCategory } from './contactCategories';
+
 /** Contact normalization, deduplication — shared contact data layer. */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -166,7 +168,7 @@ export function standardizeContactRecord(contact) {
   const phones = standardizePhoneList(contact.phones ?? contact.phone);
   const contactNos = standardizePhoneList(contact.contactNos ?? contact.contactNo);
 
-  return {
+  const base = {
     id: String(contact.id || `contact-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
     name,
     phones,
@@ -183,6 +185,18 @@ export function standardizeContactRecord(contact) {
     status: contact.status === 'archived' ? 'archived' : 'active',
     createdAt: contact.createdAt || new Date().toISOString(),
     updatedAt: contact.updatedAt || contact.createdAt || new Date().toISOString(),
+  };
+
+  const { category, categorySource } = resolveContactCategory({
+    ...base,
+    category: contact.category,
+    categorySource: contact.categorySource,
+  });
+
+  return {
+    ...base,
+    category,
+    categorySource,
   };
 }
 
@@ -223,27 +237,35 @@ export function mergeContactRecords(primary, secondary) {
   const mergedPhones = standardizePhoneList([...getContactPhones(a), ...getContactPhones(b)]);
   const mergedContactNos = standardizePhoneList([...getContactContactNos(a), ...getContactContactNos(b)]);
 
-  return {
+  const categorySource =
+    a.categorySource === 'manual' || b.categorySource === 'manual' ? 'manual' : 'auto';
+  const category =
+    categorySource === 'manual'
+      ? a.categorySource === 'manual'
+        ? a.category
+        : b.category
+      : undefined;
+
+  return standardizeContactRecord({
     id: preferContactId(a, b),
     name: pickRicherString(a.name, b.name),
     phones: mergedPhones,
-    phone: mergedPhones[0] || '',
     emails: mergedEmails,
-    email: mergedEmails[0] || '',
     department: pickRicherString(a.department, b.department),
     designation: pickRicherString(a.designation, b.designation),
     contactNos: mergedContactNos,
-    contactNo: mergedContactNos[0] || '',
     website: pickRicherString(a.website, b.website),
     address: pickRicherString(a.address, b.address),
     cardPhotoUrl: String(newer.cardPhotoUrl || older.cardPhotoUrl || '').trim(),
     status: a.status === 'archived' || b.status === 'archived' ? 'archived' : 'active',
+    category,
+    categorySource,
     createdAt:
       (Date.parse(a.createdAt) || Infinity) < (Date.parse(b.createdAt) || Infinity)
         ? a.createdAt
         : b.createdAt,
     updatedAt: new Date(Math.max(aUpdated, bUpdated) || Date.now()).toISOString(),
-  };
+  });
 }
 
 /** Exact-match fingerprint — duplicate tabhi jab card ki saari fields same hon. */
@@ -340,6 +362,9 @@ export function buildContactCardText(contact) {
   const lines = [`👤 ${contact.name}`];
   if (contact.department) lines.push(`🏢 ${contact.department}`);
   if (contact.designation) lines.push(`💼 ${contact.designation}`);
+  if (contact.category && contact.category !== 'unassigned') {
+    lines.push(`🏷️ ${getContactCategoryLabel(contact.category)}`);
+  }
   const phones = getContactPhones(contact);
   const contactNos = getContactContactNos(contact);
   if (phones.length) lines.push(`📱 ${phones.join(', ')}`);
