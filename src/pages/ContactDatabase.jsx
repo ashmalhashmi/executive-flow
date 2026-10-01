@@ -1003,7 +1003,7 @@ export default function ContactDatabase() {
                     </option>
                   ),
                 )}
-                <option value={CONTACT_CATEGORY_UNASSIGNED}>Unassigned</option>
+                <option value={CONTACT_CATEGORY_UNASSIGNED}>Other Stakeholder</option>
               </select>
             </FormField>
             <FormField label="Designation" id="contact-designation">

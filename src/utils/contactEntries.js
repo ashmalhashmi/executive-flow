@@ -362,7 +362,7 @@ export function buildContactCardText(contact) {
   const lines = [`👤 ${contact.name}`];
   if (contact.department) lines.push(`🏢 ${contact.department}`);
   if (contact.designation) lines.push(`💼 ${contact.designation}`);
-  if (contact.category && contact.category !== 'unassigned') {
+  if (contact.category) {
     lines.push(`🏷️ ${getContactCategoryLabel(contact.category)}`);
   }
   const phones = getContactPhones(contact);

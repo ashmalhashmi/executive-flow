@@ -77,7 +77,7 @@ export function parseContactSearchQuery(rawQuery) {
 export function contactFieldValue(contact, field) {
   if (!contact) return '';
   if (field === 'category') {
-    return getContactCategoryLabel(contact.category || 'unassigned');
+    return getContactCategoryLabel(contact.category || 'other');
   }
   return String(contact[field] ?? '').trim();
 }

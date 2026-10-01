@@ -25,7 +25,7 @@ Premium executive assistant for office ops: meetings, souvenirs, money, orders, 
 | **Dak** | `dak` | Dispatch / issuance log · register scan → cloud photo URL + AI fields (verify before save) | `pages/DakIssuanceLog.jsx`, `components/dak/DakScanCapture.jsx`, `utils/dakEntries.js`, `utils/dakAiExtract.js`, `utils/dakIssuancePdf.js`, `utils/dakWhatsApp.js`, `api/extract-dak.js`, `api/_lib/dakScanStorage.js` |
 | **Tasks** | `tasks` | Task list + done | `pages/TaskLog.jsx`, `utils/taskEntries.js`, `utils/taskLogPdf.js` |
 | **Capture** | `capture` | Brain-dump inbox | `pages/CaptureInbox.jsx`, `utils/captureEntries.js` |
-| **Contacts** | `contacts` | External visitor DB · PAFDA sectors (Agriculture / Food / Drug) · AI card extract | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `utils/contactCategories.js`, `api/extract-contact.js` |
+| **Contacts** | `contacts` | External visitor DB · PAFDA Agriculture/Food/Drug (+ Govt, Lab, Trade, Other) · AI card extract | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `utils/contactCategories.js`, `api/extract-contact.js` |
 | **Sync** | `sync` | Auth, Pulse cloud, Sheets mirror backup | `pages/SyncBackup.jsx`, `context/CloudSyncContext.jsx`, `context/GoogleSheetsSyncContext.jsx`, `utils/cloudSync*.js`, `utils/googleSheetsSync.js`, `api/sheets-sync.js`, `api/_lib/sheetsMirror.js`, `docs/CLOUD_SYNC.md` |
 | **Dashboard** | `dashboard` | Overview only — composes other domains | `pages/DashboardOverview.jsx`, `components/dashboard/` |
 | **Ask** | `ask` | Unified search + NLP math · live app data only | `pages/AskAnythingPage.jsx`, `components/ask/AskAnything.jsx`, `utils/askAnything.js`, `utils/askMath.js`, `utils/askUnifiedSearch.js` |

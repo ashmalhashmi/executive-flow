@@ -4,7 +4,7 @@ import { normalizePhoneDigits, getContactEmails, getContactPhones, getContactCon
 import {
   ALL_CATEGORIES_ID,
   CONTACT_CATEGORIES,
-  CONTACT_CATEGORY_UNASSIGNED,
+  CONTACT_CATEGORY_OTHER,
   getContactCategoryLabel,
 } from '../../utils/contactCategories';
 import {
@@ -92,7 +92,7 @@ export function buildContactSearchIndex(contacts) {
     if (!departmentToContactIds.has(departmentId)) departmentToContactIds.set(departmentId, []);
     departmentToContactIds.get(departmentId).push(contact.id);
 
-    const categoryId = contact.category || CONTACT_CATEGORY_UNASSIGNED;
+    const categoryId = contact.category || CONTACT_CATEGORY_OTHER;
     categoryToContactIds.get(ALL_CATEGORIES_ID).push(contact.id);
     if (!categoryToContactIds.has(categoryId)) categoryToContactIds.set(categoryId, []);
     categoryToContactIds.get(categoryId).push(contact.id);
@@ -137,7 +137,7 @@ export function buildContactSearchIndex(contacts) {
     id: cat.id,
     label: cat.label,
     count: categoryToContactIds.get(cat.id)?.length ?? 0,
-  })).filter((opt) => opt.count > 0 || opt.id === CONTACT_CATEGORY_UNASSIGNED);
+  })).filter((opt) => opt.count > 0);
 
   return {
     byId,
