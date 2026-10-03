@@ -282,7 +282,8 @@ const LAB_PATTERNS = [
   /\breference lab\b/,
 ];
 
-const TRADE_PATTERNS = [
+/** Real trade/association signals — always count. */
+const TRADE_STRONG_PATTERNS = [
   /\bchamber\b/,
   /\bassociation\b/,
   /\bfederation\b/,
@@ -294,12 +295,6 @@ const TRADE_PATTERNS = [
   /\bexport/,
   /\bimport/,
   /\bindustr/,
-  /\b(pvt|private)\b/,
-  /\bltd\.?\b/,
-  /\blimited\b/,
-  /\bcorp\.?\b/,
-  /\bcompany\b/,
-  /\benterprises?\b/,
   /\bvendor\b/,
   /\bsupplier\b/,
   /\bcontractor\b/,
@@ -309,14 +304,31 @@ const TRADE_PATTERNS = [
   /\bcommerce\b/,
   /\bbusiness\b/,
   /\bfactory\b/,
+];
+
+/** Corporate shell words — only used when no Agri/Food/Drug sector hit. */
+const TRADE_SHELL_PATTERNS = [
+  /\b(pvt|private)\b/,
+  /\bltd\.?\b/,
+  /\blimited\b/,
+  /\bcorp\.?\b/,
+  /\bcompany\b/,
+  /\benterprises?\b/,
   /\bplant\b/,
+];
+
+/** Extra weight so sector words beat "Company Limited". */
+const SECTOR_WEIGHT_BOOSTS = [
+  { id: 'agriculture', patterns: [/\bfertilizer\b/, /\bfertiliser\b/, /\bseed\b/, /\bseeds\b/, /\bpesticide\b/, /\blivestock\b/, /\bsona\b/], weight: 4 },
+  { id: 'food', patterns: [/\bfoods?\b/, /\bdairy\b/, /\bflour\b/, /\bbeverage\b/, /\bmills?\b/], weight: 4 },
+  { id: 'drug', patterns: [/\bpharma/, /\bdrug\b/, /\bmedicine\b/, /\bdrap\b/], weight: 4 },
 ];
 
 const TIE_ORDER = ['drug', 'food', 'agriculture', 'lab', 'govt', 'trade', 'other'];
 
 /**
  * Infer category — PAFDA sectors first, then supporting buckets.
- * Never returns empty Unassigned: leftover → Other Stakeholder.
+ * Sector keywords beat generic "Company / Limited" trade shells.
  */
 export function inferContactCategory(contact) {
   const text = haystackFromContact(contact);
@@ -332,9 +344,13 @@ export function inferContactCategory(contact) {
     agriculture: scorePatterns(text, AGRICULTURE_PATTERNS),
     govt: scorePatterns(text, GOVT_PATTERNS) + scorePatterns(domainBlob, [/\.gov(\.[a-z]{2,})?\b/]),
     lab: scorePatterns(text, LAB_PATTERNS),
-    trade: scorePatterns(text, TRADE_PATTERNS),
+    trade: scorePatterns(text, TRADE_STRONG_PATTERNS),
     other: 0,
   };
+
+  for (const boost of SECTOR_WEIGHT_BOOSTS) {
+    if (matchesAny(text, boost.patterns)) scores[boost.id] += boost.weight;
+  }
 
   if (/\b(drug|pharma|medicine)\b/.test(text) && /\b(ministry|authority|board|dept|department)\b/.test(text)) {
     scores.drug += 2;
@@ -346,11 +362,21 @@ export function inferContactCategory(contact) {
     scores.agriculture += 2;
   }
 
-  // Soft defaults when org looks commercial but sector unclear
+  const sectorHit = scores.drug > 0 || scores.food > 0 || scores.agriculture > 0;
+  // "Company Limited" only counts when no clear Agri/Food/Drug signal
+  if (!sectorHit) {
+    scores.trade += scorePatterns(text, TRADE_SHELL_PATTERNS);
+  }
+
   const personalMail =
     domains.length > 0 &&
     domains.every((d) => /^(gmail|yahoo|hotmail|outlook|live|icloud)\.com$/.test(d));
-  if (scores.trade === 0 && !personalMail && (host || domains.some((d) => /\.(com|pk|biz|co)\b/.test(d)))) {
+  if (
+    !sectorHit &&
+    scores.trade === 0 &&
+    !personalMail &&
+    (host || domains.some((d) => /\.(com|pk|biz|co)\b/.test(d)))
+  ) {
     scores.trade += 1;
   }
   if (scores.govt === 0 && /\.gov\.pk\b/.test(domainBlob)) {
@@ -363,12 +389,18 @@ export function inferContactCategory(contact) {
 
   if (ranked[0].score > 0 && ranked[0].id !== 'other') return ranked[0].id;
 
-  // Name/org present but no keyword hit → still a stakeholder
   if (String(contact?.name || '').trim() || String(contact?.department || '').trim()) {
     return CONTACT_CATEGORY_OTHER;
   }
 
   return CONTACT_CATEGORY_OTHER;
+}
+
+function matchesAny(text, patterns) {
+  return patterns.some((re) => {
+    re.lastIndex = 0;
+    return re.test(text);
+  });
 }
 
 /** Resolve stored category — honor manual lock, else re-infer. */
