@@ -23,6 +23,7 @@ import {
   emptyPurchaseSlip,
   emptySatisfactoryNote,
   emptyRefreshmentNote,
+  normalizePettyCashCase,
 } from '../utils/pettyCashEntries';
 import {
   computePurchaseItemsTotal,
@@ -314,23 +315,25 @@ export default function PettyCashRecord() {
 
   const exportCasePdf = (c, type) =>
     runExport(async () => {
+      const normalized = normalizePettyCashCase(c) || c;
       if (type === 'purchase') {
         await downloadPurchaseSlipPdf({
-          purchaseSlip: c.purchaseSlip,
+          purchaseSlip: normalized.purchaseSlip,
         });
       } else {
         await downloadSatisfactoryNotePdf({
-          satisfactoryNote: c.satisfactoryNote,
+          satisfactoryNote: normalized.satisfactoryNote,
         });
       }
     });
 
   const exportCaseWord = (c, type) =>
     runExport(async () => {
+      const normalized = normalizePettyCashCase(c) || c;
       if (type === 'purchase') {
-        await downloadPurchaseSlipWord(c);
+        await downloadPurchaseSlipWord(normalized);
       } else {
-        await downloadSatisfactoryNoteWord(c);
+        await downloadSatisfactoryNoteWord(normalized);
       }
     });
 
@@ -342,15 +345,16 @@ export default function PettyCashRecord() {
         return;
       }
       localStorage.setItem(EMAIL_KEY, to);
+      const normalized = normalizePettyCashCase(c) || c;
       await sendPettyCashEmail({
         email: to,
         docType: type === 'purchase' ? 'purchase_slip' : 'satisfactory_note',
         payload: {
-          caseNo: c.caseNo,
-          meetingTitle: c.meetingTitle,
-          meetingDate: c.meetingDate,
-          purchaseSlip: c.purchaseSlip,
-          satisfactoryNote: c.satisfactoryNote,
+          caseNo: normalized.caseNo,
+          meetingTitle: normalized.meetingTitle,
+          meetingDate: normalized.meetingDate,
+          purchaseSlip: normalized.purchaseSlip,
+          satisfactoryNote: normalized.satisfactoryNote,
         },
       });
       setMessage(`Email bhej di → ${to}`);

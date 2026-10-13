@@ -158,6 +158,11 @@ function formatPdfField(value) {
 }
 
 function drawSignatoryBlock(doc, leftX, y, title, { name, designation, date }) {
+  // One block ≈ title + 4 lines + signature gap (~42mm); keep on a fresh page if needed.
+  if (y > PAGE.height - 48) {
+    doc.addPage();
+    y = PAGE.marginTop;
+  }
   const shownDesignation = designationRepeatsTitle(title, designation)
     ? ''
     : String(designation ?? '').trim();

@@ -117,20 +117,43 @@ function tableRow(label, value) {
 </tr>`;
 }
 
-function resolveRequestedByName(ps, signatories) {
-  const requested = ps?.requestedBy || {};
-  const fromField = String(requested.name ?? requested.names ?? '').trim();
-  if (fromField) return fromField;
-  const sig = Array.isArray(signatories) ? signatories[0] : null;
-  return String(sig?.name ?? '').trim();
+function normalizePersonList(raw) {
+  if (Array.isArray(raw)) {
+    const list = raw
+      .filter((row) => row && typeof row === 'object')
+      .map((row) => ({
+        name: String(row.name ?? row.names ?? '').trim(),
+        designation: String(row.designation ?? '').trim(),
+        date: String(row.date ?? '').trim(),
+      }));
+    return list.length ? list : [{ name: '', designation: '', date: '' }];
+  }
+  if (raw && typeof raw === 'object') {
+    return [
+      {
+        name: String(raw.name ?? raw.names ?? '').trim(),
+        designation: String(raw.designation ?? '').trim(),
+        date: String(raw.date ?? '').trim(),
+      },
+    ];
+  }
+  return [{ name: '', designation: '', date: '' }];
 }
 
-function resolveRequestedByDesignation(ps, signatories) {
-  const requested = ps?.requestedBy || {};
-  const fromField = String(requested.designation ?? '').trim();
-  if (fromField) return fromField;
-  const sig = Array.isArray(signatories) ? signatories[0] : null;
-  return String(sig?.designation ?? '').trim();
+function resolveRequestedByPeople(ps) {
+  return normalizePersonList(ps?.requestedBy).map((person) => ({
+    name: person.name,
+    designation: person.designation,
+    date: person.date ? resolveDateLine(person.date) : '—',
+  }));
+}
+
+function resolveReceivedByPeople(sn) {
+  return normalizePersonList(sn?.receivedBy).map((person) => ({
+    name: person.name,
+    designation: person.designation,
+    date: person.date ? resolveDateLine(person.date) : '—',
+  }));
 }
 
 function resolveApprover(ps, approverSignatory) {
@@ -178,28 +201,26 @@ function buildPurchaseItemsTable(ps) {
 </tr></thead><tbody>${body}</tbody></table>`;
 }
 
-function buildPurchaseFooter(ps, signatories, approverSignatory) {
-  const requestedName = resolveRequestedByName(ps, signatories);
-  const requestedDesignation = resolveRequestedByDesignation(ps, signatories);
-  const requestedDate = ps.requestedBy?.date
-    ? resolveDateLine(ps.requestedBy.date)
-    : ps.date
-      ? resolveDateLine(ps.date)
-      : '—';
+function buildPurchaseFooter(ps, _signatories, approverSignatory) {
+  const requesters = resolveRequestedByPeople(ps);
   const approved = resolveApprover(ps, approverSignatory);
-  return `<p style="margin:12pt 0 6pt 0; font-weight:bold;">Justification</p>
-<p style="margin:0 0 18pt 0; line-height:1.5;">${escapeHtml(ps.justification || '—')}</p>
-${buildSignatoryBlockHtml({
-  title: 'Requested By:',
-  name: requestedName,
-  designation: requestedDesignation,
-  date: requestedDate,
-})}${buildSignatoryBlockHtml({
-  title: 'Approved by (Section Head):',
-  name: approved.name,
-  designation: approved.designation,
-  date: approved.date,
-})}`;
+  let html = `<p style="margin:12pt 0 6pt 0; font-weight:bold;">Justification</p>
+<p style="margin:0 0 18pt 0; line-height:1.5;">${escapeHtml(ps.justification || '—')}</p>`;
+  requesters.forEach((person, index) => {
+    html += buildSignatoryBlockHtml({
+      title: index === 0 ? 'Requested By:' : `Requested By (${index + 1}):`,
+      name: person.name,
+      designation: person.designation,
+      date: person.date,
+    });
+  });
+  html += buildSignatoryBlockHtml({
+    title: 'Approved by (Section Head):',
+    name: approved.name,
+    designation: approved.designation,
+    date: approved.date,
+  });
+  return html;
 }
 
 function buildHtml(docType, payload, assets) {
@@ -252,28 +273,31 @@ ${buildPurchaseFooter(ps, signatories, approver)}
 <th style="${headCell}; width:22%;">Remarks</th>
 </tr></thead><tbody>${itemBody || `<tr><td colspan="4" style="${cell}">—</td></tr>`}</tbody></table>`;
 
-    const received = sn.receivedBy || {};
     const verified = sn.verifiedBy || {};
     const sectionHead = payload.sectionHeadSignatory || approver;
-    const receivedName =
-      String(received.name ?? '').trim() || String(signatories[0]?.name ?? '').trim();
-    const receivedDesignation =
-      String(received.designation ?? '').trim() || String(signatories[0]?.designation ?? '').trim();
+    const receivers = resolveReceivedByPeople(sn);
     const verifiedName =
       String(verified.name ?? '').trim() || String(sectionHead?.name ?? '').trim();
     const verifiedDesignation =
       String(verified.designation ?? '').trim() || String(sectionHead?.designation ?? '').trim();
-    const footer = `${buildSignatoryBlockHtml({
-      title: 'Received &amp; Verified By (End User / Requestor):',
-      name: receivedName,
-      designation: receivedDesignation,
-      date: received.date ? resolveDateLine(received.date) : '',
-    })}${buildSignatoryBlockHtml({
+    let footer = '';
+    receivers.forEach((person, index) => {
+      footer += buildSignatoryBlockHtml({
+        title:
+          index === 0
+            ? 'Received &amp; Verified By (End User / Requestor):'
+            : `Received &amp; Verified By (${index + 1}):`,
+        name: person.name,
+        designation: person.designation,
+        date: person.date,
+      });
+    });
+    footer += buildSignatoryBlockHtml({
       title: 'Verified By (Section Head):',
       name: verifiedName,
       designation: verifiedDesignation,
       date: verified.date ? resolveDateLine(verified.date) : '',
-    })}`;
+    });
 
     return `<!DOCTYPE html><html><head><meta charset="utf-8" /></head>
 <body style="font-family:'Times New Roman',Times,serif; font-size:12pt; margin:36pt;">

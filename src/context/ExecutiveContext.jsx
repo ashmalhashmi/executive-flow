@@ -43,6 +43,7 @@ import {
 import {
   generatePettyCaseNo,
   generateRefreshmentNoteNo,
+  normalizePettyCashCase,
   normalizePettyCashCaseList,
   normalizeRefreshmentNoteList,
 } from '../utils/pettyCashEntries';
@@ -895,23 +896,29 @@ export function ExecutiveProvider({ children }) {
         : [];
       const invoicePhotoUrl =
         invoicePhotoUrls[0] || String(payload.invoicePhotoUrl ?? '').trim();
-      const entry = {
-        id: `pc-case-${Date.now()}`,
-        caseNo: generatePettyCaseNo(cases),
-        meetingId: String(payload.meetingId ?? '').trim(),
-        meetingTitle: String(payload.meetingTitle ?? '').trim(),
-        meetingDate: String(payload.meetingDate ?? '').trim(),
-        invoicePhotoUrl,
-        invoicePhotoUrls: invoicePhotoUrls.length
-          ? invoicePhotoUrls
-          : invoicePhotoUrl
-            ? [invoicePhotoUrl]
-            : [],
-        purchaseSlip: payload.purchaseSlip || {},
-        satisfactoryNote: payload.satisfactoryNote || {},
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      const entry =
+        normalizePettyCashCase({
+          id: `pc-case-${Date.now()}`,
+          caseNo: generatePettyCaseNo(cases),
+          meetingId: String(payload.meetingId ?? '').trim(),
+          meetingTitle: String(payload.meetingTitle ?? '').trim(),
+          meetingDate: String(payload.meetingDate ?? '').trim(),
+          invoicePhotoUrl,
+          invoicePhotoUrls: invoicePhotoUrls.length
+            ? invoicePhotoUrls
+            : invoicePhotoUrl
+              ? [invoicePhotoUrl]
+              : [],
+          purchaseSlip: payload.purchaseSlip || {},
+          satisfactoryNote: payload.satisfactoryNote || {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }) || {
+          id: `pc-case-${Date.now()}`,
+          caseNo: generatePettyCaseNo(cases),
+          purchaseSlip: payload.purchaseSlip || {},
+          satisfactoryNote: payload.satisfactoryNote || {},
+        };
       created = entry;
       return {
         ...prev,
