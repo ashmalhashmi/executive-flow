@@ -32,7 +32,8 @@ export function emptySatisfactoryNoteFields() {
 export function normalizeSatisfactoryItems(rawItems, legacyNote = {}, purchaseSlip = {}) {
   if (Array.isArray(rawItems) && rawItems.length) {
     return rawItems.map((row) => ({
-      description: String(row?.description ?? '').trim(),
+      // Always refer to Purchase Slip — rewrite legacy product names on load.
+      description: SATISFACTORY_ITEM_DESCRIPTION,
       qtyReceived: String(row?.qtyReceived ?? row?.quantity ?? '').trim(),
       condition: String(row?.condition ?? '').trim() || 'Satisfactory',
       remarks: String(row?.remarks ?? '').trim() || DEFAULT_SATISFACTORY_REMARKS,
@@ -43,7 +44,7 @@ export function normalizeSatisfactoryItems(rawItems, legacyNote = {}, purchaseSl
   if (statement && !Array.isArray(rawItems)) {
     return [
       {
-        description: '',
+        description: SATISFACTORY_ITEM_DESCRIPTION,
         qtyReceived: '',
         condition: 'Satisfactory',
         remarks: statement || DEFAULT_SATISFACTORY_REMARKS,
@@ -116,7 +117,7 @@ export function buildSatisfactoryItemsTableHtml(items) {
 
   const body = rows
     .map((row) => `<tr>
-<td style="${cell}">${escapeHtml(row.description ?? '')}</td>
+<td style="${cell}">${escapeHtml(SATISFACTORY_ITEM_DESCRIPTION)}</td>
 <td style="${cell}; text-align:center;">${escapeHtml(row.qtyReceived || '—')}</td>
 <td style="${cell}">${escapeHtml(row.condition || '—')}</td>
 <td style="${cell}">${escapeHtml(row.remarks || '—')}</td>

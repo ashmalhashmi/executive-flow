@@ -16,6 +16,7 @@ import {
   resolveRequestedByName,
 } from './pettyCashPurchaseSlip';
 import {
+  SATISFACTORY_ITEM_DESCRIPTION,
   resolveSatisfactoryReceivedDesignation,
   resolveSatisfactoryReceivedName,
   resolveSatisfactoryVerifier,
@@ -276,7 +277,7 @@ export async function downloadSatisfactoryNotePdf({
   const sn = satisfactoryNote || {};
   const items = Array.isArray(sn.items) ? sn.items : [];
   const body = items.map((row) => [
-    row.description ?? '',
+    SATISFACTORY_ITEM_DESCRIPTION,
     row.qtyReceived || '—',
     row.condition || '—',
     row.remarks || '—',
