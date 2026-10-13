@@ -54,10 +54,7 @@ function normalizePurchaseSlipFields(purchase) {
   const items = normalizePurchaseItems(p.items, p);
   const totalEstimatedCost = computePurchaseItemsTotal(items);
   const approved = p.approvedBy && typeof p.approvedBy === 'object' ? p.approvedBy : {};
-  const requestedBy = normalizeRequestedByList(p.requestedBy).map((person) => ({
-    ...person,
-    date: person.date || String(p.date ?? '').trim() || getTodayISO(),
-  }));
+  const requestedBy = normalizeRequestedByList(p.requestedBy);
 
   return {
     date: String(p.date ?? '').trim() || getTodayISO(),

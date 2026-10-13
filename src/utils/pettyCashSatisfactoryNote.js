@@ -1,4 +1,4 @@
-import { formatDisplayDate, getTodayISO } from './dates';
+import { formatDisplayDate } from './dates';
 import {
   buildSignatoryBlockHtml,
   escapePettyCashHtml,
@@ -24,7 +24,7 @@ export function emptySatisfactoryItem() {
 export function emptySatisfactoryNoteFields() {
   return {
     items: [emptySatisfactoryItem()],
-    receivedBy: { name: '', designation: '', date: getTodayISO() },
+    receivedBy: { name: '', designation: '', date: '' },
     verifiedBy: { name: '', designation: '', date: '' },
   };
 }
@@ -67,31 +67,19 @@ export function normalizeSatisfactoryItems(rawItems, legacyNote = {}, purchaseSl
   return [singleSatisfactoryItem()];
 }
 
-function firstSignatory(requestorSignatories = []) {
-  return Array.isArray(requestorSignatories) ? requestorSignatories[0] : requestorSignatories || null;
+export function resolveSatisfactoryReceivedName(note, _requestorSignatories = []) {
+  return String(note?.receivedBy?.name ?? '').trim();
 }
 
-export function resolveSatisfactoryReceivedName(note, requestorSignatories = []) {
-  const received = note?.receivedBy || {};
-  const fromField = String(received.name ?? '').trim();
-  if (fromField) return fromField;
-  return String(firstSignatory(requestorSignatories)?.name ?? '').trim();
+export function resolveSatisfactoryReceivedDesignation(note, _requestorSignatories = []) {
+  return String(note?.receivedBy?.designation ?? '').trim();
 }
 
-export function resolveSatisfactoryReceivedDesignation(note, requestorSignatories = []) {
-  const received = note?.receivedBy || {};
-  const fromField = String(received.designation ?? '').trim();
-  if (fromField) return fromField;
-  return String(firstSignatory(requestorSignatories)?.designation ?? '').trim();
-}
-
-export function resolveSatisfactoryVerifier(note, sectionHeadSignatory) {
+export function resolveSatisfactoryVerifier(note, _sectionHeadSignatory) {
   const verified = note?.verifiedBy || {};
   return {
-    name: String(verified.name ?? '').trim() || String(sectionHeadSignatory?.name ?? '').trim(),
-    designation:
-      String(verified.designation ?? '').trim() ||
-      String(sectionHeadSignatory?.designation ?? '').trim(),
+    name: String(verified.name ?? '').trim(),
+    designation: String(verified.designation ?? '').trim(),
     date: verified.date ? resolveSatisfactoryDateLine(verified.date) : '',
   };
 }

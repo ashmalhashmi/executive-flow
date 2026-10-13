@@ -255,51 +255,25 @@ export default function PettyCashRecord() {
       invoicePhotoUrls,
       purchaseSlip: {
         ...purchaseSlip,
-        requestedBy: normalizeRequestedByList(purchaseSlip.requestedBy).map((person, index) => ({
-          ...person,
-          name:
-            String(person.name ?? '').trim() ||
-            (index === 0 ? pettyCashSignatures.purchaseSlip[0]?.name || '' : ''),
-          designation:
-            String(person.designation ?? '').trim() ||
-            (index === 0 ? pettyCashSignatures.purchaseSlip[0]?.designation || '' : ''),
-        })),
+        requestedBy: normalizeRequestedByList(purchaseSlip.requestedBy),
         approvedBy: {
-          ...purchaseSlip.approvedBy,
-          name:
-            String(purchaseSlip.approvedBy?.name ?? '').trim() ||
-            pettyCashSignatures.purchaseSlipApprover?.name ||
-            '',
-          designation:
-            String(purchaseSlip.approvedBy?.designation ?? '').trim() ||
-            pettyCashSignatures.purchaseSlipApprover?.designation ||
-            '',
+          name: String(purchaseSlip.approvedBy?.name ?? '').trim(),
+          designation: String(purchaseSlip.approvedBy?.designation ?? '').trim(),
+          date: String(purchaseSlip.approvedBy?.date ?? '').trim(),
         },
       },
       satisfactoryNote: {
         ...satisfactoryNote,
         items: [singleSatisfactoryItem(satisfactoryNote.items?.[0])],
         receivedBy: {
-          ...satisfactoryNote.receivedBy,
-          name:
-            String(satisfactoryNote.receivedBy?.name ?? '').trim() ||
-            pettyCashSignatures.satisfactoryNote[0]?.name ||
-            '',
-          designation:
-            String(satisfactoryNote.receivedBy?.designation ?? '').trim() ||
-            pettyCashSignatures.satisfactoryNote[0]?.designation ||
-            '',
+          name: String(satisfactoryNote.receivedBy?.name ?? '').trim(),
+          designation: String(satisfactoryNote.receivedBy?.designation ?? '').trim(),
+          date: String(satisfactoryNote.receivedBy?.date ?? '').trim(),
         },
         verifiedBy: {
-          ...satisfactoryNote.verifiedBy,
-          name:
-            String(satisfactoryNote.verifiedBy?.name ?? '').trim() ||
-            pettyCashSignatures.purchaseSlipApprover?.name ||
-            '',
-          designation:
-            String(satisfactoryNote.verifiedBy?.designation ?? '').trim() ||
-            pettyCashSignatures.purchaseSlipApprover?.designation ||
-            '',
+          name: String(satisfactoryNote.verifiedBy?.name ?? '').trim(),
+          designation: String(satisfactoryNote.verifiedBy?.designation ?? '').trim(),
+          date: String(satisfactoryNote.verifiedBy?.date ?? '').trim(),
         },
       },
     });
@@ -341,14 +315,10 @@ export default function PettyCashRecord() {
       if (type === 'purchase') {
         await downloadPurchaseSlipPdf({
           purchaseSlip: c.purchaseSlip,
-          signatories: pettyCashSignatures.purchaseSlip,
-          approverSignatory: pettyCashSignatures.purchaseSlipApprover,
         });
       } else {
         await downloadSatisfactoryNotePdf({
           satisfactoryNote: c.satisfactoryNote,
-          signatories: pettyCashSignatures.satisfactoryNote,
-          sectionHeadSignatory: pettyCashSignatures.purchaseSlipApprover,
         });
       }
     });
@@ -356,17 +326,9 @@ export default function PettyCashRecord() {
   const exportCaseWord = (c, type) =>
     runExport(async () => {
       if (type === 'purchase') {
-        await downloadPurchaseSlipWord(
-          c,
-          pettyCashSignatures.purchaseSlip,
-          pettyCashSignatures.purchaseSlipApprover,
-        );
+        await downloadPurchaseSlipWord(c);
       } else {
-        await downloadSatisfactoryNoteWord(
-          c,
-          pettyCashSignatures.satisfactoryNote,
-          pettyCashSignatures.purchaseSlipApprover,
-        );
+        await downloadSatisfactoryNoteWord(c);
       }
     });
 
@@ -387,13 +349,6 @@ export default function PettyCashRecord() {
           meetingDate: c.meetingDate,
           purchaseSlip: c.purchaseSlip,
           satisfactoryNote: c.satisfactoryNote,
-          signatories:
-            type === 'purchase'
-              ? pettyCashSignatures.purchaseSlip
-              : pettyCashSignatures.satisfactoryNote,
-          approverSignatory: pettyCashSignatures.purchaseSlipApprover,
-          sectionHeadSignatory:
-            type === 'satisfactory' ? pettyCashSignatures.purchaseSlipApprover : undefined,
         },
       });
       setMessage(`Email bhej di → ${to}`);
@@ -671,10 +626,7 @@ export default function PettyCashRecord() {
                 <FormField label="Name" id={`ps-req-name-${index}`}>
                   <TextInput
                     id={`ps-req-name-${index}`}
-                    value={
-                      person.name ||
-                      (index === 0 ? pettyCashSignatures.purchaseSlip[0]?.name || '' : '')
-                    }
+                    value={person.name || ''}
                     onChange={(e) =>
                       setPurchaseSlip((p) => {
                         const next = normalizeRequestedByList(p.requestedBy);
@@ -688,12 +640,7 @@ export default function PettyCashRecord() {
                 <FormField label="Designation" id={`ps-req-des-${index}`}>
                   <TextInput
                     id={`ps-req-des-${index}`}
-                    value={
-                      person.designation ||
-                      (index === 0
-                        ? pettyCashSignatures.purchaseSlip[0]?.designation || ''
-                        : '')
-                    }
+                    value={person.designation || ''}
                     onChange={(e) =>
                       setPurchaseSlip((p) => {
                         const next = normalizeRequestedByList(p.requestedBy);
@@ -750,11 +697,7 @@ export default function PettyCashRecord() {
           <FormField label="Name" id="ps-app-name">
             <TextInput
               id="ps-app-name"
-              value={
-                purchaseSlip.approvedBy?.name ||
-                pettyCashSignatures.purchaseSlipApprover?.name ||
-                ''
-              }
+              value={purchaseSlip.approvedBy?.name || ''}
               onChange={(e) =>
                 setPurchaseSlip((p) => ({
                   ...p,
@@ -766,11 +709,7 @@ export default function PettyCashRecord() {
           <FormField label="Designation" id="ps-app-des">
             <TextInput
               id="ps-app-des"
-              value={
-                purchaseSlip.approvedBy?.designation ||
-                pettyCashSignatures.purchaseSlipApprover?.designation ||
-                ''
-              }
+              value={purchaseSlip.approvedBy?.designation || ''}
               onChange={(e) =>
                 setPurchaseSlip((p) => ({
                   ...p,
@@ -846,11 +785,7 @@ export default function PettyCashRecord() {
           <FormField label="Name" id="sn-recv-name">
             <TextInput
               id="sn-recv-name"
-              value={
-                satisfactoryNote.receivedBy?.name ||
-                pettyCashSignatures.satisfactoryNote[0]?.name ||
-                ''
-              }
+              value={satisfactoryNote.receivedBy?.name || ''}
               onChange={(e) =>
                 setSatisfactoryNote((p) => ({
                   ...p,
@@ -863,11 +798,7 @@ export default function PettyCashRecord() {
           <FormField label="Designation" id="sn-recv-des">
             <TextInput
               id="sn-recv-des"
-              value={
-                satisfactoryNote.receivedBy?.designation ||
-                pettyCashSignatures.satisfactoryNote[0]?.designation ||
-                ''
-              }
+              value={satisfactoryNote.receivedBy?.designation || ''}
               onChange={(e) =>
                 setSatisfactoryNote((p) => ({
                   ...p,
@@ -899,11 +830,7 @@ export default function PettyCashRecord() {
           <FormField label="Name" id="sn-ver-name">
             <TextInput
               id="sn-ver-name"
-              value={
-                satisfactoryNote.verifiedBy?.name ||
-                pettyCashSignatures.purchaseSlipApprover?.name ||
-                ''
-              }
+              value={satisfactoryNote.verifiedBy?.name || ''}
               onChange={(e) =>
                 setSatisfactoryNote((p) => ({
                   ...p,
@@ -915,11 +842,7 @@ export default function PettyCashRecord() {
           <FormField label="Designation" id="sn-ver-des">
             <TextInput
               id="sn-ver-des"
-              value={
-                satisfactoryNote.verifiedBy?.designation ||
-                pettyCashSignatures.purchaseSlipApprover?.designation ||
-                ''
-              }
+              value={satisfactoryNote.verifiedBy?.designation || ''}
               onChange={(e) =>
                 setSatisfactoryNote((p) => ({
                   ...p,

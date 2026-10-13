@@ -1,4 +1,4 @@
-import { formatDisplayDate, getTodayISO } from './dates';
+import { formatDisplayDate } from './dates';
 import {
   buildSignatoryBlockHtml,
   escapePettyCashHtml,
@@ -18,7 +18,7 @@ export function emptyPurchaseItem() {
 }
 
 export function emptyRequestedByPerson() {
-  return { name: '', designation: '', date: getTodayISO() };
+  return { name: '', designation: '', date: '' };
 }
 
 /** Always an array — legacy single object becomes one person. */
@@ -272,28 +272,14 @@ export function mergePurchaseSlipFieldsFromScan(existingSlip, fields, mode = 'ap
   };
 }
 
-function firstSignatory(requestedSignatories = []) {
-  return Array.isArray(requestedSignatories) ? requestedSignatories[0] : requestedSignatories || null;
-}
-
-/** Resolved requesters for PDF / Word — first empty row falls back to signature settings. */
-export function resolveRequestedByPeople(purchaseSlip, requestedSignatories = []) {
+/** Resolved requesters for PDF / Word — only what the user filled (no signature autofill). */
+export function resolveRequestedByPeople(purchaseSlip, _requestedSignatories = []) {
   const list = normalizeRequestedByList(purchaseSlip?.requestedBy);
-  const fallback = firstSignatory(requestedSignatories);
-  return list.map((person, index) => {
-    const name =
-      String(person.name ?? '').trim() ||
-      (index === 0 ? String(fallback?.name ?? '').trim() : '');
-    const designation =
-      String(person.designation ?? '').trim() ||
-      (index === 0 ? String(fallback?.designation ?? '').trim() : '');
-    const dateRaw =
-      String(person.date ?? '').trim() ||
-      (index === 0 ? String(purchaseSlip?.date ?? '').trim() : '') ||
-      getTodayISO();
+  return list.map((person) => {
+    const dateRaw = String(person.date ?? '').trim();
     return {
-      name,
-      designation,
+      name: String(person.name ?? '').trim(),
+      designation: String(person.designation ?? '').trim(),
       date: dateRaw ? resolvePurchaseDateLine(dateRaw) : '—',
     };
   });
@@ -312,13 +298,11 @@ export function resolveRequestedByDate(purchaseSlip) {
   return resolveRequestedByPeople(purchaseSlip)[0]?.date || '—';
 }
 
-export function resolveApproverSignatory(purchaseSlip, approverSignatory) {
+export function resolveApproverSignatory(purchaseSlip, _approverSignatory) {
   const approved = purchaseSlip?.approvedBy || {};
   return {
-    name: String(approved.name ?? '').trim() || String(approverSignatory?.name ?? '').trim(),
-    designation:
-      String(approved.designation ?? '').trim() ||
-      String(approverSignatory?.designation ?? '').trim(),
+    name: String(approved.name ?? '').trim(),
+    designation: String(approved.designation ?? '').trim(),
     date: approved.date ? resolvePurchaseDateLine(approved.date) : '',
   };
 }
