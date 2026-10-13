@@ -29,40 +29,42 @@ export function emptySatisfactoryNoteFields() {
   };
 }
 
+/** One header + one detail row only — never re-list purchase products. */
+export function singleSatisfactoryItem(overrides = {}) {
+  const base = emptySatisfactoryItem();
+  const patch = overrides && typeof overrides === 'object' ? overrides : {};
+  return {
+    ...base,
+    ...patch,
+    description: SATISFACTORY_ITEM_DESCRIPTION,
+    qtyReceived: '',
+    condition: String(patch.condition ?? base.condition).trim() || 'Satisfactory',
+    remarks: String(patch.remarks ?? base.remarks).trim() || DEFAULT_SATISFACTORY_REMARKS,
+  };
+}
+
 export function normalizeSatisfactoryItems(rawItems, legacyNote = {}, purchaseSlip = {}) {
   if (Array.isArray(rawItems) && rawItems.length) {
-    return rawItems.map((row) => ({
-      // Always refer to Purchase Slip — rewrite legacy product names on load.
-      description: SATISFACTORY_ITEM_DESCRIPTION,
-      qtyReceived: String(row?.qtyReceived ?? row?.quantity ?? '').trim(),
-      condition: String(row?.condition ?? '').trim() || 'Satisfactory',
-      remarks: String(row?.remarks ?? '').trim() || DEFAULT_SATISFACTORY_REMARKS,
-    }));
+    const first = rawItems[0] || {};
+    return [
+      singleSatisfactoryItem({
+        condition: first.condition,
+        remarks: first.remarks,
+      }),
+    ];
   }
 
   const statement = String(legacyNote.statement ?? '').trim();
   if (statement && !Array.isArray(rawItems)) {
-    return [
-      {
-        description: SATISFACTORY_ITEM_DESCRIPTION,
-        qtyReceived: '',
-        condition: 'Satisfactory',
-        remarks: statement || DEFAULT_SATISFACTORY_REMARKS,
-      },
-    ];
+    return [singleSatisfactoryItem({ remarks: statement })];
   }
 
   const purchaseItems = purchaseSlip?.items;
   if (Array.isArray(purchaseItems) && purchaseItems.length) {
-    return purchaseItems.map((row) => ({
-      description: SATISFACTORY_ITEM_DESCRIPTION,
-      qtyReceived: String(row?.quantity ?? '').trim(),
-      condition: 'Satisfactory',
-      remarks: DEFAULT_SATISFACTORY_REMARKS,
-    }));
+    return [singleSatisfactoryItem()];
   }
 
-  return [emptySatisfactoryItem()];
+  return [singleSatisfactoryItem()];
 }
 
 function firstSignatory(requestorSignatories = []) {
@@ -111,18 +113,16 @@ function escapeHtml(value) {
 }
 
 export function buildSatisfactoryItemsTableHtml(items) {
-  const rows = Array.isArray(items) ? items : [emptySatisfactoryItem()];
+  const row = singleSatisfactoryItem(Array.isArray(items) ? items[0] : null);
   const cell = PETTY_CASH_TABLE_CELL;
   const headCell = pettyCashHeadCellStyle(cell);
 
-  const body = rows
-    .map((row) => `<tr>
+  const body = `<tr>
 <td style="${cell}">${escapeHtml(SATISFACTORY_ITEM_DESCRIPTION)}</td>
-<td style="${cell}; text-align:center;">${escapeHtml(row.qtyReceived || '—')}</td>
+<td style="${cell}; text-align:center;">${escapeHtml(row.qtyReceived || '')}</td>
 <td style="${cell}">${escapeHtml(row.condition || '—')}</td>
 <td style="${cell}">${escapeHtml(row.remarks || '—')}</td>
-</tr>`)
-    .join('');
+</tr>`;
 
   return `<table style="width:100%; border-collapse:collapse; margin:12pt 0 18pt 0;">
 <thead><tr>
@@ -158,13 +158,6 @@ export function buildSatisfactoryNoteFooterHtml({
   })}`;
 }
 
-export function satisfactoryItemsFromPurchase(purchaseSlip) {
-  const items = purchaseSlip?.items;
-  if (!Array.isArray(items) || !items.length) return [emptySatisfactoryItem()];
-  return items.map((row) => ({
-    description: SATISFACTORY_ITEM_DESCRIPTION,
-    qtyReceived: String(row?.quantity ?? '').trim(),
-    condition: 'Satisfactory',
-    remarks: DEFAULT_SATISFACTORY_REMARKS,
-  }));
+export function satisfactoryItemsFromPurchase(_purchaseSlip) {
+  return [singleSatisfactoryItem()];
 }

@@ -16,6 +16,7 @@ import {
   resolveRequestedByName,
 } from './pettyCashPurchaseSlip';
 import {
+  DEFAULT_SATISFACTORY_REMARKS,
   SATISFACTORY_ITEM_DESCRIPTION,
   resolveSatisfactoryReceivedDesignation,
   resolveSatisfactoryReceivedName,
@@ -275,18 +276,20 @@ export async function downloadSatisfactoryNotePdf({
   y += 10;
 
   const sn = satisfactoryNote || {};
-  const items = Array.isArray(sn.items) ? sn.items : [];
-  const body = items.map((row) => [
-    SATISFACTORY_ITEM_DESCRIPTION,
-    row.qtyReceived || '—',
-    row.condition || '—',
-    row.remarks || '—',
-  ]);
+  const first = Array.isArray(sn.items) ? sn.items[0] : null;
+  const body = [
+    [
+      SATISFACTORY_ITEM_DESCRIPTION,
+      '',
+      (first?.condition || 'Satisfactory').trim() || 'Satisfactory',
+      (first?.remarks || '').trim() || DEFAULT_SATISFACTORY_REMARKS,
+    ],
+  ];
 
   autoTable(doc, {
     startY: y + 4,
     head: [['Item Description', 'Qty Received', 'Condition', 'Remarks']],
-    body: body.length ? body : [['—', '—', '—', '—']],
+    body,
     theme: 'grid',
     styles: { fontSize: 9, cellPadding: 2.5 },
     headStyles: { fillColor: [245, 245, 245], textColor: 20, fontStyle: 'bold' },

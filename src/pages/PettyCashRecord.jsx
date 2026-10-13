@@ -33,6 +33,8 @@ import {
 } from '../utils/pettyCashPurchaseSlip';
 import {
   emptySatisfactoryItem,
+  SATISFACTORY_ITEM_DESCRIPTION,
+  singleSatisfactoryItem,
   satisfactoryItemsFromPurchase,
 } from '../utils/pettyCashSatisfactoryNote';
 import { extractPettyInvoiceWithAi } from '../utils/pettyCashInvoiceAi';
@@ -259,37 +261,14 @@ export default function PettyCashRecord() {
     });
   };
 
-  const updateSatisfactoryItem = (index, patch) => {
-    setSatisfactoryNote((p) => {
-      const items = [...(p.items || [])];
-      items[index] = { ...items[index], ...patch };
-      return { ...p, items };
-    });
-  };
-
-  const addSatisfactoryItem = () => {
+  const updateSatisfactoryItem = (_index, patch) => {
     setSatisfactoryNote((p) => ({
       ...p,
-      items: [...(p.items || []), emptySatisfactoryItem()],
+      items: [singleSatisfactoryItem({ ...(p.items?.[0] || {}), ...patch })],
     }));
   };
 
-  const removeSatisfactoryItem = (index) => {
-    setSatisfactoryNote((p) => {
-      const items = [...(p.items || [])];
-      if (items.length <= 1) return p;
-      items.splice(index, 1);
-      return { ...p, items };
-    });
-  };
-
-  const copySatisfactoryFromPurchase = () => {
-    setSatisfactoryNote((p) => ({
-      ...p,
-      items: satisfactoryItemsFromPurchase(purchaseSlip),
-    }));
-    setMessage('Satisfactory Note items purchase slip se copy ho gaye');
-  };
+  const satisfactoryRow = satisfactoryNote.items?.[0] || emptySatisfactoryItem();
 
   const handleSaveCase = () => {
     const hasItem = (purchaseSlip.items || []).some((row) =>
@@ -332,6 +311,7 @@ export default function PettyCashRecord() {
       },
       satisfactoryNote: {
         ...satisfactoryNote,
+        items: [singleSatisfactoryItem(satisfactoryNote.items?.[0])],
         receivedBy: {
           ...satisfactoryNote.receivedBy,
           name:
@@ -895,13 +875,9 @@ export default function PettyCashRecord() {
         </div>
 
         <p className="mb-2 mt-5 text-xs font-medium text-zinc-400">Satisfactory Note</p>
-        <button
-          type="button"
-          onClick={copySatisfactoryFromPurchase}
-          className="mb-3 inline-flex items-center gap-1.5 text-xs text-violet-300 hover:text-violet-200"
-        >
-          Copy items from purchase slip
-        </button>
+        <p className="mb-3 text-[11px] text-zinc-500">
+          Sirf ek row: Item Description fixed, Qty Received khali.
+        </p>
 
         <div className="overflow-x-auto rounded-xl border border-white/10">
           <table className="min-w-full text-left text-sm">
@@ -911,69 +887,37 @@ export default function PettyCashRecord() {
                 <th className="px-3 py-2 w-24">Qty Received</th>
                 <th className="px-3 py-2 w-28">Condition</th>
                 <th className="px-3 py-2">Remarks</th>
-                <th className="px-2 py-2 w-10" />
               </tr>
             </thead>
             <tbody>
-              {(satisfactoryNote.items || []).map((row, index) => (
-                <tr key={index} className="border-t border-white/5">
-                  <td className="px-2 py-2">
-                    <TextInput
-                      value={row.description}
-                      onChange={(e) =>
-                        updateSatisfactoryItem(index, { description: e.target.value })
-                      }
-                      placeholder="Mentioned on Purchase Slip"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <TextInput
-                      value={row.qtyReceived}
-                      onChange={(e) =>
-                        updateSatisfactoryItem(index, { qtyReceived: e.target.value })
-                      }
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <TextInput
-                      value={row.condition}
-                      onChange={(e) =>
-                        updateSatisfactoryItem(index, { condition: e.target.value })
-                      }
-                      placeholder="Satisfactory"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <TextInput
-                      value={row.remarks}
-                      onChange={(e) =>
-                        updateSatisfactoryItem(index, { remarks: e.target.value })
-                      }
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <button
-                      type="button"
-                      onClick={() => removeSatisfactoryItem(index)}
-                      className="rounded p-1.5 text-red-400 hover:bg-red-500/10"
-                      title="Remove row"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              <tr className="border-t border-white/5">
+                <td className="px-2 py-2">
+                  <TextInput value={SATISFACTORY_ITEM_DESCRIPTION} readOnly />
+                </td>
+                <td className="px-2 py-2">
+                  <TextInput value="" readOnly />
+                </td>
+                <td className="px-2 py-2">
+                  <TextInput
+                    value={satisfactoryRow.condition}
+                    onChange={(e) =>
+                      updateSatisfactoryItem(0, { condition: e.target.value })
+                    }
+                    placeholder="Satisfactory"
+                  />
+                </td>
+                <td className="px-2 py-2">
+                  <TextInput
+                    value={satisfactoryRow.remarks}
+                    onChange={(e) =>
+                      updateSatisfactoryItem(0, { remarks: e.target.value })
+                    }
+                  />
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
-        <button
-          type="button"
-          onClick={addSatisfactoryItem}
-          className="mt-2 inline-flex items-center gap-1.5 text-xs text-violet-300 hover:text-violet-200"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add satisfactory row
-        </button>
 
         <p className="mb-2 mt-5 text-xs font-medium text-zinc-400">
           Received &amp; Verified By (End User / Requestor)
