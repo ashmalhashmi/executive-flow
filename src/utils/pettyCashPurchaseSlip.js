@@ -1,4 +1,4 @@
-import { formatDisplayDate } from './dates';
+import { formatDisplayDate, getTodayISO } from './dates';
 import {
   buildSignatoryBlockHtml,
   escapePettyCashHtml,
@@ -15,6 +15,34 @@ export function emptyPurchaseItem() {
     unitCost: '',
     totalCost: '',
   };
+}
+
+export function emptyRequestedByPerson() {
+  return { name: '', designation: '', date: getTodayISO() };
+}
+
+/** Always an array — legacy single object becomes one person. */
+export function normalizeRequestedByList(raw) {
+  if (Array.isArray(raw)) {
+    const list = raw
+      .filter((row) => row && typeof row === 'object')
+      .map((row) => ({
+        name: String(row.name ?? row.names ?? '').trim(),
+        designation: String(row.designation ?? '').trim(),
+        date: String(row.date ?? '').trim(),
+      }));
+    return list.length ? list : [emptyRequestedByPerson()];
+  }
+  if (raw && typeof raw === 'object') {
+    return [
+      {
+        name: String(raw.name ?? raw.names ?? '').trim(),
+        designation: String(raw.designation ?? '').trim(),
+        date: String(raw.date ?? '').trim(),
+      },
+    ];
+  }
+  return [emptyRequestedByPerson()];
 }
 
 export function parsePurchaseNumber(raw) {
@@ -248,25 +276,40 @@ function firstSignatory(requestedSignatories = []) {
   return Array.isArray(requestedSignatories) ? requestedSignatories[0] : requestedSignatories || null;
 }
 
+/** Resolved requesters for PDF / Word — first empty row falls back to signature settings. */
+export function resolveRequestedByPeople(purchaseSlip, requestedSignatories = []) {
+  const list = normalizeRequestedByList(purchaseSlip?.requestedBy);
+  const fallback = firstSignatory(requestedSignatories);
+  return list.map((person, index) => {
+    const name =
+      String(person.name ?? '').trim() ||
+      (index === 0 ? String(fallback?.name ?? '').trim() : '');
+    const designation =
+      String(person.designation ?? '').trim() ||
+      (index === 0 ? String(fallback?.designation ?? '').trim() : '');
+    const dateRaw =
+      String(person.date ?? '').trim() ||
+      (index === 0 ? String(purchaseSlip?.date ?? '').trim() : '') ||
+      getTodayISO();
+    return {
+      name,
+      designation,
+      date: dateRaw ? resolvePurchaseDateLine(dateRaw) : '—',
+    };
+  });
+}
+
 /** Requester name from form field or purchase-slip initiator signature settings. */
 export function resolveRequestedByName(purchaseSlip, requestedSignatories = []) {
-  const requested = purchaseSlip?.requestedBy || {};
-  const fromField = String(requested.name ?? requested.names ?? '').trim();
-  if (fromField) return fromField;
-  return String(firstSignatory(requestedSignatories)?.name ?? '').trim();
+  return resolveRequestedByPeople(purchaseSlip, requestedSignatories)[0]?.name || '';
 }
 
 export function resolveRequestedByDesignation(purchaseSlip, requestedSignatories = []) {
-  const requested = purchaseSlip?.requestedBy || {};
-  const fromField = String(requested.designation ?? '').trim();
-  if (fromField) return fromField;
-  return String(firstSignatory(requestedSignatories)?.designation ?? '').trim();
+  return resolveRequestedByPeople(purchaseSlip, requestedSignatories)[0]?.designation || '';
 }
 
 export function resolveRequestedByDate(purchaseSlip) {
-  const requested = purchaseSlip?.requestedBy || {};
-  const date = String(requested.date ?? purchaseSlip?.date ?? '').trim();
-  return date ? resolvePurchaseDateLine(date) : '—';
+  return resolveRequestedByPeople(purchaseSlip)[0]?.date || '—';
 }
 
 export function resolveApproverSignatory(purchaseSlip, approverSignatory) {
@@ -331,19 +374,19 @@ export function buildPurchaseSlipFooterHtml({
   approverSignatory = null,
 }) {
   const ps = purchaseSlip || {};
-  const requestedName = resolveRequestedByName(ps, requestedSignatories);
-  const requestedDesignation = resolveRequestedByDesignation(ps, requestedSignatories);
-  const requestedDate = resolveRequestedByDate(ps);
+  const requesters = resolveRequestedByPeople(ps, requestedSignatories);
   const approved = resolveApproverSignatory(ps, approverSignatory);
 
   let html = `<p style="margin:12pt 0 6pt 0; font-weight:bold;">Justification</p>
 <p style="margin:0 0 18pt 0; line-height:1.5;">${escapePurchaseHtml(ps.justification || '—')}</p>`;
 
-  html += buildSignatoryBlockHtml({
-    title: 'Requested By:',
-    name: requestedName,
-    designation: requestedDesignation,
-    date: requestedDate,
+  requesters.forEach((person, index) => {
+    html += buildSignatoryBlockHtml({
+      title: index === 0 ? 'Requested By:' : `Requested By (${index + 1}):`,
+      name: person.name,
+      designation: person.designation,
+      date: person.date,
+    });
   });
 
   html += buildSignatoryBlockHtml({

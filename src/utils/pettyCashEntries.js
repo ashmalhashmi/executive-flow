@@ -2,7 +2,9 @@ import { getTodayISO } from './dates';
 import {
   computePurchaseItemsTotal,
   emptyPurchaseItem,
+  emptyRequestedByPerson,
   normalizePurchaseItems,
+  normalizeRequestedByList,
   parsePurchaseNumber,
 } from './pettyCashPurchaseSlip';
 import {
@@ -15,7 +17,7 @@ export function emptyPurchaseSlip() {
     date: getTodayISO(),
     items: [emptyPurchaseItem()],
     justification: '',
-    requestedBy: { name: '', designation: '', date: getTodayISO() },
+    requestedBy: [emptyRequestedByPerson()],
     approvedBy: { name: '', designation: '', date: '' },
     vendor: '',
     invoiceNo: '',
@@ -51,19 +53,18 @@ function normalizePurchaseSlipFields(purchase) {
   const p = purchase && typeof purchase === 'object' ? purchase : {};
   const items = normalizePurchaseItems(p.items, p);
   const totalEstimatedCost = computePurchaseItemsTotal(items);
-  const requested = p.requestedBy && typeof p.requestedBy === 'object' ? p.requestedBy : {};
   const approved = p.approvedBy && typeof p.approvedBy === 'object' ? p.approvedBy : {};
+  const requestedBy = normalizeRequestedByList(p.requestedBy).map((person) => ({
+    ...person,
+    date: person.date || String(p.date ?? '').trim() || getTodayISO(),
+  }));
 
   return {
     date: String(p.date ?? '').trim() || getTodayISO(),
     items,
     totalEstimatedCost,
     justification: String(p.justification ?? '').trim(),
-    requestedBy: {
-      name: String(requested.name ?? requested.names ?? '').trim(),
-      designation: String(requested.designation ?? '').trim(),
-      date: String(requested.date ?? '').trim() || String(p.date ?? '').trim() || getTodayISO(),
-    },
+    requestedBy,
     approvedBy: {
       name: String(approved.name ?? '').trim(),
       designation: String(approved.designation ?? '').trim(),

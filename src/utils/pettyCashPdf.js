@@ -11,9 +11,7 @@ import {
   formatPurchaseQuantity,
   normalizePurchaseItems,
   resolveApproverSignatory,
-  resolveRequestedByDate,
-  resolveRequestedByDesignation,
-  resolveRequestedByName,
+  resolveRequestedByPeople,
 } from './pettyCashPurchaseSlip';
 import {
   DEFAULT_SATISFACTORY_REMARKS,
@@ -244,11 +242,15 @@ export async function downloadPurchaseSlipPdf({
   doc.text(justLines, leftX, y);
   y += justLines.length * PAGE.line + 8;
 
-  y = drawSignatoryBlock(doc, leftX, y, 'Requested By:', {
-    name: resolveRequestedByName(ps, signatories),
-    designation: resolveRequestedByDesignation(ps, signatories),
-    date: resolveRequestedByDate(ps),
-  });
+  const requesters = resolveRequestedByPeople(ps, signatories);
+  for (let i = 0; i < requesters.length; i += 1) {
+    const person = requesters[i];
+    y = drawSignatoryBlock(doc, leftX, y, i === 0 ? 'Requested By:' : `Requested By (${i + 1}):`, {
+      name: person.name,
+      designation: person.designation,
+      date: person.date,
+    });
+  }
 
   const approved = resolveApproverSignatory(ps, approverSignatory);
   y = drawSignatoryBlock(doc, leftX, y, 'Approved by (Section Head):', {

@@ -27,8 +27,10 @@ import {
 import {
   computePurchaseItemsTotal,
   emptyPurchaseItem,
+  emptyRequestedByPerson,
   formatPurchaseMoney,
   mergePurchaseSlipFieldsFromScan,
+  normalizeRequestedByList,
   syncPurchaseItemTotals,
 } from '../utils/pettyCashPurchaseSlip';
 import {
@@ -286,17 +288,15 @@ export default function PettyCashRecord() {
       invoicePhotoUrls,
       purchaseSlip: {
         ...purchaseSlip,
-        requestedBy: {
-          ...purchaseSlip.requestedBy,
+        requestedBy: normalizeRequestedByList(purchaseSlip.requestedBy).map((person, index) => ({
+          ...person,
           name:
-            String(purchaseSlip.requestedBy?.name ?? '').trim() ||
-            pettyCashSignatures.purchaseSlip[0]?.name ||
-            '',
+            String(person.name ?? '').trim() ||
+            (index === 0 ? pettyCashSignatures.purchaseSlip[0]?.name || '' : ''),
           designation:
-            String(purchaseSlip.requestedBy?.designation ?? '').trim() ||
-            pettyCashSignatures.purchaseSlip[0]?.designation ||
-            '',
-        },
+            String(person.designation ?? '').trim() ||
+            (index === 0 ? pettyCashSignatures.purchaseSlip[0]?.designation || '' : ''),
+        })),
         approvedBy: {
           ...purchaseSlip.approvedBy,
           name:
@@ -772,55 +772,106 @@ export default function PettyCashRecord() {
           />
         </FormField>
 
-        <p className="mb-2 mt-5 text-xs font-medium text-zinc-400">Requested By</p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <FormField label="Name" id="ps-req-name">
-            <TextInput
-              id="ps-req-name"
-              value={
-                purchaseSlip.requestedBy?.name ||
-                pettyCashSignatures.purchaseSlip[0]?.name ||
-                ''
-              }
-              onChange={(e) =>
-                setPurchaseSlip((p) => ({
-                  ...p,
-                  requestedBy: { ...p.requestedBy, name: e.target.value },
-                }))
-              }
-              placeholder="Optional — Adding Signature se auto"
-            />
-          </FormField>
-          <FormField label="Designation" id="ps-req-des">
-            <TextInput
-              id="ps-req-des"
-              value={
-                purchaseSlip.requestedBy?.designation ||
-                pettyCashSignatures.purchaseSlip[0]?.designation ||
-                ''
-              }
-              onChange={(e) =>
-                setPurchaseSlip((p) => ({
-                  ...p,
-                  requestedBy: { ...p.requestedBy, designation: e.target.value },
-                }))
-              }
-              placeholder="Optional — Adding Signature se auto"
-            />
-          </FormField>
-          <FormField label="Date" id="ps-req-date">
-            <TextInput
-              id="ps-req-date"
-              type="date"
-              value={purchaseSlip.requestedBy?.date || ''}
-              onChange={(e) =>
-                setPurchaseSlip((p) => ({
-                  ...p,
-                  requestedBy: { ...p.requestedBy, date: e.target.value },
-                }))
-              }
-            />
-          </FormField>
+        <div className="mb-2 mt-5 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-medium text-zinc-400">Requested By</p>
+          <button
+            type="button"
+            onClick={() =>
+              setPurchaseSlip((p) => ({
+                ...p,
+                requestedBy: [
+                  ...normalizeRequestedByList(p.requestedBy),
+                  emptyRequestedByPerson(),
+                ],
+              }))
+            }
+            className="inline-flex items-center gap-1.5 text-xs text-violet-300 hover:text-violet-200"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add requester
+          </button>
+        </div>
+        <div className="space-y-3">
+          {normalizeRequestedByList(purchaseSlip.requestedBy).map((person, index, list) => (
+            <div key={`req-${index}`} className="flex flex-wrap items-end gap-3">
+              <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-3">
+                <FormField label="Name" id={`ps-req-name-${index}`}>
+                  <TextInput
+                    id={`ps-req-name-${index}`}
+                    value={
+                      person.name ||
+                      (index === 0 ? pettyCashSignatures.purchaseSlip[0]?.name || '' : '')
+                    }
+                    onChange={(e) =>
+                      setPurchaseSlip((p) => {
+                        const next = normalizeRequestedByList(p.requestedBy);
+                        next[index] = { ...next[index], name: e.target.value };
+                        return { ...p, requestedBy: next };
+                      })
+                    }
+                    placeholder={
+                      index === 0 ? 'Optional — Adding Signature se auto' : 'Requester name'
+                    }
+                  />
+                </FormField>
+                <FormField label="Designation" id={`ps-req-des-${index}`}>
+                  <TextInput
+                    id={`ps-req-des-${index}`}
+                    value={
+                      person.designation ||
+                      (index === 0
+                        ? pettyCashSignatures.purchaseSlip[0]?.designation || ''
+                        : '')
+                    }
+                    onChange={(e) =>
+                      setPurchaseSlip((p) => {
+                        const next = normalizeRequestedByList(p.requestedBy);
+                        next[index] = { ...next[index], designation: e.target.value };
+                        return { ...p, requestedBy: next };
+                      })
+                    }
+                    placeholder={
+                      index === 0 ? 'Optional — Adding Signature se auto' : 'Designation'
+                    }
+                  />
+                </FormField>
+                <FormField label="Date" id={`ps-req-date-${index}`}>
+                  <TextInput
+                    id={`ps-req-date-${index}`}
+                    type="date"
+                    value={person.date || ''}
+                    onChange={(e) =>
+                      setPurchaseSlip((p) => {
+                        const next = normalizeRequestedByList(p.requestedBy);
+                        next[index] = { ...next[index], date: e.target.value };
+                        return { ...p, requestedBy: next };
+                      })
+                    }
+                  />
+                </FormField>
+              </div>
+              {list.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPurchaseSlip((p) => {
+                      const next = normalizeRequestedByList(p.requestedBy).filter(
+                        (_row, i) => i !== index,
+                      );
+                      return {
+                        ...p,
+                        requestedBy: next.length ? next : [emptyRequestedByPerson()],
+                      };
+                    })
+                  }
+                  className="mb-0.5 rounded p-2 text-red-400 hover:bg-red-500/10"
+                  title="Remove requester"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+          ))}
         </div>
 
         <p className="mb-2 mt-5 text-xs font-medium text-zinc-400">
