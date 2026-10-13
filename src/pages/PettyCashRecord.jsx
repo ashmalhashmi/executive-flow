@@ -10,7 +10,6 @@ import {
   Trash2,
   Loader2,
   Image,
-  PenLine,
 } from 'lucide-react';
 import {
   useMeetingsExecutive,
@@ -62,33 +61,6 @@ function loadEmail() {
   }
 }
 
-function SignatoryPair({ title, nameId, desId, name, designation, onName, onDesignation, hint }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-      <p className="mb-3 text-xs font-medium text-zinc-300">{title}</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <FormField label="Name" id={nameId}>
-          <TextInput
-            id={nameId}
-            value={name}
-            onChange={(e) => onName(e.target.value)}
-            placeholder="Signatory name"
-          />
-        </FormField>
-        <FormField label="Designation" id={desId}>
-          <TextInput
-            id={desId}
-            value={designation}
-            onChange={(e) => onDesignation(e.target.value)}
-            placeholder="Designation"
-          />
-        </FormField>
-      </div>
-      {hint ? <p className="mt-2 text-xs text-zinc-500">{hint}</p> : null}
-    </div>
-  );
-}
-
 function ExportButtons({ busy, onPdf, onWord, onEmail, disabled }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -133,12 +105,7 @@ export default function PettyCashRecord() {
     removePettyCashCase,
     addRefreshmentNote,
     removeRefreshmentNote,
-    updatePettyCashSignatures,
   } = usePettyCashExecutive();
-
-  const patchSignatures = (patchFn) => {
-    updatePettyCashSignatures((prev) => patchFn(prev));
-  };
 
   const [email, setEmail] = useState(loadEmail);
   const [message, setMessage] = useState('');
@@ -500,100 +467,6 @@ export default function PettyCashRecord() {
         )}
       </GlassCard>
 
-      <GlassCard className="border-amber-500/20 bg-amber-500/5 p-5 sm:p-6">
-        <div className="mb-4 flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/15">
-            <PenLine className="h-5 w-5 text-amber-300" />
-          </span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-amber-300/90">
-              Adding Signature
-            </p>
-            <p className="text-sm text-zinc-500">
-              Name + designation — PDF / Word / Email ke sahi signature slots par
-            </p>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <SignatoryPair
-            title="Purchase Slip — Requested By"
-            nameId="sig-ps-name"
-            desId="sig-ps-des"
-            name={pettyCashSignatures.purchaseSlip[0]?.name || ''}
-            designation={pettyCashSignatures.purchaseSlip[0]?.designation || ''}
-            onName={(name) =>
-              patchSignatures((prev) => ({
-                ...prev,
-                purchaseSlip: [{ ...(prev.purchaseSlip[0] || {}), name }],
-              }))
-            }
-            onDesignation={(designation) =>
-              patchSignatures((prev) => ({
-                ...prev,
-                purchaseSlip: [{ ...(prev.purchaseSlip[0] || {}), designation }],
-              }))
-            }
-          />
-          <SignatoryPair
-            title="Section Head (Purchase Slip + Satisfactory Note)"
-            nameId="sig-sh-name"
-            desId="sig-sh-des"
-            name={pettyCashSignatures.purchaseSlipApprover?.name || ''}
-            designation={pettyCashSignatures.purchaseSlipApprover?.designation || ''}
-            onName={(name) =>
-              patchSignatures((prev) => ({
-                ...prev,
-                purchaseSlipApprover: { ...prev.purchaseSlipApprover, name },
-              }))
-            }
-            onDesignation={(designation) =>
-              patchSignatures((prev) => ({
-                ...prev,
-                purchaseSlipApprover: { ...prev.purchaseSlipApprover, designation },
-              }))
-            }
-          />
-          <SignatoryPair
-            title="Satisfactory Note — Received & Verified By"
-            nameId="sig-sn-name"
-            desId="sig-sn-des"
-            name={pettyCashSignatures.satisfactoryNote[0]?.name || ''}
-            designation={pettyCashSignatures.satisfactoryNote[0]?.designation || ''}
-            onName={(name) =>
-              patchSignatures((prev) => ({
-                ...prev,
-                satisfactoryNote: [{ ...(prev.satisfactoryNote[0] || {}), name }],
-              }))
-            }
-            onDesignation={(designation) =>
-              patchSignatures((prev) => ({
-                ...prev,
-                satisfactoryNote: [{ ...(prev.satisfactoryNote[0] || {}), designation }],
-              }))
-            }
-          />
-          <SignatoryPair
-            title="Refreshment Receiving — Issuer"
-            nameId="sig-rf-name"
-            desId="sig-rf-des"
-            name={pettyCashSignatures.refreshmentIssuer?.name || ''}
-            designation={pettyCashSignatures.refreshmentIssuer?.designation || ''}
-            onName={(name) =>
-              patchSignatures((prev) => ({
-                ...prev,
-                refreshmentIssuer: { ...prev.refreshmentIssuer, name },
-              }))
-            }
-            onDesignation={(designation) =>
-              patchSignatures((prev) => ({
-                ...prev,
-                refreshmentIssuer: { ...prev.refreshmentIssuer, designation },
-              }))
-            }
-          />
-        </div>
-      </GlassCard>
-
       <GlassCard className="border-violet-500/20 p-5 sm:p-6">
         <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-violet-300/90">
           New — Purchase Slip + Satisfactory Note
@@ -809,9 +682,7 @@ export default function PettyCashRecord() {
                         return { ...p, requestedBy: next };
                       })
                     }
-                    placeholder={
-                      index === 0 ? 'Optional — Adding Signature se auto' : 'Requester name'
-                    }
+                    placeholder="Requester name"
                   />
                 </FormField>
                 <FormField label="Designation" id={`ps-req-des-${index}`}>
@@ -830,9 +701,7 @@ export default function PettyCashRecord() {
                         return { ...p, requestedBy: next };
                       })
                     }
-                    placeholder={
-                      index === 0 ? 'Optional — Adding Signature se auto' : 'Designation'
-                    }
+                    placeholder="Designation"
                   />
                 </FormField>
                 <FormField label="Date" id={`ps-req-date-${index}`}>
@@ -988,7 +857,7 @@ export default function PettyCashRecord() {
                   receivedBy: { ...p.receivedBy, name: e.target.value },
                 }))
               }
-              placeholder="Optional — Adding Signature se auto"
+              placeholder="Name"
             />
           </FormField>
           <FormField label="Designation" id="sn-recv-des">
@@ -1005,7 +874,7 @@ export default function PettyCashRecord() {
                   receivedBy: { ...p.receivedBy, designation: e.target.value },
                 }))
               }
-              placeholder="Optional — Adding Signature se auto"
+              placeholder="Designation"
             />
           </FormField>
           <FormField label="Date" id="sn-recv-date">
