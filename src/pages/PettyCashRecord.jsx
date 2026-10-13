@@ -10,6 +10,7 @@ import {
   Trash2,
   Loader2,
   Image,
+  Upload,
 } from 'lucide-react';
 import {
   useMeetingsExecutive,
@@ -114,7 +115,8 @@ export default function PettyCashRecord() {
   const [exportBusy, setExportBusy] = useState(false);
   const [scanBusy, setScanBusy] = useState(false);
   const [scanMode, setScanMode] = useState('replace');
-  const invoiceRef = useRef(null);
+  const invoiceCameraRef = useRef(null);
+  const invoiceGalleryRef = useRef(null);
   const invoiceScanModeRef = useRef('replace');
 
   const [meetingId, setMeetingId] = useState('');
@@ -193,14 +195,16 @@ export default function PettyCashRecord() {
       setScanBusy(false);
       invoiceScanModeRef.current = 'replace';
       setScanMode('replace');
-      if (invoiceRef.current) invoiceRef.current.value = '';
+      if (invoiceCameraRef.current) invoiceCameraRef.current.value = '';
+      if (invoiceGalleryRef.current) invoiceGalleryRef.current.value = '';
     }
   };
 
-  const triggerInvoiceScan = (mode) => {
+  const triggerInvoiceScan = (mode, source = 'camera') => {
     invoiceScanModeRef.current = mode;
     setScanMode(mode);
-    invoiceRef.current?.click();
+    if (source === 'gallery') invoiceGalleryRef.current?.click();
+    else invoiceCameraRef.current?.click();
   };
 
   const purchaseTotal = useMemo(
@@ -446,7 +450,7 @@ export default function PettyCashRecord() {
               <button
                 type="button"
                 disabled={scanBusy}
-                onClick={() => triggerInvoiceScan('replace')}
+                onClick={() => triggerInvoiceScan('replace', 'camera')}
                 className="inline-flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/15 px-4 py-2.5 text-sm text-violet-100 hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {scanBusy && scanMode === 'replace' ? (
@@ -457,29 +461,60 @@ export default function PettyCashRecord() {
                 {scanBusy && scanMode === 'replace'
                   ? 'Scanning…'
                   : invoicePhotoUrls.length
-                    ? 'Rescan (replace)'
+                    ? 'Rescan camera'
                     : 'Scan invoice'}
               </button>
+              <button
+                type="button"
+                disabled={scanBusy}
+                onClick={() => triggerInvoiceScan('replace', 'gallery')}
+                className="inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/15 px-4 py-2.5 text-sm text-sky-100 hover:bg-sky-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Upload className="h-4 w-4" />
+                {invoicePhotoUrls.length ? 'Replace from gallery' : 'Import from gallery'}
+              </button>
               {invoicePhotoUrls.length > 0 ? (
-                <button
-                  type="button"
-                  disabled={scanBusy}
-                  onClick={() => triggerInvoiceScan('append')}
-                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-4 py-2.5 text-sm text-emerald-100 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {scanBusy && scanMode === 'append' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  {scanBusy && scanMode === 'append' ? 'Adding page…' : 'Scan next page'}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    disabled={scanBusy}
+                    onClick={() => triggerInvoiceScan('append', 'camera')}
+                    className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-4 py-2.5 text-sm text-emerald-100 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {scanBusy && scanMode === 'append' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                    {scanBusy && scanMode === 'append' ? 'Adding page…' : 'Scan next page'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={scanBusy}
+                    onClick={() => triggerInvoiceScan('append', 'gallery')}
+                    className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-100/90 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Next page from gallery
+                  </button>
+                </>
               ) : null}
               <input
-                ref={invoiceRef}
+                ref={invoiceCameraRef}
                 type="file"
                 accept="image/*"
                 capture="environment"
+                className="sr-only"
+                disabled={scanBusy}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  handleInvoiceScan(file, invoiceScanModeRef.current || 'replace');
+                }}
+              />
+              <input
+                ref={invoiceGalleryRef}
+                type="file"
+                accept="image/*"
                 className="sr-only"
                 disabled={scanBusy}
                 onChange={(e) => {
@@ -505,7 +540,8 @@ export default function PettyCashRecord() {
               </div>
             ) : null}
             <p className="mt-2 text-[11px] text-zinc-500">
-              Lambi invoice: pehli photo Scan, doosri/teesri ke liye Scan next page — ek hi Save case.
+              Camera ya gallery — lambi invoice ke liye next page bhi dono se add ho sakti hai; ek hi
+              Save case.
             </p>
           </div>
         </div>
