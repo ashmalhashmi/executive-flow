@@ -170,6 +170,80 @@ export function purchaseItemsFromInvoiceFields(fields = {}) {
   return String(fallback.description || '').trim() ? [fallback] : [emptyPurchaseItem()];
 }
 
+function purchaseItemDedupeKey(row) {
+  return [
+    String(row?.description ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' '),
+    String(row?.quantity ?? '').trim().toLowerCase(),
+    String(parsePurchaseNumber(row?.unitCost) || ''),
+    String(parsePurchaseNumber(row?.totalCost) || ''),
+  ].join('|');
+}
+
+/** Append scanned page items onto an existing draft — skip exact duplicate rows. */
+export function mergePurchaseItemsFromScan(existingItems, incomingItems) {
+  const base = Array.isArray(existingItems) ? existingItems.filter((row) => String(row?.description ?? '').trim()) : [];
+  const incoming = Array.isArray(incomingItems)
+    ? incomingItems.filter((row) => String(row?.description ?? '').trim())
+    : [];
+  if (!incoming.length) return base.length ? base : [emptyPurchaseItem()];
+
+  const seen = new Set(base.map(purchaseItemDedupeKey));
+  const merged = [...base];
+  for (const row of incoming) {
+    const key = purchaseItemDedupeKey(row);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(syncPurchaseItemTotals({ ...emptyPurchaseItem(), ...row }));
+  }
+  return merged.length ? merged : [emptyPurchaseItem()];
+}
+
+/** Prefer existing vendor/invoice meta; take the larger grand-total when both pages report one. */
+export function mergePurchaseSlipFieldsFromScan(existingSlip, fields, mode = 'append') {
+  const prev = existingSlip && typeof existingSlip === 'object' ? existingSlip : {};
+  const nextItems = purchaseItemsFromInvoiceFields(fields);
+  const items =
+    mode === 'append'
+      ? mergePurchaseItemsFromScan(prev.items, nextItems)
+      : nextItems.length
+        ? nextItems
+        : [emptyPurchaseItem()];
+
+  const prevAmount = parsePurchaseNumber(prev.amountPkr);
+  const nextAmount = parsePurchaseNumber(fields.amountPkr);
+  const amountPkr =
+    mode === 'append'
+      ? Math.max(prevAmount, nextAmount) || prevAmount || nextAmount || ''
+      : nextAmount || prevAmount || '';
+
+  return {
+    ...prev,
+    vendor: mode === 'append' ? String(prev.vendor || fields.vendor || '').trim() : String(fields.vendor || prev.vendor || '').trim(),
+    invoiceNo:
+      mode === 'append'
+        ? String(prev.invoiceNo || fields.invoiceNo || '').trim()
+        : String(fields.invoiceNo || prev.invoiceNo || '').trim(),
+    date: mode === 'append' ? String(prev.date || fields.date || '').trim() : String(fields.date || prev.date || '').trim(),
+    paymentMode:
+      mode === 'append'
+        ? String(prev.paymentMode || fields.paymentMode || 'Petty Cash').trim()
+        : String(fields.paymentMode || prev.paymentMode || 'Petty Cash').trim(),
+    items,
+    description:
+      mode === 'append'
+        ? String(prev.description || fields.description || '').trim()
+        : String(fields.description || prev.description || '').trim(),
+    quantity:
+      mode === 'append'
+        ? String(prev.quantity || fields.quantity || '').trim()
+        : String(fields.quantity || prev.quantity || '').trim(),
+    amountPkr: amountPkr || '',
+  };
+}
+
 function firstSignatory(requestedSignatories = []) {
   return Array.isArray(requestedSignatories) ? requestedSignatories[0] : requestedSignatories || null;
 }

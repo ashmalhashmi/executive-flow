@@ -96,6 +96,22 @@ export function generatePettyCaseNo(cases) {
   return `${prefix}${String(max + 1).padStart(3, '0')}`;
 }
 
+/** One or more invoice page photos — keeps legacy invoicePhotoUrl in sync as first URL. */
+export function normalizeInvoicePhotoUrls(raw) {
+  const fromArray = Array.isArray(raw?.invoicePhotoUrls)
+    ? raw.invoicePhotoUrls.map((u) => String(u ?? '').trim()).filter(Boolean)
+    : [];
+  const single = String(raw?.invoicePhotoUrl ?? '').trim();
+  const urls = [];
+  const seen = new Set();
+  for (const url of [...fromArray, ...(single ? [single] : [])]) {
+    if (seen.has(url)) continue;
+    seen.add(url);
+    urls.push(url);
+  }
+  return urls;
+}
+
 export function normalizePettyCashCase(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const caseNo = String(raw.caseNo ?? '').trim();
@@ -103,6 +119,7 @@ export function normalizePettyCashCase(raw) {
 
   const purchase = raw.purchaseSlip || raw.purchase || {};
   const satisfactory = raw.satisfactoryNote || raw.satisfactory || {};
+  const invoicePhotoUrls = normalizeInvoicePhotoUrls(raw);
 
   return {
     id: raw.id || `pc-case-${Date.now()}`,
@@ -110,7 +127,8 @@ export function normalizePettyCashCase(raw) {
     meetingId: String(raw.meetingId ?? '').trim(),
     meetingTitle: String(raw.meetingTitle ?? '').trim(),
     meetingDate: String(raw.meetingDate ?? '').trim(),
-    invoicePhotoUrl: String(raw.invoicePhotoUrl ?? '').trim(),
+    invoicePhotoUrl: invoicePhotoUrls[0] || '',
+    invoicePhotoUrls,
     purchaseSlip: normalizePurchaseSlipFields(purchase),
     satisfactoryNote: normalizeSatisfactoryNoteFields(satisfactory, purchase),
     createdAt: raw.createdAt || new Date().toISOString(),

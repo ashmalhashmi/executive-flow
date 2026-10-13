@@ -888,15 +888,25 @@ export function ExecutiveProvider({ children }) {
 
   const addPettyCashCase = useCallback((payload) => {
     let created;
-    setPettyCashState((prev) => {
+      setPettyCashState((prev) => {
       const cases = prev.cases || [];
+      const invoicePhotoUrls = Array.isArray(payload.invoicePhotoUrls)
+        ? payload.invoicePhotoUrls.map((u) => String(u ?? '').trim()).filter(Boolean)
+        : [];
+      const invoicePhotoUrl =
+        invoicePhotoUrls[0] || String(payload.invoicePhotoUrl ?? '').trim();
       const entry = {
         id: `pc-case-${Date.now()}`,
         caseNo: generatePettyCaseNo(cases),
         meetingId: String(payload.meetingId ?? '').trim(),
         meetingTitle: String(payload.meetingTitle ?? '').trim(),
         meetingDate: String(payload.meetingDate ?? '').trim(),
-        invoicePhotoUrl: String(payload.invoicePhotoUrl ?? '').trim(),
+        invoicePhotoUrl,
+        invoicePhotoUrls: invoicePhotoUrls.length
+          ? invoicePhotoUrls
+          : invoicePhotoUrl
+            ? [invoicePhotoUrl]
+            : [],
         purchaseSlip: payload.purchaseSlip || {},
         satisfactoryNote: payload.satisfactoryNote || {},
         createdAt: new Date().toISOString(),
@@ -914,20 +924,30 @@ export function ExecutiveProvider({ children }) {
   const updatePettyCashCase = useCallback((caseId, payload) => {
     setPettyCashState((prev) => ({
       ...prev,
-      cases: (prev.cases || []).map((c) =>
-        c.id !== caseId
-          ? c
-          : {
-              ...c,
-              meetingId: String(payload.meetingId ?? c.meetingId).trim(),
-              meetingTitle: String(payload.meetingTitle ?? c.meetingTitle).trim(),
-              meetingDate: String(payload.meetingDate ?? c.meetingDate).trim(),
-              invoicePhotoUrl: String(payload.invoicePhotoUrl ?? c.invoicePhotoUrl).trim(),
-              purchaseSlip: payload.purchaseSlip || c.purchaseSlip,
-              satisfactoryNote: payload.satisfactoryNote || c.satisfactoryNote,
-              updatedAt: new Date().toISOString(),
-            },
-      ),
+      cases: (prev.cases || []).map((c) => {
+        if (c.id !== caseId) return c;
+        const nextUrls = Array.isArray(payload.invoicePhotoUrls)
+          ? payload.invoicePhotoUrls.map((u) => String(u ?? '').trim()).filter(Boolean)
+          : c.invoicePhotoUrls;
+        const invoicePhotoUrl =
+          (Array.isArray(nextUrls) && nextUrls[0]) ||
+          String(payload.invoicePhotoUrl ?? c.invoicePhotoUrl).trim();
+        return {
+          ...c,
+          meetingId: String(payload.meetingId ?? c.meetingId).trim(),
+          meetingTitle: String(payload.meetingTitle ?? c.meetingTitle).trim(),
+          meetingDate: String(payload.meetingDate ?? c.meetingDate).trim(),
+          invoicePhotoUrl,
+          invoicePhotoUrls: Array.isArray(nextUrls)
+            ? nextUrls
+            : invoicePhotoUrl
+              ? [invoicePhotoUrl]
+              : [],
+          purchaseSlip: payload.purchaseSlip || c.purchaseSlip,
+          satisfactoryNote: payload.satisfactoryNote || c.satisfactoryNote,
+          updatedAt: new Date().toISOString(),
+        };
+      }),
     }));
   }, []);
 

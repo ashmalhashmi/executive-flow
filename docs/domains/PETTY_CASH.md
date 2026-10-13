@@ -18,11 +18,11 @@ Meeting petty-cash paperwork: **Purchase Slip**, **Satisfactory Note**, and **Re
 ## Flow
 
 1. **Adding Signature** — Name + designation for Purchase Slip, Section Head, Satisfactory Note, Refreshment issuer. Name and designation print in the metadata block; the signature line stays blank for wet-ink or a later digital sign.
-2. **Purchase case** — optional meeting link → scan invoice → **each product becomes its own item row** → verify → save.
+2. **Purchase case** — optional meeting link → scan invoice → long bills: **Scan next page** (merge items + extra photo on same draft) → verify → **one** Save case.
 3. **Export** — PDF · Word · Email (Word attach) per document type.
 4. **Refreshment Receiving** — items issued from office → receiver details → save → export.
 
-Invoice photo uploads to cloud (`petty-invoices/`) — only URL stored on case.
+Invoice photo(s) upload to cloud (`petty-invoices/`) — `invoicePhotoUrls[]` on case (legacy `invoicePhotoUrl` = first page).
 
 ## Templates
 

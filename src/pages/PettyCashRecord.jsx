@@ -28,7 +28,7 @@ import {
   computePurchaseItemsTotal,
   emptyPurchaseItem,
   formatPurchaseMoney,
-  purchaseItemsFromInvoiceFields,
+  mergePurchaseSlipFieldsFromScan,
   syncPurchaseItemTotals,
 } from '../utils/pettyCashPurchaseSlip';
 import {
@@ -140,10 +140,12 @@ export default function PettyCashRecord() {
   const [message, setMessage] = useState('');
   const [exportBusy, setExportBusy] = useState(false);
   const [scanBusy, setScanBusy] = useState(false);
+  const [scanMode, setScanMode] = useState('replace');
   const invoiceRef = useRef(null);
+  const invoiceScanModeRef = useRef('replace');
 
   const [meetingId, setMeetingId] = useState('');
-  const [invoicePhotoUrl, setInvoicePhotoUrl] = useState('');
+  const [invoicePhotoUrls, setInvoicePhotoUrls] = useState([]);
   const [purchaseSlip, setPurchaseSlip] = useState(emptyPurchaseSlip);
   const [satisfactoryNote, setSatisfactoryNote] = useState(emptySatisfactoryNote);
   const [refreshForm, setRefreshForm] = useState(() => {
@@ -178,7 +180,7 @@ export default function PettyCashRecord() {
     }
   };
 
-  const handleInvoiceScan = async (file) => {
+  const handleInvoiceScan = async (file, mode = 'replace') => {
     if (!file) return;
     setScanBusy(true);
     setMessage('');
@@ -186,30 +188,46 @@ export default function PettyCashRecord() {
       const { fields, invoicePhotoUrl: url, storageWarning } = await extractPettyInvoiceWithAi({
         imageFile: file,
       });
-      setInvoicePhotoUrl(url || '');
-      const scannedItems = purchaseItemsFromInvoiceFields(fields);
-      setPurchaseSlip((p) => ({
-        ...p,
-        vendor: fields.vendor || p.vendor,
-        invoiceNo: fields.invoiceNo || p.invoiceNo,
-        date: fields.date || p.date,
-        paymentMode: fields.paymentMode || p.paymentMode,
-        items: scannedItems,
-        description: fields.description || p.description,
-        quantity: fields.quantity || p.quantity,
-        amountPkr: fields.amountPkr || p.amountPkr,
-      }));
+      const pageUrl = String(url || '').trim();
+      setInvoicePhotoUrls((prev) => {
+        if (mode === 'append') {
+          if (!pageUrl) return prev;
+          if (prev.includes(pageUrl)) return prev;
+          return [...prev, pageUrl];
+        }
+        return pageUrl ? [pageUrl] : [];
+      });
+
+      let mergedItems = [];
+      setPurchaseSlip((p) => {
+        const merged = mergePurchaseSlipFieldsFromScan(p, fields, mode);
+        mergedItems = merged.items;
+        return merged;
+      });
       setSatisfactoryNote((p) => ({
         ...p,
-        items: satisfactoryItemsFromPurchase({ items: scannedItems }),
+        items: satisfactoryItemsFromPurchase({ items: mergedItems }),
       }));
-      setMessage(storageWarning || 'Invoice scan complete — har item alag row mein verify karein');
+
+      const pageCountHint =
+        mode === 'append'
+          ? `Page add ho gayi — ab ${mergedItems.filter((r) => String(r.description || '').trim()).length} items. Zarurat ho to phir Scan next page.`
+          : 'Invoice scan complete — lambi bill ho to Scan next page dabayein; warna verify karke Save case.';
+      setMessage(storageWarning || pageCountHint);
     } catch (err) {
       setMessage(err.message || 'Scan fail');
     } finally {
       setScanBusy(false);
+      invoiceScanModeRef.current = 'replace';
+      setScanMode('replace');
       if (invoiceRef.current) invoiceRef.current.value = '';
     }
+  };
+
+  const triggerInvoiceScan = (mode) => {
+    invoiceScanModeRef.current = mode;
+    setScanMode(mode);
+    invoiceRef.current?.click();
   };
 
   const purchaseTotal = useMemo(
@@ -285,7 +303,8 @@ export default function PettyCashRecord() {
       meetingId: selectedMeeting?.id || '',
       meetingTitle: selectedMeeting?.title || '',
       meetingDate: selectedMeeting?.date || '',
-      invoicePhotoUrl,
+      invoicePhotoUrl: invoicePhotoUrls[0] || '',
+      invoicePhotoUrls,
       purchaseSlip: {
         ...purchaseSlip,
         requestedBy: {
@@ -339,7 +358,7 @@ export default function PettyCashRecord() {
     });
     setPurchaseSlip(emptyPurchaseSlip());
     setSatisfactoryNote(emptySatisfactoryNote());
-    setInvoicePhotoUrl('');
+    setInvoicePhotoUrls([]);
     setMeetingId('');
     setMessage('Purchase case save ho gaya — neeche list mein export karein');
   };
@@ -617,13 +636,39 @@ export default function PettyCashRecord() {
             </select>
           </FormField>
           <div>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/15 px-4 py-2.5 text-sm text-violet-100 hover:bg-violet-500/25">
-              {scanBusy ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Camera className="h-4 w-4" />
-              )}
-              {scanBusy ? 'Scanning…' : 'Scan invoice'}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={scanBusy}
+                onClick={() => triggerInvoiceScan('replace')}
+                className="inline-flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/15 px-4 py-2.5 text-sm text-violet-100 hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {scanBusy && scanMode === 'replace' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Camera className="h-4 w-4" />
+                )}
+                {scanBusy && scanMode === 'replace'
+                  ? 'Scanning…'
+                  : invoicePhotoUrls.length
+                    ? 'Rescan (replace)'
+                    : 'Scan invoice'}
+              </button>
+              {invoicePhotoUrls.length > 0 ? (
+                <button
+                  type="button"
+                  disabled={scanBusy}
+                  onClick={() => triggerInvoiceScan('append')}
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-4 py-2.5 text-sm text-emerald-100 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {scanBusy && scanMode === 'append' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  {scanBusy && scanMode === 'append' ? 'Adding page…' : 'Scan next page'}
+                </button>
+              ) : null}
               <input
                 ref={invoiceRef}
                 type="file"
@@ -631,20 +676,31 @@ export default function PettyCashRecord() {
                 capture="environment"
                 className="sr-only"
                 disabled={scanBusy}
-                onChange={(e) => handleInvoiceScan(e.target.files?.[0])}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  handleInvoiceScan(file, invoiceScanModeRef.current || 'replace');
+                }}
               />
-            </label>
-            {invoicePhotoUrl && (
-              <a
-                href={invoicePhotoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1 text-xs text-sky-400 underline"
-              >
-                <Image className="h-3.5 w-3.5" />
-                Invoice preview
-              </a>
-            )}
+            </div>
+            {invoicePhotoUrls.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                {invoicePhotoUrls.map((url, index) => (
+                  <a
+                    key={`${url}-${index}`}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-sky-400 underline"
+                  >
+                    <Image className="h-3.5 w-3.5" />
+                    Page {index + 1}
+                  </a>
+                ))}
+              </div>
+            ) : null}
+            <p className="mt-2 text-[11px] text-zinc-500">
+              Lambi invoice: pehli photo Scan, doosri/teesri ke liye Scan next page — ek hi Save case.
+            </p>
           </div>
         </div>
 
@@ -1054,17 +1110,23 @@ export default function PettyCashRecord() {
                           computePurchaseItemsTotal(c.purchaseSlip?.items),
                       )}
                     </p>
-                    {c.invoicePhotoUrl && (
+                    {(c.invoicePhotoUrls?.length
+                      ? c.invoicePhotoUrls
+                      : c.invoicePhotoUrl
+                        ? [c.invoicePhotoUrl]
+                        : []
+                    ).map((url, index, all) => (
                       <a
-                        href={c.invoicePhotoUrl}
+                        key={`${c.id}-inv-${index}`}
+                        href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-1 inline-flex items-center gap-1 text-xs text-sky-400"
+                        className="mt-1 mr-2 inline-flex items-center gap-1 text-xs text-sky-400"
                       >
                         <Image className="h-3 w-3" />
-                        Invoice
+                        {all.length > 1 ? `Invoice p.${index + 1}` : 'Invoice'}
                       </a>
-                    )}
+                    ))}
                   </div>
                   <button
                     type="button"
