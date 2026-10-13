@@ -93,6 +93,14 @@ export async function downloadRefreshmentReceivingWord(noteRecord, issuerSignato
   downloadWordHtml(html, `refreshment-receiving-${noteRecord.noteNo}.doc`);
 }
 
+const MAX_INLINE_ASSET_CHARS = 900_000;
+
+function fitInlineAsset(dataUrl) {
+  const src = String(dataUrl || '').trim();
+  if (!src || src.length > MAX_INLINE_ASSET_CHARS) return '';
+  return src;
+}
+
 export async function sendPettyCashEmail({ email, docType, payload }) {
   const headers = { 'Content-Type': 'application/json' };
   if (supabase) {
@@ -112,25 +120,25 @@ export async function sendPettyCashEmail({ email, docType, payload }) {
   try {
     if (docType === 'purchase_slip') {
       const logo = await loadPurchaseSlipLogoForWord();
-      letterheadDataUrl = logo.dataUrl;
-      letterheadWidth = logo.width;
-      letterheadHeight = logo.height;
+      letterheadDataUrl = fitInlineAsset(logo.dataUrl);
+      letterheadWidth = letterheadDataUrl ? logo.width : 0;
+      letterheadHeight = letterheadDataUrl ? logo.height : 0;
     } else {
       const lh = await loadLetterheadForWord();
-      letterheadDataUrl = lh.dataUrl;
-      letterheadWidth = lh.width;
-      letterheadHeight = lh.height;
+      letterheadDataUrl = fitInlineAsset(lh.dataUrl);
+      letterheadWidth = letterheadDataUrl ? lh.width : 0;
+      letterheadHeight = letterheadDataUrl ? lh.height : 0;
     }
   } catch {
-    /* optional */
+    /* optional — email still sends Word without letterhead */
   }
 
   try {
     if (docType === 'refreshment_receiving') {
       const sig = await loadSignatureForWord();
-      signatureDataUrl = sig.dataUrl;
-      signatureWidth = sig.width;
-      signatureHeight = sig.height;
+      signatureDataUrl = fitInlineAsset(sig.dataUrl);
+      signatureWidth = signatureDataUrl ? sig.width : 0;
+      signatureHeight = signatureDataUrl ? sig.height : 0;
     }
   } catch {
     /* optional */
@@ -154,7 +162,7 @@ export async function sendPettyCashEmail({ email, docType, payload }) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || `Email send failed (${res.status})`);
+    throw new Error(data.error || data.message || `Email send failed (${res.status})`);
   }
   return data;
 }

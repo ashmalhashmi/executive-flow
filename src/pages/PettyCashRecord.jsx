@@ -113,12 +113,22 @@ export default function PettyCashRecord() {
 
   const [email, setEmail] = useState(loadEmail);
   const [message, setMessage] = useState('');
+  const [messageTone, setMessageTone] = useState('info');
   const [exportBusy, setExportBusy] = useState(false);
   const [scanBusy, setScanBusy] = useState(false);
   const [scanMode, setScanMode] = useState('replace');
   const invoiceCameraRef = useRef(null);
   const invoiceGalleryRef = useRef(null);
   const invoiceScanModeRef = useRef('replace');
+  const messageRef = useRef(null);
+
+  const showMessage = (text, tone = 'info') => {
+    setMessageTone(tone);
+    setMessage(text);
+    requestAnimationFrame(() => {
+      messageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
 
   const [meetingId, setMeetingId] = useState('');
   const [invoicePhotoUrls, setInvoicePhotoUrls] = useState([]);
@@ -307,7 +317,12 @@ export default function PettyCashRecord() {
     try {
       await fn();
     } catch (err) {
-      setMessage(err.message || 'Export fail');
+      const raw = err?.message || 'Export fail';
+      const tip =
+        /testing email|verified domain|resend/i.test(raw)
+          ? ' Resend pe sirf allowed/verified email chal sakti hai — Export email field check karein.'
+          : '';
+      showMessage(`${raw}${tip}`, 'error');
     } finally {
       setExportBusy(false);
     }
@@ -341,7 +356,8 @@ export default function PettyCashRecord() {
     runExport(async () => {
       const to = email.trim();
       if (!to) {
-        setMessage('Email address likhein');
+        showMessage('Pehle upar Export email field mein address likhein, phir Email dabayein.', 'error');
+        document.getElementById('pc-email')?.focus();
         return;
       }
       localStorage.setItem(EMAIL_KEY, to);
@@ -357,7 +373,7 @@ export default function PettyCashRecord() {
           satisfactoryNote: normalized.satisfactoryNote,
         },
       });
-      setMessage(`Email bhej di → ${to}`);
+      showMessage(`Email bhej di → ${to}`, 'success');
     });
 
   const exportRefreshPdf = (n) =>
@@ -378,22 +394,23 @@ export default function PettyCashRecord() {
     runExport(async () => {
       const to = email.trim();
       if (!to) {
-        setMessage('Email address likhein');
+        showMessage('Pehle upar Export email field mein address likhein, phir Email dabayein.', 'error');
+        document.getElementById('pc-email')?.focus();
         return;
       }
       localStorage.setItem(EMAIL_KEY, to);
-      await sendPettyCashEmail({
-        email: to,
-        docType: 'refreshment_receiving',
-        payload: {
-          noteNo: n.noteNo,
-          meetingTitle: n.meetingTitle,
-          meetingDate: n.meetingDate,
-          note: n,
-          issuerSignatory: pettyCashSignatures.refreshmentIssuer,
-        },
-      });
-      setMessage(`Email bhej di → ${to}`);
+        await sendPettyCashEmail({
+          email: to,
+          docType: 'refreshment_receiving',
+          payload: {
+            noteNo: n.noteNo,
+            meetingTitle: n.meetingTitle,
+            meetingDate: n.meetingDate,
+            note: n,
+            issuerSignatory: pettyCashSignatures.refreshmentIssuer,
+          },
+        });
+      showMessage(`Email bhej di → ${to}`, 'success');
     });
 
   return (
@@ -422,10 +439,26 @@ export default function PettyCashRecord() {
             placeholder="you@example.com"
           />
         </FormField>
+        <p className="mt-2 text-[11px] text-zinc-500">
+          Email button ke liye pehle yahan address likhein. Resend free plan pe aksar sirf apna
+          verified email chalega.
+        </p>
 
-        {message && (
-          <p className="mt-3 text-sm text-emerald-200/90">{message}</p>
-        )}
+        {message ? (
+          <p
+            ref={messageRef}
+            role="status"
+            className={`mt-3 rounded-xl border px-3 py-2 text-sm ${
+              messageTone === 'error'
+                ? 'border-rose-500/40 bg-rose-500/10 text-rose-100'
+                : messageTone === 'success'
+                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100'
+                  : 'border-white/10 bg-white/5 text-zinc-200'
+            }`}
+          >
+            {message}
+          </p>
+        ) : null}
       </GlassCard>
 
       <GlassCard className="border-violet-500/20 p-5 sm:p-6">
