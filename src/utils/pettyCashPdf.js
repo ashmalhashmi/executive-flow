@@ -16,8 +16,7 @@ import {
 import {
   DEFAULT_SATISFACTORY_REMARKS,
   SATISFACTORY_ITEM_DESCRIPTION,
-  resolveSatisfactoryReceivedDesignation,
-  resolveSatisfactoryReceivedName,
+  resolveSatisfactoryReceivedPeople,
   resolveSatisfactoryVerifier,
 } from './pettyCashSatisfactoryNote';
 import {
@@ -301,14 +300,25 @@ export async function downloadSatisfactoryNotePdf({
 
   y = doc.lastAutoTable.finalY + 8;
 
-  const received = sn.receivedBy || {};
+  const receivers = resolveSatisfactoryReceivedPeople(sn);
   const verified = resolveSatisfactoryVerifier(sn, sectionHeadSignatory);
 
-  y = drawSignatoryBlock(doc, leftX, y, 'Received & Verified By (End User / Requestor):', {
-    name: resolveSatisfactoryReceivedName(sn, signatories),
-    designation: resolveSatisfactoryReceivedDesignation(sn, signatories),
-    date: received.date ? resolveDateLine(received.date) : '',
-  });
+  for (let i = 0; i < receivers.length; i += 1) {
+    const person = receivers[i];
+    y = drawSignatoryBlock(
+      doc,
+      leftX,
+      y,
+      i === 0
+        ? 'Received & Verified By (End User / Requestor):'
+        : `Received & Verified By (${i + 1}):`,
+      {
+        name: person.name,
+        designation: person.designation,
+        date: person.date === '—' ? '' : person.date,
+      },
+    );
+  }
 
   drawSignatoryBlock(doc, leftX, y, 'Verified By (Section Head):', {
     name: verified.name,

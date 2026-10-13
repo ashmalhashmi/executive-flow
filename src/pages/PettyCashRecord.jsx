@@ -33,7 +33,9 @@ import {
   syncPurchaseItemTotals,
 } from '../utils/pettyCashPurchaseSlip';
 import {
+  emptyReceivedByPerson,
   emptySatisfactoryItem,
+  normalizeReceivedByList,
   SATISFACTORY_ITEM_DESCRIPTION,
   singleSatisfactoryItem,
   satisfactoryItemsFromPurchase,
@@ -265,11 +267,7 @@ export default function PettyCashRecord() {
       satisfactoryNote: {
         ...satisfactoryNote,
         items: [singleSatisfactoryItem(satisfactoryNote.items?.[0])],
-        receivedBy: {
-          name: String(satisfactoryNote.receivedBy?.name ?? '').trim(),
-          designation: String(satisfactoryNote.receivedBy?.designation ?? '').trim(),
-          date: String(satisfactoryNote.receivedBy?.date ?? '').trim(),
-        },
+        receivedBy: normalizeReceivedByList(satisfactoryNote.receivedBy),
         verifiedBy: {
           name: String(satisfactoryNote.verifiedBy?.name ?? '').trim(),
           designation: String(satisfactoryNote.verifiedBy?.designation ?? '').trim(),
@@ -778,49 +776,96 @@ export default function PettyCashRecord() {
           </table>
         </div>
 
-        <p className="mb-2 mt-5 text-xs font-medium text-zinc-400">
-          Received &amp; Verified By (End User / Requestor)
-        </p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <FormField label="Name" id="sn-recv-name">
-            <TextInput
-              id="sn-recv-name"
-              value={satisfactoryNote.receivedBy?.name || ''}
-              onChange={(e) =>
-                setSatisfactoryNote((p) => ({
-                  ...p,
-                  receivedBy: { ...p.receivedBy, name: e.target.value },
-                }))
-              }
-              placeholder="Name"
-            />
-          </FormField>
-          <FormField label="Designation" id="sn-recv-des">
-            <TextInput
-              id="sn-recv-des"
-              value={satisfactoryNote.receivedBy?.designation || ''}
-              onChange={(e) =>
-                setSatisfactoryNote((p) => ({
-                  ...p,
-                  receivedBy: { ...p.receivedBy, designation: e.target.value },
-                }))
-              }
-              placeholder="Designation"
-            />
-          </FormField>
-          <FormField label="Date" id="sn-recv-date">
-            <TextInput
-              id="sn-recv-date"
-              type="date"
-              value={satisfactoryNote.receivedBy?.date || ''}
-              onChange={(e) =>
-                setSatisfactoryNote((p) => ({
-                  ...p,
-                  receivedBy: { ...p.receivedBy, date: e.target.value },
-                }))
-              }
-            />
-          </FormField>
+        <div className="mb-2 mt-5 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-medium text-zinc-400">
+            Received &amp; Verified By (End User / Requestor)
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              setSatisfactoryNote((p) => ({
+                ...p,
+                receivedBy: [
+                  ...normalizeReceivedByList(p.receivedBy),
+                  emptyReceivedByPerson(),
+                ],
+              }))
+            }
+            className="inline-flex items-center gap-1.5 text-xs text-violet-300 hover:text-violet-200"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add receiver
+          </button>
+        </div>
+        <div className="space-y-3">
+          {normalizeReceivedByList(satisfactoryNote.receivedBy).map((person, index, list) => (
+            <div key={`recv-${index}`} className="flex flex-wrap items-end gap-3">
+              <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-3">
+                <FormField label="Name" id={`sn-recv-name-${index}`}>
+                  <TextInput
+                    id={`sn-recv-name-${index}`}
+                    value={person.name || ''}
+                    onChange={(e) =>
+                      setSatisfactoryNote((p) => {
+                        const next = normalizeReceivedByList(p.receivedBy);
+                        next[index] = { ...next[index], name: e.target.value };
+                        return { ...p, receivedBy: next };
+                      })
+                    }
+                    placeholder="Name"
+                  />
+                </FormField>
+                <FormField label="Designation" id={`sn-recv-des-${index}`}>
+                  <TextInput
+                    id={`sn-recv-des-${index}`}
+                    value={person.designation || ''}
+                    onChange={(e) =>
+                      setSatisfactoryNote((p) => {
+                        const next = normalizeReceivedByList(p.receivedBy);
+                        next[index] = { ...next[index], designation: e.target.value };
+                        return { ...p, receivedBy: next };
+                      })
+                    }
+                    placeholder="Designation"
+                  />
+                </FormField>
+                <FormField label="Date" id={`sn-recv-date-${index}`}>
+                  <TextInput
+                    id={`sn-recv-date-${index}`}
+                    type="date"
+                    value={person.date || ''}
+                    onChange={(e) =>
+                      setSatisfactoryNote((p) => {
+                        const next = normalizeReceivedByList(p.receivedBy);
+                        next[index] = { ...next[index], date: e.target.value };
+                        return { ...p, receivedBy: next };
+                      })
+                    }
+                  />
+                </FormField>
+              </div>
+              {list.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSatisfactoryNote((p) => {
+                      const next = normalizeReceivedByList(p.receivedBy).filter(
+                        (_row, i) => i !== index,
+                      );
+                      return {
+                        ...p,
+                        receivedBy: next.length ? next : [emptyReceivedByPerson()],
+                      };
+                    })
+                  }
+                  className="mb-0.5 rounded p-2 text-red-400 hover:bg-red-500/10"
+                  title="Remove receiver"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+          ))}
         </div>
 
         <p className="mb-2 mt-5 text-xs font-medium text-zinc-400">

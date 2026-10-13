@@ -9,6 +9,7 @@ import {
 } from './pettyCashPurchaseSlip';
 import {
   emptySatisfactoryNoteFields,
+  normalizeReceivedByList,
   normalizeSatisfactoryItems,
 } from './pettyCashSatisfactoryNote';
 
@@ -183,17 +184,11 @@ export function generateRefreshmentNoteNo(notes) {
 
 function normalizeSatisfactoryNoteFields(satisfactory, purchaseSlip) {
   const s = satisfactory && typeof satisfactory === 'object' ? satisfactory : {};
-  const received = s.receivedBy && typeof s.receivedBy === 'object' ? s.receivedBy : {};
   const verified = s.verifiedBy && typeof s.verifiedBy === 'object' ? s.verifiedBy : {};
-  const legacyDate = String(s.date ?? '').trim();
 
   return {
     items: normalizeSatisfactoryItems(s.items, s, purchaseSlip),
-    receivedBy: {
-      name: String(received.name ?? '').trim(),
-      designation: String(received.designation ?? '').trim(),
-      date: String(received.date ?? '').trim() || legacyDate || getTodayISO(),
-    },
+    receivedBy: normalizeReceivedByList(s.receivedBy),
     verifiedBy: {
       name: String(verified.name ?? '').trim(),
       designation: String(verified.designation ?? '').trim(),

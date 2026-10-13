@@ -21,10 +21,38 @@ export function emptySatisfactoryItem() {
   };
 }
 
+export function emptyReceivedByPerson() {
+  return { name: '', designation: '', date: '' };
+}
+
+/** Always an array — legacy single object becomes one person. */
+export function normalizeReceivedByList(raw) {
+  if (Array.isArray(raw)) {
+    const list = raw
+      .filter((row) => row && typeof row === 'object')
+      .map((row) => ({
+        name: String(row.name ?? '').trim(),
+        designation: String(row.designation ?? '').trim(),
+        date: String(row.date ?? '').trim(),
+      }));
+    return list.length ? list : [emptyReceivedByPerson()];
+  }
+  if (raw && typeof raw === 'object') {
+    return [
+      {
+        name: String(raw.name ?? '').trim(),
+        designation: String(raw.designation ?? '').trim(),
+        date: String(raw.date ?? '').trim(),
+      },
+    ];
+  }
+  return [emptyReceivedByPerson()];
+}
+
 export function emptySatisfactoryNoteFields() {
   return {
     items: [emptySatisfactoryItem()],
-    receivedBy: { name: '', designation: '', date: '' },
+    receivedBy: [emptyReceivedByPerson()],
     verifiedBy: { name: '', designation: '', date: '' },
   };
 }
@@ -67,12 +95,21 @@ export function normalizeSatisfactoryItems(rawItems, legacyNote = {}, purchaseSl
   return [singleSatisfactoryItem()];
 }
 
+/** Only what the user filled — no signature autofill. */
+export function resolveSatisfactoryReceivedPeople(note) {
+  return normalizeReceivedByList(note?.receivedBy).map((person) => ({
+    name: String(person.name ?? '').trim(),
+    designation: String(person.designation ?? '').trim(),
+    date: person.date ? resolveSatisfactoryDateLine(person.date) : '—',
+  }));
+}
+
 export function resolveSatisfactoryReceivedName(note, _requestorSignatories = []) {
-  return String(note?.receivedBy?.name ?? '').trim();
+  return resolveSatisfactoryReceivedPeople(note)[0]?.name || '';
 }
 
 export function resolveSatisfactoryReceivedDesignation(note, _requestorSignatories = []) {
-  return String(note?.receivedBy?.designation ?? '').trim();
+  return resolveSatisfactoryReceivedPeople(note)[0]?.designation || '';
 }
 
 export function resolveSatisfactoryVerifier(note, _sectionHeadSignatory) {
@@ -127,23 +164,30 @@ export function buildSatisfactoryNoteFooterHtml({
   sectionHeadSignatory = null,
 }) {
   const sn = satisfactoryNote || {};
-  const received = sn.receivedBy || {};
-  const receivedName = resolveSatisfactoryReceivedName(sn, requestorSignatories);
-  const receivedDesignation = resolveSatisfactoryReceivedDesignation(sn, requestorSignatories);
-  const receivedDate = received.date ? resolveSatisfactoryDateLine(received.date) : '—';
+  const receivers = resolveSatisfactoryReceivedPeople(sn);
   const verified = resolveSatisfactoryVerifier(sn, sectionHeadSignatory);
 
-  return `${buildSignatoryBlockHtml({
-    title: 'Received &amp; Verified By (End User / Requestor):',
-    name: receivedName,
-    designation: receivedDesignation,
-    date: receivedDate,
-  })}${buildSignatoryBlockHtml({
+  let html = '';
+  receivers.forEach((person, index) => {
+    html += buildSignatoryBlockHtml({
+      title:
+        index === 0
+          ? 'Received &amp; Verified By (End User / Requestor):'
+          : `Received &amp; Verified By (${index + 1}):`,
+      name: person.name,
+      designation: person.designation,
+      date: person.date,
+    });
+  });
+
+  html += buildSignatoryBlockHtml({
     title: 'Verified By (Section Head):',
     name: verified.name,
     designation: verified.designation,
     date: verified.date,
-  })}`;
+  });
+
+  return html;
 }
 
 export function satisfactoryItemsFromPurchase(_purchaseSlip) {
