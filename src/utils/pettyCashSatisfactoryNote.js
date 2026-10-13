@@ -9,9 +9,12 @@ import {
 export const DEFAULT_SATISFACTORY_REMARKS =
   'The above-mentioned goods/services have been received in satisfactory condition and conform to the purchase requirements.';
 
+/** Satisfactory Note does not re-list products — it refers back to the Purchase Slip. */
+export const SATISFACTORY_ITEM_DESCRIPTION = 'Mentioned on Purchase Slip';
+
 export function emptySatisfactoryItem() {
   return {
-    description: '',
+    description: SATISFACTORY_ITEM_DESCRIPTION,
     qtyReceived: '',
     condition: 'Satisfactory',
     remarks: DEFAULT_SATISFACTORY_REMARKS,
@@ -51,7 +54,7 @@ export function normalizeSatisfactoryItems(rawItems, legacyNote = {}, purchaseSl
   const purchaseItems = purchaseSlip?.items;
   if (Array.isArray(purchaseItems) && purchaseItems.length) {
     return purchaseItems.map((row) => ({
-      description: String(row?.description ?? '').trim(),
+      description: SATISFACTORY_ITEM_DESCRIPTION,
       qtyReceived: String(row?.quantity ?? '').trim(),
       condition: 'Satisfactory',
       remarks: DEFAULT_SATISFACTORY_REMARKS,
@@ -158,7 +161,7 @@ export function satisfactoryItemsFromPurchase(purchaseSlip) {
   const items = purchaseSlip?.items;
   if (!Array.isArray(items) || !items.length) return [emptySatisfactoryItem()];
   return items.map((row) => ({
-    description: String(row?.description ?? '').trim(),
+    description: SATISFACTORY_ITEM_DESCRIPTION,
     qtyReceived: String(row?.quantity ?? '').trim(),
     condition: 'Satisfactory',
     remarks: DEFAULT_SATISFACTORY_REMARKS,

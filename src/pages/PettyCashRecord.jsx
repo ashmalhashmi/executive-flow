@@ -923,7 +923,7 @@ export default function PettyCashRecord() {
                       onChange={(e) =>
                         updateSatisfactoryItem(index, { description: e.target.value })
                       }
-                      placeholder="Optional"
+                      placeholder="Mentioned on Purchase Slip"
                     />
                   </td>
                   <td className="px-2 py-2">
