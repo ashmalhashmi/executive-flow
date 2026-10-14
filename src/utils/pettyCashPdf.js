@@ -194,7 +194,7 @@ export async function downloadPurchaseSlipPdf({
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text('Purchase Slip (Petty Cash)', PAGE.width / 2, y, { align: 'center' });
+  doc.text('Purchase Slip', PAGE.width / 2, y, { align: 'center' });
   y += 10;
 
   const ps = purchaseSlip || {};

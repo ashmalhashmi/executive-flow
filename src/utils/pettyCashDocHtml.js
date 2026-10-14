@@ -88,11 +88,11 @@ export function buildPurchaseSlipDocHtml({
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8" />
-<title>Purchase Slip (Petty Cash)</title>
+<title>Purchase Slip</title>
 </head>
 <body style="font-family:'Times New Roman',Times,serif; font-size:12pt; margin:36pt;">
 ${buildOfficialHeaderHtml({ logoDataUrl, logoWidth, logoHeight })}
-<p style="${PETTY_CASH_DOC_TITLE_STYLE}">Purchase Slip (Petty Cash)</p>
+<p style="${PETTY_CASH_DOC_TITLE_STYLE}">Purchase Slip</p>
 ${buildPurchaseItemsTableHtml(ps.items)}
 ${buildPurchaseSlipFooterHtml({
   purchaseSlip: ps,

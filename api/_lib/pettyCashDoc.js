@@ -243,7 +243,7 @@ ${buildOfficialHeaderHtml({
       logoWidth: lw,
       logoHeight: lhH,
     })}
-<p style="${PETTY_CASH_DOC_TITLE_STYLE}">Purchase Slip (Petty Cash)</p>
+<p style="${PETTY_CASH_DOC_TITLE_STYLE}">Purchase Slip</p>
 ${buildPurchaseItemsTable(ps)}
 ${buildPurchaseFooter(ps, signatories, approver)}
 </body></html>`;
