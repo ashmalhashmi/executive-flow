@@ -17,7 +17,7 @@ Meeting petty-cash paperwork: **Purchase Slip**, **Satisfactory Note**, and **Re
 
 ## Flow
 
-1. **Purchase case** — optional meeting link → scan invoice → long bills: **Scan next page** (merge items + extra photo on same draft) → fill Requested By / approver / Satisfactory Note on the form → **one** Save case.
+1. **Purchase case** — optional meeting link → scan invoice → long bills: **Scan next page** (merge items + extra photo on same draft) → fill Requested By / approver / Satisfactory Note on the form → **one** Save case. Saved cases have **Edit** (loads into the form → Update case) and Delete.
 2. **Export** — PDF · Word · Email (Word attach) per document type.
 3. **Refreshment Receiving** — items issued from office → receiver details → save → export.
 

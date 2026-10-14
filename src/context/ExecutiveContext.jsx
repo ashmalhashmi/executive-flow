@@ -939,21 +939,23 @@ export function ExecutiveProvider({ children }) {
         const invoicePhotoUrl =
           (Array.isArray(nextUrls) && nextUrls[0]) ||
           String(payload.invoicePhotoUrl ?? c.invoicePhotoUrl).trim();
-        return {
-          ...c,
-          meetingId: String(payload.meetingId ?? c.meetingId).trim(),
-          meetingTitle: String(payload.meetingTitle ?? c.meetingTitle).trim(),
-          meetingDate: String(payload.meetingDate ?? c.meetingDate).trim(),
-          invoicePhotoUrl,
-          invoicePhotoUrls: Array.isArray(nextUrls)
-            ? nextUrls
-            : invoicePhotoUrl
-              ? [invoicePhotoUrl]
-              : [],
-          purchaseSlip: payload.purchaseSlip || c.purchaseSlip,
-          satisfactoryNote: payload.satisfactoryNote || c.satisfactoryNote,
-          updatedAt: new Date().toISOString(),
-        };
+        return (
+          normalizePettyCashCase({
+            ...c,
+            meetingId: String(payload.meetingId ?? c.meetingId).trim(),
+            meetingTitle: String(payload.meetingTitle ?? c.meetingTitle).trim(),
+            meetingDate: String(payload.meetingDate ?? c.meetingDate).trim(),
+            invoicePhotoUrl,
+            invoicePhotoUrls: Array.isArray(nextUrls)
+              ? nextUrls
+              : invoicePhotoUrl
+                ? [invoicePhotoUrl]
+                : [],
+            purchaseSlip: payload.purchaseSlip || c.purchaseSlip,
+            satisfactoryNote: payload.satisfactoryNote || c.satisfactoryNote,
+            updatedAt: new Date().toISOString(),
+          }) || c
+        );
       }),
     }));
   }, []);

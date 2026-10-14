@@ -6,11 +6,13 @@ import {
   FileType,
   Mail,
   Plus,
+  Pencil,
   Save,
   Trash2,
   Loader2,
   Image,
   Upload,
+  X,
 } from 'lucide-react';
 import {
   useMeetingsExecutive,
@@ -106,6 +108,7 @@ export default function PettyCashRecord() {
     refreshmentNotes,
     pettyCashSignatures,
     addPettyCashCase,
+    updatePettyCashCase,
     removePettyCashCase,
     addRefreshmentNote,
     removeRefreshmentNote,
@@ -117,10 +120,13 @@ export default function PettyCashRecord() {
   const [exportBusy, setExportBusy] = useState(false);
   const [scanBusy, setScanBusy] = useState(false);
   const [scanMode, setScanMode] = useState('replace');
+  const [editingCaseId, setEditingCaseId] = useState(null);
+  const [editingCaseNo, setEditingCaseNo] = useState('');
   const invoiceCameraRef = useRef(null);
   const invoiceGalleryRef = useRef(null);
   const invoiceScanModeRef = useRef('replace');
   const messageRef = useRef(null);
+  const caseFormRef = useRef(null);
 
   const showMessage = (text, tone = 'info') => {
     setMessageTone(tone);
@@ -256,45 +262,104 @@ export default function PettyCashRecord() {
 
   const satisfactoryRow = satisfactoryNote.items?.[0] || emptySatisfactoryItem();
 
+  const resetCaseForm = () => {
+    setPurchaseSlip(emptyPurchaseSlip());
+    setSatisfactoryNote(emptySatisfactoryNote());
+    setInvoicePhotoUrls([]);
+    setMeetingId('');
+    setEditingCaseId(null);
+    setEditingCaseNo('');
+  };
+
+  const buildCasePayload = () => ({
+    meetingId: selectedMeeting?.id || '',
+    meetingTitle: selectedMeeting?.title || '',
+    meetingDate: selectedMeeting?.date || '',
+    invoicePhotoUrl: invoicePhotoUrls[0] || '',
+    invoicePhotoUrls,
+    purchaseSlip: {
+      ...purchaseSlip,
+      requestedBy: normalizeRequestedByList(purchaseSlip.requestedBy),
+      approvedBy: {
+        name: String(purchaseSlip.approvedBy?.name ?? '').trim(),
+        designation: String(purchaseSlip.approvedBy?.designation ?? '').trim(),
+        date: String(purchaseSlip.approvedBy?.date ?? '').trim(),
+      },
+    },
+    satisfactoryNote: {
+      ...satisfactoryNote,
+      items: [singleSatisfactoryItem(satisfactoryNote.items?.[0])],
+      receivedBy: normalizeReceivedByList(satisfactoryNote.receivedBy),
+      verifiedBy: {
+        name: String(satisfactoryNote.verifiedBy?.name ?? '').trim(),
+        designation: String(satisfactoryNote.verifiedBy?.designation ?? '').trim(),
+        date: String(satisfactoryNote.verifiedBy?.date ?? '').trim(),
+      },
+    },
+  });
+
+  const startEditCase = (rawCase) => {
+    const c = normalizePettyCashCase(rawCase) || rawCase;
+    const ps = c.purchaseSlip || emptyPurchaseSlip();
+    const sn = c.satisfactoryNote || emptySatisfactoryNote();
+    setEditingCaseId(c.id);
+    setEditingCaseNo(c.caseNo || '');
+    setMeetingId(c.meetingId || '');
+    setInvoicePhotoUrls(
+      Array.isArray(c.invoicePhotoUrls) && c.invoicePhotoUrls.length
+        ? [...c.invoicePhotoUrls]
+        : c.invoicePhotoUrl
+          ? [c.invoicePhotoUrl]
+          : [],
+    );
+    setPurchaseSlip({
+      ...emptyPurchaseSlip(),
+      ...ps,
+      items:
+        Array.isArray(ps.items) && ps.items.length
+          ? ps.items.map((row) => ({ ...emptyPurchaseItem(), ...row }))
+          : [emptyPurchaseItem()],
+      requestedBy: normalizeRequestedByList(ps.requestedBy),
+      approvedBy: {
+        name: String(ps.approvedBy?.name ?? '').trim(),
+        designation: String(ps.approvedBy?.designation ?? '').trim(),
+        date: String(ps.approvedBy?.date ?? '').trim(),
+      },
+    });
+    setSatisfactoryNote({
+      ...emptySatisfactoryNote(),
+      ...sn,
+      items: [singleSatisfactoryItem(sn.items?.[0])],
+      receivedBy: normalizeReceivedByList(sn.receivedBy),
+      verifiedBy: {
+        name: String(sn.verifiedBy?.name ?? '').trim(),
+        designation: String(sn.verifiedBy?.designation ?? '').trim(),
+        date: String(sn.verifiedBy?.date ?? '').trim(),
+      },
+    });
+    showMessage(`Editing ${c.caseNo} — form update karke Update case dabayein`, 'info');
+    requestAnimationFrame(() => {
+      caseFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   const handleSaveCase = () => {
     const hasItem = (purchaseSlip.items || []).some((row) =>
       String(row.description || '').trim(),
     );
     if (!hasItem && !purchaseSlip.justification?.trim()) {
-      setMessage('At least one item description ya justification chahiye');
+      showMessage('At least one item description ya justification chahiye', 'error');
       return;
     }
-    addPettyCashCase({
-      meetingId: selectedMeeting?.id || '',
-      meetingTitle: selectedMeeting?.title || '',
-      meetingDate: selectedMeeting?.date || '',
-      invoicePhotoUrl: invoicePhotoUrls[0] || '',
-      invoicePhotoUrls,
-      purchaseSlip: {
-        ...purchaseSlip,
-        requestedBy: normalizeRequestedByList(purchaseSlip.requestedBy),
-        approvedBy: {
-          name: String(purchaseSlip.approvedBy?.name ?? '').trim(),
-          designation: String(purchaseSlip.approvedBy?.designation ?? '').trim(),
-          date: String(purchaseSlip.approvedBy?.date ?? '').trim(),
-        },
-      },
-      satisfactoryNote: {
-        ...satisfactoryNote,
-        items: [singleSatisfactoryItem(satisfactoryNote.items?.[0])],
-        receivedBy: normalizeReceivedByList(satisfactoryNote.receivedBy),
-        verifiedBy: {
-          name: String(satisfactoryNote.verifiedBy?.name ?? '').trim(),
-          designation: String(satisfactoryNote.verifiedBy?.designation ?? '').trim(),
-          date: String(satisfactoryNote.verifiedBy?.date ?? '').trim(),
-        },
-      },
-    });
-    setPurchaseSlip(emptyPurchaseSlip());
-    setSatisfactoryNote(emptySatisfactoryNote());
-    setInvoicePhotoUrls([]);
-    setMeetingId('');
-    setMessage('Purchase case save ho gaya — neeche list mein export karein');
+    const payload = buildCasePayload();
+    if (editingCaseId) {
+      updatePettyCashCase(editingCaseId, payload);
+      showMessage(`${editingCaseNo || 'Case'} update ho gaya`, 'success');
+    } else {
+      addPettyCashCase(payload);
+      showMessage('Purchase case save ho gaya — neeche list mein export karein', 'success');
+    }
+    resetCaseForm();
   };
 
   const handleSaveRefreshment = () => {
@@ -461,10 +526,28 @@ export default function PettyCashRecord() {
         ) : null}
       </GlassCard>
 
+      <div ref={caseFormRef}>
       <GlassCard className="border-violet-500/20 p-5 sm:p-6">
-        <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-violet-300/90">
-          New — Purchase Slip + Satisfactory Note
-        </p>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-violet-300/90">
+            {editingCaseId
+              ? `Edit — ${editingCaseNo || 'Purchase case'}`
+              : 'New — Purchase Slip + Satisfactory Note'}
+          </p>
+          {editingCaseId ? (
+            <button
+              type="button"
+              onClick={() => {
+                resetCaseForm();
+                showMessage('Edit cancel — naya case form clear ho gaya', 'info');
+              }}
+              className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200"
+            >
+              <X className="h-3.5 w-3.5" />
+              Cancel edit
+            </button>
+          ) : null}
+        </div>
 
         <div className="mb-4 grid gap-4 sm:grid-cols-2">
           <FormField label="Meeting (optional)" id="pc-meeting">
@@ -989,10 +1072,11 @@ export default function PettyCashRecord() {
           onClick={handleSaveCase}
           className="mt-4 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-500"
         >
-          <Plus className="h-4 w-4" />
-          Save case
+          {editingCaseId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+          {editingCaseId ? 'Update case' : 'Save case'}
         </button>
       </GlassCard>
+      </div>
 
       {pettyCashCases.length > 0 && (
         <GlassCard className="border-white/10 p-5 sm:p-6">
@@ -1003,7 +1087,11 @@ export default function PettyCashRecord() {
             {pettyCashCases.map((c) => (
               <div
                 key={c.id}
-                className="rounded-xl border border-white/10 bg-black/20 p-4"
+                className={`rounded-xl border bg-black/20 p-4 ${
+                  editingCaseId === c.id
+                    ? 'border-sky-500/50 ring-1 ring-sky-500/30'
+                    : 'border-white/10'
+                }`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
@@ -1033,14 +1121,27 @@ export default function PettyCashRecord() {
                       </a>
                     ))}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removePettyCashCase(c.id)}
-                    className="rounded p-2 text-red-400 hover:bg-red-500/10"
-                    title="Delete"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => startEditCase(c)}
+                      className="rounded p-2 text-sky-300 hover:bg-sky-500/10"
+                      title="Edit"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (editingCaseId === c.id) resetCaseForm();
+                        removePettyCashCase(c.id);
+                      }}
+                      className="rounded p-2 text-red-400 hover:bg-red-500/10"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
                 <p className="mt-3 text-[10px] uppercase tracking-wider text-zinc-500">
                   Purchase Slip
