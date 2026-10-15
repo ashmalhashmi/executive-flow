@@ -25,13 +25,13 @@ Premium executive assistant for office ops: meetings, souvenirs, money, orders, 
 | **Dak** | `dak` | Dispatch / issuance log · register scan → cloud photo URL + AI fields (verify before save) | `pages/DakIssuanceLog.jsx`, `components/dak/DakScanCapture.jsx`, `utils/dakEntries.js`, `utils/dakAiExtract.js`, `utils/dakIssuancePdf.js`, `utils/dakWhatsApp.js`, `api/extract-dak.js`, `api/_lib/dakScanStorage.js` |
 | **Tasks** | `tasks` | Task list + done | `pages/TaskLog.jsx`, `utils/taskEntries.js`, `utils/taskLogPdf.js` |
 | **Capture** | `capture` | Brain-dump inbox | `pages/CaptureInbox.jsx`, `utils/captureEntries.js` |
-| **Contacts** | `contacts` | External visitor DB · PAFDA Agriculture/Food/Drug (+ Govt, Lab, Trade, Other) · AI card extract | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `utils/contactCategories.js`, `api/extract-contact.js` |
+| **Contacts** | `contacts` | External visitor DB · PAFDA Agriculture/Food/Drug (+ Govt, Lab, Trade, Other) · AI card extract · Apply AI on each saved card → closest PAFDA pillar | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `utils/contactCategories.js`, `utils/contactAiCategorize.js`, `api/extract-contact.js` (`/api/categorize-contact` rewrite), `api/_lib/contactCategorizeRoute.js` |
 | **Sync** | `sync` | Auth, Pulse cloud, Sheets mirror backup | `pages/SyncBackup.jsx`, `context/CloudSyncContext.jsx`, `context/GoogleSheetsSyncContext.jsx`, `utils/cloudSync*.js`, `utils/googleSheetsSync.js`, `api/sheets-sync.js`, `api/_lib/sheetsMirror.js`, `docs/CLOUD_SYNC.md` |
 | **Dashboard** | `dashboard` | Overview only — composes other domains | `pages/DashboardOverview.jsx`, `components/dashboard/` |
-| **Ask** | `ask` | Unified search + NLP math · live app data only | `pages/AskAnythingPage.jsx`, `components/ask/AskAnything.jsx`, `utils/askAnything.js`, `utils/askMath.js`, `utils/askUnifiedSearch.js` |
 | **Compose** | `compose` | Intent → blueprint slots (AI/local) → assembler → editor · Copy/PDF/Word/Email | `pages/ComposeDesk.jsx`, `constants/composePurposes.js`, `constants/composeBlueprints.js`, `utils/composeBlueprintAssemble.js`, `utils/composeDraft.js`, `utils/composeAiDraft.js`, `utils/composeLetterPdf.js`, `utils/composeLetterDoc.js`, `utils/composeLetterEmail.js`, `api/compose-draft.js`, `api/compose-letter-email.js` |
 | **Labels** | `labels` | Official PAFDA plate labels · designation → PDF/Word/Email · Pulse cloud | `pages/LabelGenerator.jsx`, `constants/labelTemplates.js`, `utils/fileLabel*.js`, `utils/labelPdf.js`, `api/compose-letter-email.js` (`file_label`), `docs/domains/LABELS.md` |
-| **Muhasaba** | `muhasaba` | Self-accountability · deed → AI coach · identity · 2-min action | `pages/MuhasabaPage.jsx`, `utils/muhasabaEntries.js`, `utils/muhasabaAi.js`, `api/compose-draft.js` (`action: muhasaba`), `api/_lib/muhasabaEvaluate.js`, `supabase/muhasaba_logs.sql` (optional) |
+
+> **Removed from nav (code retained for sync/backup):** Ask Anything (`ask`), Muhasaba (`muhasaba`).
 
 Shared UI bricks (GlassCard, Modal, FormField, StatusBadge) live in `src/components/ui/`. Prefer reusing them over inventing new chrome.
 
@@ -87,8 +87,9 @@ UI page  →  domain Context hooks  →  utils/*Entries (normalize)  →  localS
 | AI categorize spend | `expenditureAiCategorize.js` | `categorize-expenditure.js` |
 | AI muhasaba coach | `muhasabaAi.js` | `compose-draft.js` (`action: muhasaba`) + `_lib/muhasabaEvaluate.js` |
 | AI contact extract | `contactAiExtract.js` | `extract-contact.js` |
-| AI dak register scan | `dakAiExtract.js`, `DakScanCapture.jsx` | `extract-dak.js` + `_lib/dakExtract.js` + `_lib/dakScanStorage.js` (Vercel Blob, Supabase fallback) |
-| Google Sheets mirror backup | `googleSheetsSync.js` | `sheets-sync.js` + `sheetsMirror.js` |
+| AI dak register scan | `dakAiExtract.js`, `DakScanCapture.jsx` | `extract-dak.js` + `_lib/dakExtract.js` + private image ref via `_lib/cloudImageStorage.js` |
+| Private photos | `utils/signedImage.js`, `components/ui/PrivateFileLink.jsx` | `image-url.js` (signed URL or short-lived same-origin link) |
+| Google Sheets mirror backup | `googleSheetsSync.js` (logged-in `/api/sheets-sync` only) | `sheets-sync.js` + `sheetsMirror.js` + server webhook secret |
 
 Timezone / “today” for office jobs: Karachi — see `api/_lib/karachiDate.js`.
 

@@ -11,13 +11,11 @@ Do not guess. Follow the matching flow below.
 
 | Step | Who | What | Where to click |
 |------|-----|------|----------------|
-| **1** | You | Find or open the right room | Top **Ask Anything** (type/speak) **or** Sidebar → tab |
+| **1** | You | Find or open the right room | Sidebar → tab |
 | **2** | You | Add / edit / mark done | Form on that page → Save / Add |
 | **3** | System (if 2 devices) | Protect the work | **Pulse** auto-saves after every edit; Sync page has **Save now / Load now** if something misses |
 
 Data lives on **this device** and **pulses to cloud** in the background when you are logged in. Hybrid: auto + manual buttons on Sync & Backup.
-
-**Ask Anything:** plain question across all logs (meetings, tasks, orders, dak, contacts, expenses, souvenirs, capture). Mic = voice. Direct answer + Open log shortcut — no category picker.
 
 ---
 

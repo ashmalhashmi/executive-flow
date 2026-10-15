@@ -2,10 +2,8 @@
 
 export const TAB_IMPORTS = {
   dashboard: () => import('../pages/DashboardOverview'),
-  ask: () => import('../pages/AskAnythingPage'),
   compose: () => import('../pages/ComposeDesk'),
   labels: () => import('../pages/LabelGenerator'),
-  muhasaba: () => import('../pages/MuhasabaPage'),
   calendar: () => import('../pages/ExecutiveCalendar'),
   souvenirs: () => import('../pages/SouvenirLog'),
   expenditure: () => import('../pages/ExpenditureLog'),
@@ -18,60 +16,12 @@ export const TAB_IMPORTS = {
   sync: () => import('../pages/SyncBackup'),
 };
 
-const PREFETCH_ORDER = [
-  'ask',
-  'compose',
-  'labels',
-  'muhasaba',
-  'calendar',
-  'expenditure',
-  'pettyCash',
-  'tasks',
-  'capture',
-  'contacts',
-  'orders',
-  'dak',
-  'souvenirs',
-  'sync',
-];
-
 export function prefetchTab(tabId) {
+  const conn = typeof navigator !== 'undefined' ? navigator.connection || navigator.mozConnection : null;
+  if (conn?.saveData) return Promise.resolve();
+  const slow = String(conn?.effectiveType || '');
+  if (slow === 'slow-2g' || slow === '2g') return Promise.resolve();
   const loader = TAB_IMPORTS[tabId];
   if (!loader) return Promise.resolve();
   return loader();
-}
-
-/** Stagger tab chunk downloads during browser idle time after boot */
-export function prefetchAllTabsIdle() {
-  const schedule = (fn) => {
-    if (typeof requestIdleCallback === 'function') {
-      requestIdleCallback(fn, { timeout: 10000 });
-    } else {
-      setTimeout(fn, 2000);
-    }
-  };
-
-  schedule(() => {
-    let index = 0;
-
-    const pump = (deadline) => {
-      const hasBudget =
-        !deadline || typeof deadline.timeRemaining !== 'function' || deadline.timeRemaining() > 8;
-
-      while (index < PREFETCH_ORDER.length && hasBudget) {
-        TAB_IMPORTS[PREFETCH_ORDER[index]]?.();
-        index += 1;
-      }
-
-      if (index < PREFETCH_ORDER.length) {
-        if (typeof requestIdleCallback === 'function') {
-          requestIdleCallback(pump, { timeout: 5000 });
-        } else {
-          setTimeout(() => pump({ timeRemaining: () => 50 }), 120);
-        }
-      }
-    };
-
-    pump({ timeRemaining: () => 50 });
-  });
 }

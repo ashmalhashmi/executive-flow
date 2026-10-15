@@ -10,10 +10,8 @@ import {
   Sparkles,
   BookUser,
   CloudUpload,
-  MessageCircleQuestion,
   PenLine,
   Tag,
-  HeartHandshake,
 } from 'lucide-react';
 
 /** Sidebar navigation tabs — id maps to active view in App */
@@ -23,12 +21,6 @@ export const NAV_ITEMS = [
     label: 'Dashboard',
     description: 'Overview & quick actions',
     icon: LayoutDashboard,
-  },
-  {
-    id: 'ask',
-    label: 'Ask Anything',
-    description: 'Roman Urdu · live app data only',
-    icon: MessageCircleQuestion,
   },
   {
     id: 'compose',
@@ -41,12 +33,6 @@ export const NAV_ITEMS = [
     label: 'File Labels',
     description: 'Box / file labels · Name → PDF / Word',
     icon: Tag,
-  },
-  {
-    id: 'muhasaba',
-    label: 'Muhasaba',
-    description: 'Self-accountability · deed → action',
-    icon: HeartHandshake,
   },
   {
     id: 'calendar',
