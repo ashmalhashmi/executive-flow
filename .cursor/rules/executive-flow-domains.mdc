@@ -1,0 +1,55 @@
+---
+description: Domain map for Executive Flow — read before editing features
+globs:
+  - src/**/*
+  - api/**/*
+alwaysApply: false
+---
+
+# Executive Flow — domain rules
+
+Before coding, identify the **domain** and touch only that pile. Full map: `ARCHITECTURE.md`. Agent workflow: `AGENTS.md`. Deep-dives: `docs/domains/` (Sync, Meetings, Expenditure).
+
+## Domains → primary paths
+
+| Domain | Prefer |
+|--------|--------|
+| Shell / nav | `App.jsx`, `components/layout/`, `constants/navigation.js`, `utils/tabImports.js` |
+| Meetings | `pages/ExecutiveCalendar.jsx`, `utils/calendar.js`, `utils/reminders.js`, `utils/morningBoardSettings.js`, `api/morning-meeting-board.js` |
+| Souvenirs | `pages/SouvenirLog.jsx`, `utils/souvenirLog*.js`, `components/souvenirs/` |
+| Expenditure | `pages/ExpenditureLog.jsx`, `utils/expenditure*.js`, `api/categorize-expenditure.js`, `api/weekly-expenditure-summary.js` |
+| Orders | `pages/OrderLog.jsx`, `utils/order*.js` |
+| Dak | `pages/DakIssuanceLog.jsx`, `utils/dak*.js` |
+| Tasks | `pages/TaskLog.jsx`, `utils/task*.js` |
+| Capture | `pages/CaptureInbox.jsx`, `utils/captureEntries.js` |
+| Contacts | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `utils/contactCategories.js`, `api/extract-contact.js` |
+| Sync | `pages/SyncBackup.jsx`, `context/CloudSync*.jsx`, `context/GoogleSheets*`, `utils/cloudSync*.js`, `api/sheets-sync.js`, `docs/CLOUD_SYNC.md` |
+| Compose | `pages/ComposeDesk.jsx`, `constants/composePurposes.js`, `utils/compose*.js`, `api/compose-draft.js` |
+| Labels | `pages/LabelGenerator.jsx`, `utils/fileLabel*.js`, `utils/labelPdf.js`, `utils/pafdaLogoImage.js` |
+| Dashboard | `pages/DashboardOverview.jsx`, `components/dashboard/` — compose other domains; don’t own their data |
+
+Ask Anything / Muhasaba are **removed from nav** (`navigation.js` / `tabImports.js`); do not re-add without product ask.
+
+State for logs lives in `ExecutiveContext` + named contexts in `context/executiveDomains.js`. Persistence: `executive_flow_*` localStorage; cloud via `utils/backup.js`.
+
+## Do
+
+- Reuse `components/ui/` (GlassCard, Modal, FormField, StatusBadge)
+- Normalize list shapes in the matching `*Entries` util
+- Add new tabs via navigation + `tabImports` + page (then update `ARCHITECTURE.md`)
+- Put serverless jobs under `api/` with shared helpers in `api/_lib/`
+
+## Don’t
+
+- Rewrite unrelated domains “while you’re here”
+- Put domain logic in `App.jsx`
+- Edit `dist/`
+- Cross-import private page helpers; extract to `utils/` instead
+- Change localStorage schema without updating normalizers
+
+## New feature checklist
+
+1. Name the domain  
+2. Open `ARCHITECTURE.md` for that row  
+3. Change page → utils → context/API as needed  
+4. If a new domain appeared, update `ARCHITECTURE.md`
