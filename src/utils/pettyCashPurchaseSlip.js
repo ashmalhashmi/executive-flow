@@ -362,8 +362,8 @@ export function buildPurchaseSlipFooterHtml({
   const requesters = resolveRequestedByPeople(ps, requestedSignatories);
   const approved = resolveApproverSignatory(ps, approverSignatory);
 
-  let html = `<p style="margin:8pt 0 4pt 0; font-weight:bold; font-family:'Times New Roman',Times,serif; font-size:11pt;">Justification</p>
-<p style="margin:0 0 10pt 0; line-height:1.35; font-family:'Times New Roman',Times,serif; font-size:11pt;">${escapePurchaseHtml(ps.justification || '—')}</p>`;
+  let html = `<p style="margin:8pt 0 4pt 0; font-weight:bold; font-family:'Times New Roman',Times,serif; font-size:12pt;">Justification</p>
+<p style="margin:0 0 10pt 0; line-height:1.35; font-family:'Times New Roman',Times,serif; font-size:12pt;">${escapePurchaseHtml(ps.justification || '—')}</p>`;
 
   requesters.forEach((person, index) => {
     html += buildSignatoryBlockHtml({

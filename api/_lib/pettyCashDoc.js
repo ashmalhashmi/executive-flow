@@ -206,8 +206,8 @@ function buildPurchaseItemsTable(ps) {
 function buildPurchaseFooter(ps, _signatories, approverSignatory) {
   const requesters = resolveRequestedByPeople(ps);
   const approved = resolveApprover(ps, approverSignatory);
-  let html = `<p style="margin:8pt 0 4pt 0; font-weight:bold; font-family:'Times New Roman',Times,serif; font-size:11pt;">Justification</p>
-<p style="margin:0 0 10pt 0; line-height:1.35; font-family:'Times New Roman',Times,serif; font-size:11pt;">${escapeHtml(ps.justification || '—')}</p>`;
+  let html = `<p style="margin:8pt 0 4pt 0; font-weight:bold; font-family:'Times New Roman',Times,serif; font-size:12pt;">Justification</p>
+<p style="margin:0 0 10pt 0; line-height:1.35; font-family:'Times New Roman',Times,serif; font-size:12pt;">${escapeHtml(ps.justification || '—')}</p>`;
   requesters.forEach((person, index) => {
     html += buildSignatoryBlockHtml({
       title: index === 0 ? 'Requested By:' : `Requested By (${index + 1}):`,

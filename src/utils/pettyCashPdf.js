@@ -62,7 +62,7 @@ async function drawOfficialHeader(doc, yStart) {
   doc.text(PETTY_CASH_ORG_TITLE, PAGE.width / 2, y, { align: 'center' });
   y += 6;
   doc.setFont('times', 'normal');
-  doc.setFontSize(10);
+  doc.setFontSize(12);
   doc.text(PETTY_CASH_GOV_LINE, PAGE.width / 2, y, { align: 'center' });
   return y + 8;
 }
@@ -167,10 +167,11 @@ function drawSignatoryBlock(doc, leftX, y, title, { name, designation, date }) {
     ? ''
     : String(designation ?? '').trim();
   doc.setFont('times', 'bold');
-  doc.setFontSize(10);
+  doc.setFontSize(12);
   doc.text(title, leftX, y);
   y += PAGE.line + 1;
   doc.setFont('times', 'normal');
+  doc.setFontSize(12);
   doc.text(`Name: ${formatPdfField(name)}`, leftX, y);
   y += PAGE.line;
   doc.text(`Designation: ${formatPdfField(shownDesignation)}`, leftX, y);
@@ -193,7 +194,7 @@ export async function downloadPurchaseSlipPdf({
   let y = await drawOfficialHeader(doc, PAGE.marginTop);
 
   doc.setFont('times', 'bold');
-  doc.setFontSize(13);
+  doc.setFontSize(14);
   doc.text('Purchase Slip', PAGE.width / 2, y, { align: 'center' });
   y += 8;
 
@@ -224,7 +225,7 @@ export async function downloadPurchaseSlipPdf({
     ],
     body,
     theme: 'grid',
-    styles: { font: 'times', fontSize: 9, cellPadding: 2.5 },
+    styles: { font: 'times', fontSize: 12, cellPadding: 2.5 },
     headStyles: { fillColor: [245, 245, 245], textColor: 20, fontStyle: 'bold' },
     columnStyles: {
       0: { halign: 'center', cellWidth: 14 },
@@ -238,10 +239,11 @@ export async function downloadPurchaseSlipPdf({
   y = doc.lastAutoTable.finalY + 6;
 
   doc.setFont('times', 'bold');
-  doc.setFontSize(10);
+  doc.setFontSize(12);
   doc.text('Justification', leftX, y);
   y += PAGE.line;
   doc.setFont('times', 'normal');
+  doc.setFontSize(12);
   const justLines = doc.splitTextToSize(String(ps.justification || '—'), contentWidth);
   doc.text(justLines, leftX, y);
   y += justLines.length * PAGE.line + 6;
@@ -276,7 +278,7 @@ export async function downloadSatisfactoryNotePdf({
   let y = await drawOfficialHeader(doc, PAGE.marginTop);
 
   doc.setFont('times', 'bold');
-  doc.setFontSize(13);
+  doc.setFontSize(14);
   doc.text('Satisfactory Note', PAGE.width / 2, y, { align: 'center' });
   y += 8;
 
@@ -296,7 +298,7 @@ export async function downloadSatisfactoryNotePdf({
     head: [['Item Description', 'Qty Received', 'Condition', 'Remarks']],
     body,
     theme: 'grid',
-    styles: { font: 'times', fontSize: 9, cellPadding: 2.5 },
+    styles: { font: 'times', fontSize: 12, cellPadding: 2.5 },
     headStyles: { fillColor: [245, 245, 245], textColor: 20, fontStyle: 'bold' },
     columnStyles: { 1: { halign: 'center' } },
     margin: { left: leftX, right: PAGE.marginX },

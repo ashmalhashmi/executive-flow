@@ -6,21 +6,21 @@ export const PETTY_CASH_ORG_TITLE =
   'Punjab Agriculture, Food & Drug Authority (PAFDA)';
 export const PETTY_CASH_GOV_LINE = 'Government of the Punjab';
 
-/** Shared Word body — Purchase Slip + Satisfactory Note. */
+/** Shared Word body — Purchase Slip + Satisfactory Note (12pt throughout). */
 export const PETTY_CASH_DOC_BODY_STYLE =
-  "font-family:'Times New Roman',Times,serif; font-size:11pt; line-height:1.35; margin:28pt;";
+  "font-family:'Times New Roman',Times,serif; font-size:12pt; line-height:1.35; margin:28pt;";
 
 export const PETTY_CASH_DOC_TITLE_STYLE =
-  "text-align:center; font-family:'Times New Roman',Times,serif; font-size:13pt; font-weight:bold; margin:4pt 0 10pt 0;";
+  "text-align:center; font-family:'Times New Roman',Times,serif; font-size:14pt; font-weight:bold; margin:4pt 0 10pt 0;";
 
 export const PETTY_CASH_TABLE_CELL =
-  "border:1px solid #333; padding:4pt 6pt; font-family:'Times New Roman',Times,serif; font-size:10pt; vertical-align:top;";
+  "border:1px solid #333; padding:4pt 6pt; font-family:'Times New Roman',Times,serif; font-size:12pt; vertical-align:top;";
 
 export const PETTY_CASH_TABLE_STYLE =
   'width:100%; border-collapse:collapse; margin:8pt 0 12pt 0;';
 
 const FIELD_P =
-  "margin:0 0 3pt 0; font-family:'Times New Roman',Times,serif; font-size:11pt;";
+  "margin:0 0 3pt 0; font-family:'Times New Roman',Times,serif; font-size:12pt;";
 
 export function escapePettyCashHtml(value) {
   return String(value ?? '')
@@ -90,18 +90,18 @@ function buildHeaderLogoHtml({ logoDataUrl = '', logoWidth = 0, logoHeight = 0 }
 /** Logo + typed org lines — same header for Purchase Slip and Satisfactory Note. */
 export function buildOfficialHeaderHtml(logo = {}) {
   return `${buildHeaderLogoHtml(logo)}<p style="text-align:center; font-size:12pt; font-weight:bold; margin:0 0 1pt 0; line-height:1.2; font-family:'Times New Roman',Times,serif;">${escapePettyCashHtml(PETTY_CASH_ORG_TITLE)}</p>
-<p style="text-align:center; font-size:10pt; margin:0 0 10pt 0; line-height:1.2; font-family:'Times New Roman',Times,serif;">${escapePettyCashHtml(PETTY_CASH_GOV_LINE)}</p>`;
+<p style="text-align:center; font-size:12pt; margin:0 0 10pt 0; line-height:1.2; font-family:'Times New Roman',Times,serif;">${escapePettyCashHtml(PETTY_CASH_GOV_LINE)}</p>`;
 }
 
 export function buildSignatoryBlockHtml({ title, name, designation = '', date }) {
   const shownDesignation = designationRepeatsTitle(title, designation)
     ? ''
     : String(designation ?? '').trim();
-  return `<p style="margin:12pt 0 4pt 0; font-weight:bold; font-family:'Times New Roman',Times,serif; font-size:11pt;">${title}</p>
+  return `<p style="margin:12pt 0 4pt 0; font-weight:bold; font-family:'Times New Roman',Times,serif; font-size:12pt;">${title}</p>
 <p style="${FIELD_P}">Name: ${underlineValueHtml(name)}</p>
 <p style="${FIELD_P}">Designation: ${underlineValueHtml(shownDesignation)}</p>
 <p style="${FIELD_P}">Date: ${underlineValueHtml(date)}</p>
-<p style="margin:0 0 8pt 0; font-family:'Times New Roman',Times,serif; font-size:11pt;">Signature: ${signatureLineHtml()}</p>`;
+<p style="margin:0 0 8pt 0; font-family:'Times New Roman',Times,serif; font-size:12pt;">Signature: ${signatureLineHtml()}</p>`;
 }
 
 export function pettyCashHeadCellStyle(cellStyle) {
