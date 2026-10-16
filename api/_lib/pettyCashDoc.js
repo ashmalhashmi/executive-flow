@@ -8,8 +8,10 @@ import {
   escapePettyCashHtml,
   formatPettyCashMoney,
   formatPettyCashQuantity,
+  PETTY_CASH_DOC_BODY_STYLE,
   PETTY_CASH_DOC_TITLE_STYLE,
   PETTY_CASH_TABLE_CELL,
+  PETTY_CASH_TABLE_STYLE,
   pettyCashHeadCellStyle,
 } from './pettyCashDocFormat.js';
 
@@ -191,7 +193,7 @@ function buildPurchaseItemsTable(ps) {
 <td colspan="4" style="${headCell}; text-align:right;">Total Estimated Cost (Rs.)</td>
 <td style="${headCell}; text-align:right;">${formatPettyCashMoney(total)}</td>
 </tr>`;
-  return `<table style="width:100%; border-collapse:collapse; margin:12pt 0 18pt 0;">
+  return `<table style="${PETTY_CASH_TABLE_STYLE}">
 <thead><tr>
 <th style="${headCell}; width:8%;">Sr. No.</th>
 <th style="${headCell}">Item Description</th>
@@ -204,8 +206,8 @@ function buildPurchaseItemsTable(ps) {
 function buildPurchaseFooter(ps, _signatories, approverSignatory) {
   const requesters = resolveRequestedByPeople(ps);
   const approved = resolveApprover(ps, approverSignatory);
-  let html = `<p style="margin:12pt 0 6pt 0; font-weight:bold;">Justification</p>
-<p style="margin:0 0 18pt 0; line-height:1.5;">${escapeHtml(ps.justification || '—')}</p>`;
+  let html = `<p style="margin:8pt 0 4pt 0; font-weight:bold; font-family:'Times New Roman',Times,serif; font-size:11pt;">Justification</p>
+<p style="margin:0 0 10pt 0; line-height:1.35; font-family:'Times New Roman',Times,serif; font-size:11pt;">${escapeHtml(ps.justification || '—')}</p>`;
   requesters.forEach((person, index) => {
     html += buildSignatoryBlockHtml({
       title: index === 0 ? 'Requested By:' : `Requested By (${index + 1}):`,
@@ -237,7 +239,7 @@ function buildHtml(docType, payload, assets) {
   if (docType === 'purchase_slip') {
     const ps = payload.purchaseSlip || {};
     return `<!DOCTYPE html><html><head><meta charset="utf-8" /></head>
-<body style="font-family:'Times New Roman',Times,serif; font-size:12pt; margin:36pt;">
+<body style="${PETTY_CASH_DOC_BODY_STYLE}">
 ${buildOfficialHeaderHtml({
       logoDataUrl: lh,
       logoWidth: lw,
@@ -251,7 +253,6 @@ ${buildPurchaseFooter(ps, signatories, approver)}
 
   if (docType === 'satisfactory_note') {
     const sn = payload.satisfactoryNote || {};
-    const signatories = payload.signatories || [];
     const items = Array.isArray(sn.items) ? sn.items : [];
     const cell = PETTY_CASH_TABLE_CELL;
     const headCell = pettyCashHeadCellStyle(cell);
@@ -265,7 +266,7 @@ ${buildPurchaseFooter(ps, signatories, approver)}
 </tr>`,
       )
       .join('');
-    const itemsTable = `<table style="width:100%; border-collapse:collapse; margin:12pt 0 18pt 0;">
+    const itemsTable = `<table style="${PETTY_CASH_TABLE_STYLE}">
 <thead><tr>
 <th style="${headCell}">Item Description</th>
 <th style="${headCell}; width:14%;">Qty Received</th>
@@ -300,8 +301,12 @@ ${buildPurchaseFooter(ps, signatories, approver)}
     });
 
     return `<!DOCTYPE html><html><head><meta charset="utf-8" /></head>
-<body style="font-family:'Times New Roman',Times,serif; font-size:12pt; margin:36pt;">
-${buildLetterheadHtml(lh, lw, lhH)}
+<body style="${PETTY_CASH_DOC_BODY_STYLE}">
+${buildOfficialHeaderHtml({
+      logoDataUrl: lh,
+      logoWidth: lw,
+      logoHeight: lhH,
+    })}
 <p style="${PETTY_CASH_DOC_TITLE_STYLE}">Satisfactory Note</p>
 ${itemsTable}
 ${footer}

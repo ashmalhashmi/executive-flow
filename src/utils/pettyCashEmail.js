@@ -62,12 +62,12 @@ export async function downloadPurchaseSlipWord(caseRecord, signatories, approver
 }
 
 export async function downloadSatisfactoryNoteWord(caseRecord, signatories, sectionHeadSignatory) {
-  const lh = await loadLetterheadForWord();
+  const logo = await loadPurchaseSlipLogoForWord();
   const html = buildSatisfactoryNoteDocHtml({
     satisfactoryNote: caseRecord.satisfactoryNote,
-    letterheadDataUrl: lh.dataUrl,
-    letterheadWidth: lh.width,
-    letterheadHeight: lh.height,
+    logoDataUrl: logo.dataUrl,
+    logoWidth: logo.width,
+    logoHeight: logo.height,
     signatories,
     sectionHeadSignatory,
   });
@@ -118,7 +118,7 @@ export async function sendPettyCashEmail({ email, docType, payload }) {
   let signatureHeight = 0;
 
   try {
-    if (docType === 'purchase_slip') {
+    if (docType === 'purchase_slip' || docType === 'satisfactory_note') {
       const logo = await loadPurchaseSlipLogoForWord();
       letterheadDataUrl = fitInlineAsset(logo.dataUrl);
       letterheadWidth = letterheadDataUrl ? logo.width : 0;

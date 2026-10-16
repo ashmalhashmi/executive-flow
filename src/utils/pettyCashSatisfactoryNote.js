@@ -3,6 +3,7 @@ import {
   buildSignatoryBlockHtml,
   escapePettyCashHtml,
   PETTY_CASH_TABLE_CELL,
+  PETTY_CASH_TABLE_STYLE,
   pettyCashHeadCellStyle,
 } from './pettyCashDocFormat';
 
@@ -149,7 +150,7 @@ export function buildSatisfactoryItemsTableHtml(items) {
 <td style="${cell}">${escapeHtml(row.remarks || '—')}</td>
 </tr>`;
 
-  return `<table style="width:100%; border-collapse:collapse; margin:12pt 0 18pt 0;">
+  return `<table style="${PETTY_CASH_TABLE_STYLE}">
 <thead><tr>
 <th style="${headCell}">Item Description</th>
 <th style="${headCell}; width:14%;">Qty Received</th>

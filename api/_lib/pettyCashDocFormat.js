@@ -6,11 +6,21 @@ export const PETTY_CASH_ORG_TITLE =
   'Punjab Agriculture, Food & Drug Authority (PAFDA)';
 export const PETTY_CASH_GOV_LINE = 'Government of the Punjab';
 
+/** Shared Word body — Purchase Slip + Satisfactory Note. */
+export const PETTY_CASH_DOC_BODY_STYLE =
+  "font-family:'Times New Roman',Times,serif; font-size:11pt; line-height:1.35; margin:28pt;";
+
 export const PETTY_CASH_DOC_TITLE_STYLE =
-  'text-align:center; font-size:14pt; font-weight:bold; margin:6pt 0 12pt 0;';
+  "text-align:center; font-family:'Times New Roman',Times,serif; font-size:13pt; font-weight:bold; margin:4pt 0 10pt 0;";
 
 export const PETTY_CASH_TABLE_CELL =
-  "border:1px solid #333; padding:6pt 8pt; font-family:'Times New Roman',Times,serif; font-size:11pt;";
+  "border:1px solid #333; padding:4pt 6pt; font-family:'Times New Roman',Times,serif; font-size:10pt; vertical-align:top;";
+
+export const PETTY_CASH_TABLE_STYLE =
+  'width:100%; border-collapse:collapse; margin:8pt 0 12pt 0;';
+
+const FIELD_P =
+  "margin:0 0 3pt 0; font-family:'Times New Roman',Times,serif; font-size:11pt;";
 
 export function pettyCashHeadCellStyle(cellStyle) {
   return `${cellStyle} font-weight:bold; background:#f5f5f5;`;
@@ -31,7 +41,7 @@ export function underlineValueHtml(value, width = 28) {
 }
 
 export function signatureLineHtml() {
-  return `<span style="display:inline-block; min-width:220pt; border-bottom:1px solid #333;">&nbsp;</span>`;
+  return `<span style="display:inline-block; min-width:200pt; border-bottom:1px solid #333; line-height:1;">&nbsp;</span>`;
 }
 
 const QTY_UNIT_RE =
@@ -81,23 +91,24 @@ function buildHeaderLogoHtml({ logoDataUrl = '', logoWidth = 0, logoHeight = 0 }
     h > 0
       ? `width="${w}" height="${h}" style="width:${w}px;height:${h}px;display:block;margin:0 auto;"`
       : `width="${w}" style="width:${w}px;height:auto;display:block;margin:0 auto;"`;
-  return `<p style="text-align:center; margin:0 0 8pt 0;">
+  return `<p style="text-align:center; margin:0 0 6pt 0;">
 <img src="${src}" ${sizeAttrs} alt="PAFDA" />
 </p>`;
 }
 
+/** Logo + typed org lines — same header for Purchase Slip and Satisfactory Note. */
 export function buildOfficialHeaderHtml(logo = {}) {
-  return `${buildHeaderLogoHtml(logo)}<p style="text-align:center; font-size:14pt; font-weight:bold; margin:0 0 2pt 0; font-family:'Times New Roman',Times,serif;">${escapePettyCashHtml(PETTY_CASH_ORG_TITLE)}</p>
-<p style="text-align:center; font-size:11pt; margin:0 0 16pt 0; font-family:'Times New Roman',Times,serif;">${escapePettyCashHtml(PETTY_CASH_GOV_LINE)}</p>`;
+  return `${buildHeaderLogoHtml(logo)}<p style="text-align:center; font-size:12pt; font-weight:bold; margin:0 0 1pt 0; line-height:1.2; font-family:'Times New Roman',Times,serif;">${escapePettyCashHtml(PETTY_CASH_ORG_TITLE)}</p>
+<p style="text-align:center; font-size:10pt; margin:0 0 10pt 0; line-height:1.2; font-family:'Times New Roman',Times,serif;">${escapePettyCashHtml(PETTY_CASH_GOV_LINE)}</p>`;
 }
 
 export function buildSignatoryBlockHtml({ title, name, designation = '', date }) {
   const shownDesignation = designationRepeatsTitle(title, designation)
     ? ''
     : String(designation ?? '').trim();
-  return `<p style="margin:18pt 0 6pt 0; font-weight:bold;">${title}</p>
-<p style="margin:0 0 6pt 0;">Name: ${underlineValueHtml(name)}</p>
-<p style="margin:0 0 6pt 0;">Designation: ${underlineValueHtml(shownDesignation)}</p>
-<p style="margin:0 0 6pt 0;">Date: ${underlineValueHtml(date)}</p>
-<p style="margin:0 0 12pt 0;">Signature: ${signatureLineHtml()}</p>`;
+  return `<p style="margin:12pt 0 4pt 0; font-weight:bold; font-family:'Times New Roman',Times,serif; font-size:11pt;">${title}</p>
+<p style="${FIELD_P}">Name: ${underlineValueHtml(name)}</p>
+<p style="${FIELD_P}">Designation: ${underlineValueHtml(shownDesignation)}</p>
+<p style="${FIELD_P}">Date: ${underlineValueHtml(date)}</p>
+<p style="margin:0 0 8pt 0; font-family:'Times New Roman',Times,serif; font-size:11pt;">Signature: ${signatureLineHtml()}</p>`;
 }

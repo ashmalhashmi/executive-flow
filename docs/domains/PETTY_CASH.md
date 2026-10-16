@@ -25,6 +25,6 @@ Invoice photo(s) upload to cloud (`petty-invoices/`) — `invoicePhotoUrls[]` on
 
 ## Templates
 
-Purchase Slip uses the official PAFDA wordmark centered above a typed heading — **Punjab Agriculture, Food & Drug Authority (PAFDA)** / **Government of the Punjab** — not the full letterhead banner (avoids duplicate titles). Quantity cells always include a unit (`0.7` → `0.7 kg`, `2` → `2 pcs`). Amount cells are numeric with two decimals and commas (`1,383.00`); `(Rs.)` stays in the column header only. **Requested By** supports multiple people (`requestedBy[]`); PDF/Word print one signature block per requester. Signature lines stay blank for wet-ink (name is not repeated under the line; “Section Head” is not duplicated in both the Approved-by heading and the designation field).
+Purchase Slip and Satisfactory Note share the same header: official PAFDA wordmark centered above typed **Punjab Agriculture, Food & Drug Authority (PAFDA)** / **Government of the Punjab** (not the full letterhead banner). Word/PDF use Times New Roman with matched title sizes, table padding, and signatory spacing. Quantity cells always include a unit (`0.7` → `0.7 kg`, `2` → `2 pcs`). Amount cells are numeric with two decimals and commas (`1,383.00`); `(Rs.)` stays in the column header only. **Requested By** supports multiple people (`requestedBy[]`); PDF/Word print one signature block per requester. Signature lines stay blank for wet-ink (name is not repeated under the line; “Section Head” is not duplicated in both the Approved-by heading and the designation field).
 
-Satisfactory Note and Refreshment Receiving still use the PAFDA letterhead image.
+Refreshment Receiving still uses the PAFDA letterhead image.

@@ -58,13 +58,13 @@ async function drawOfficialHeader(doc, yStart) {
     /* typed header still prints */
   }
   doc.setFont('times', 'bold');
-  doc.setFontSize(13);
+  doc.setFontSize(12);
   doc.text(PETTY_CASH_ORG_TITLE, PAGE.width / 2, y, { align: 'center' });
-  y += 7;
+  y += 6;
   doc.setFont('times', 'normal');
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.text(PETTY_CASH_GOV_LINE, PAGE.width / 2, y, { align: 'center' });
-  return y + 10;
+  return y + 8;
 }
 
 async function drawLetterhead(doc, leftX, contentWidth, yStart) {
@@ -166,11 +166,11 @@ function drawSignatoryBlock(doc, leftX, y, title, { name, designation, date }) {
   const shownDesignation = designationRepeatsTitle(title, designation)
     ? ''
     : String(designation ?? '').trim();
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('times', 'bold');
   doc.setFontSize(10);
   doc.text(title, leftX, y);
-  y += PAGE.line + 2;
-  doc.setFont('helvetica', 'normal');
+  y += PAGE.line + 1;
+  doc.setFont('times', 'normal');
   doc.text(`Name: ${formatPdfField(name)}`, leftX, y);
   y += PAGE.line;
   doc.text(`Designation: ${formatPdfField(shownDesignation)}`, leftX, y);
@@ -192,10 +192,10 @@ export async function downloadPurchaseSlipPdf({
   const leftX = PAGE.marginX;
   let y = await drawOfficialHeader(doc, PAGE.marginTop);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
+  doc.setFont('times', 'bold');
+  doc.setFontSize(13);
   doc.text('Purchase Slip', PAGE.width / 2, y, { align: 'center' });
-  y += 10;
+  y += 8;
 
   const ps = purchaseSlip || {};
   const items = normalizePurchaseItems(ps.items, ps);
@@ -224,7 +224,7 @@ export async function downloadPurchaseSlipPdf({
     ],
     body,
     theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 2.5 },
+    styles: { font: 'times', fontSize: 9, cellPadding: 2.5 },
     headStyles: { fillColor: [245, 245, 245], textColor: 20, fontStyle: 'bold' },
     columnStyles: {
       0: { halign: 'center', cellWidth: 14 },
@@ -235,16 +235,16 @@ export async function downloadPurchaseSlipPdf({
     margin: { left: leftX, right: PAGE.marginX },
   });
 
-  y = doc.lastAutoTable.finalY + 8;
+  y = doc.lastAutoTable.finalY + 6;
 
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('times', 'bold');
   doc.setFontSize(10);
   doc.text('Justification', leftX, y);
   y += PAGE.line;
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('times', 'normal');
   const justLines = doc.splitTextToSize(String(ps.justification || '—'), contentWidth);
   doc.text(justLines, leftX, y);
-  y += justLines.length * PAGE.line + 8;
+  y += justLines.length * PAGE.line + 6;
 
   const requesters = resolveRequestedByPeople(ps, signatories);
   for (let i = 0; i < requesters.length; i += 1) {
@@ -272,14 +272,13 @@ export async function downloadSatisfactoryNotePdf({
   sectionHeadSignatory,
 }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-  const contentWidth = PAGE.width - PAGE.marginX * 2;
   const leftX = PAGE.marginX;
-  let y = await drawLetterhead(doc, leftX, contentWidth, PAGE.marginTop);
+  let y = await drawOfficialHeader(doc, PAGE.marginTop);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
+  doc.setFont('times', 'bold');
+  doc.setFontSize(13);
   doc.text('Satisfactory Note', PAGE.width / 2, y, { align: 'center' });
-  y += 10;
+  y += 8;
 
   const sn = satisfactoryNote || {};
   const first = Array.isArray(sn.items) ? sn.items[0] : null;
@@ -293,17 +292,17 @@ export async function downloadSatisfactoryNotePdf({
   ];
 
   autoTable(doc, {
-    startY: y + 4,
+    startY: y + 2,
     head: [['Item Description', 'Qty Received', 'Condition', 'Remarks']],
     body,
     theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 2.5 },
+    styles: { font: 'times', fontSize: 9, cellPadding: 2.5 },
     headStyles: { fillColor: [245, 245, 245], textColor: 20, fontStyle: 'bold' },
     columnStyles: { 1: { halign: 'center' } },
     margin: { left: leftX, right: PAGE.marginX },
   });
 
-  y = doc.lastAutoTable.finalY + 8;
+  y = doc.lastAutoTable.finalY + 6;
 
   const receivers = resolveSatisfactoryReceivedPeople(sn);
   const verified = resolveSatisfactoryVerifier(sn, sectionHeadSignatory);

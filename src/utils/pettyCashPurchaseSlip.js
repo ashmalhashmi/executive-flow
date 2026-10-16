@@ -5,6 +5,7 @@ import {
   formatPettyCashQuantity,
   formatPettyCashTableMoney,
   PETTY_CASH_TABLE_CELL,
+  PETTY_CASH_TABLE_STYLE,
   pettyCashHeadCellStyle,
 } from './pettyCashDocFormat';
 
@@ -338,7 +339,7 @@ export function buildPurchaseItemsTableHtml(items) {
 <td style="${headCell}; text-align:right;">${formatPurchaseMoney(total)}</td>
 </tr>`;
 
-  return `<table style="width:100%; border-collapse:collapse; margin:12pt 0 18pt 0;">
+  return `<table style="${PETTY_CASH_TABLE_STYLE}">
 <thead>
 <tr>
 <th style="${headCell}; width:8%;">Sr. No.</th>
@@ -361,8 +362,8 @@ export function buildPurchaseSlipFooterHtml({
   const requesters = resolveRequestedByPeople(ps, requestedSignatories);
   const approved = resolveApproverSignatory(ps, approverSignatory);
 
-  let html = `<p style="margin:12pt 0 6pt 0; font-weight:bold;">Justification</p>
-<p style="margin:0 0 18pt 0; line-height:1.5;">${escapePurchaseHtml(ps.justification || '—')}</p>`;
+  let html = `<p style="margin:8pt 0 4pt 0; font-weight:bold; font-family:'Times New Roman',Times,serif; font-size:11pt;">Justification</p>
+<p style="margin:0 0 10pt 0; line-height:1.35; font-family:'Times New Roman',Times,serif; font-size:11pt;">${escapePurchaseHtml(ps.justification || '—')}</p>`;
 
   requesters.forEach((person, index) => {
     html += buildSignatoryBlockHtml({

@@ -7,7 +7,11 @@ import {
   buildSatisfactoryItemsTableHtml,
   buildSatisfactoryNoteFooterHtml,
 } from './pettyCashSatisfactoryNote';
-import { buildOfficialHeaderHtml, PETTY_CASH_DOC_TITLE_STYLE } from './pettyCashDocFormat';
+import {
+  buildOfficialHeaderHtml,
+  PETTY_CASH_DOC_BODY_STYLE,
+  PETTY_CASH_DOC_TITLE_STYLE,
+} from './pettyCashDocFormat';
 function escapeHtml(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')
@@ -90,7 +94,7 @@ export function buildPurchaseSlipDocHtml({
 <html><head><meta charset="utf-8" />
 <title>Purchase Slip</title>
 </head>
-<body style="font-family:'Times New Roman',Times,serif; font-size:12pt; margin:36pt;">
+<body style="${PETTY_CASH_DOC_BODY_STYLE}">
 ${buildOfficialHeaderHtml({ logoDataUrl, logoWidth, logoHeight })}
 <p style="${PETTY_CASH_DOC_TITLE_STYLE}">Purchase Slip</p>
 ${buildPurchaseItemsTableHtml(ps.items)}
@@ -104,6 +108,10 @@ ${buildPurchaseSlipFooterHtml({
 
 export function buildSatisfactoryNoteDocHtml({
   satisfactoryNote,
+  logoDataUrl = '',
+  logoWidth = 0,
+  logoHeight = 0,
+  /** @deprecated use logoDataUrl — kept so older callers still work */
   letterheadDataUrl = '',
   letterheadWidth = 0,
   letterheadHeight = 0,
@@ -111,13 +119,18 @@ export function buildSatisfactoryNoteDocHtml({
   sectionHeadSignatory = null,
 }) {
   const sn = satisfactoryNote || {};
+  const headerLogo = {
+    logoDataUrl: logoDataUrl || letterheadDataUrl,
+    logoWidth: logoWidth || letterheadWidth,
+    logoHeight: logoHeight || letterheadHeight,
+  };
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8" />
 <title>Satisfactory Note</title>
 </head>
-<body style="font-family:'Times New Roman',Times,serif; font-size:12pt; margin:36pt;">
-${buildLetterheadHtml(letterheadDataUrl, letterheadWidth, letterheadHeight)}
+<body style="${PETTY_CASH_DOC_BODY_STYLE}">
+${buildOfficialHeaderHtml(headerLogo)}
 <p style="${PETTY_CASH_DOC_TITLE_STYLE}">Satisfactory Note</p>
 ${buildSatisfactoryItemsTableHtml(sn.items)}
 ${buildSatisfactoryNoteFooterHtml({
