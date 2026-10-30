@@ -10,9 +10,7 @@ import {
   Trash2,
   FileDown,
   MapPin,
-  Upload,
   Loader2,
-  Undo2,
   Globe,
   Image,
 } from 'lucide-react';
@@ -22,12 +20,10 @@ import FormField, { TextInput } from '../components/ui/FormField';
 import CopyButton from '../components/ui/CopyButton';
 import Modal from '../components/ui/Modal';
 import ListPager from '../components/ui/ListPager';
-import CollapsibleSection from '../components/ui/CollapsibleSection';
 import { usePagedList } from '../hooks/usePagedList';
 import { getWhatsAppShareUrl } from '../utils/whatsappShare';
 import {
   buildContactCardText,
-  countFileImportedContacts,
   findDuplicateContact,
   formatContactNosForForm,
   formatEmailsForForm,
@@ -39,7 +35,6 @@ import {
   parseEmailsInput,
   standardizeEmails,
   standardizePhoneList,
-  withoutFileImportedContacts,
 } from '../utils/contactEntries';
 import {
   ALL_DEPARTMENTS_ID,
@@ -49,6 +44,10 @@ import {
   getContactIdsForCategory,
   searchContactsIndex,
 } from './contactDatabase/search';
+import {
+  buildContactFilterOptionsLight,
+  filterContactsLight,
+} from './contactDatabase/listLight';
 import { buildGoogleSearchUrl } from './contactDatabase/urls';
 import {
   CONTACT_CATEGORIES,
@@ -56,25 +55,12 @@ import {
   getContactCategoryLabel,
   inferContactCategory,
 } from '../utils/contactCategories';
-import {
-  CONTACT_IMPORT_FIELDS,
-  emptyContactUiColumnMap,
-  guessContactColumnMap,
-  parseColumnIndex,
-  previewMappedContactRows,
-  readContactImportFile,
-  rowsToContacts,
-  uiColumnMapFromIndexMapping,
-} from '../utils/contactCsvImport';
-import ContactCaptureLoop from '../components/contacts/ContactCaptureLoop';
-
-const COL_OPTIONS = (headers) => [
-  { value: '', label: '— Select column —' },
-  ...headers.map((h, i) => ({ value: String(i), label: h || `Column ${i + 1}` })),
-];
+import LazyContactCaptureLoop from '../components/contacts/LazyContactCaptureLoop';
+import LazyContactImportPanel from '../components/contacts/LazyContactImportPanel';
 
 const EMAIL_KEY = 'executive_flow_contact_database_email';
 
+/** localStorage only — avoid pulling browserKv/Supabase chunk on first paint. */
 function loadExportEmail() {
   try {
     return localStorage.getItem(EMAIL_KEY) || '';
@@ -101,6 +87,7 @@ const emptyForm = () => ({
   website: '',
   address: '',
   category: '',
+  categorySource: 'auto',
 });
 
 function ContactActions({ contact }) {
@@ -213,67 +200,92 @@ export default function ContactDatabase() {
   const [emailBusy, setEmailBusy] = useState(false);
   const [exportEmail, setExportEmail] = useState(loadExportEmail);
   const [exportMessage, setExportMessage] = useState('');
-
-  const [importBusy, setImportBusy] = useState(false);
-  const [importMessage, setImportMessage] = useState('');
-  const [importFileName, setImportFileName] = useState('');
-  const [csvHeaders, setCsvHeaders] = useState([]);
-  const [csvRows, setCsvRows] = useState([]);
-  const [jsonContacts, setJsonContacts] = useState([]);
-  const [importType, setImportType] = useState('');
-  const [columnMap, setColumnMap] = useState(emptyContactUiColumnMap);
-  const [importMode, setImportMode] = useState('merge');
   const [formOpen, setFormOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
+  const [searchIndex, setSearchIndex] = useState(null);
   const didReconcile = useRef(false);
 
+  const hasActiveFilters =
+    Boolean(search.trim()) ||
+    selectedDepartmentId !== ALL_DEPARTMENTS_ID ||
+    selectedCategoryId !== ALL_CATEGORIES_ID;
+
+  /** Defer dedupe/normalize so first paint is not blocked (does not delete data). */
   useEffect(() => {
     if (didReconcile.current) return;
     didReconcile.current = true;
-    reconcileContacts();
+    const run = () => reconcileContacts();
+    if (typeof window !== 'undefined' && window.requestIdleCallback) {
+      const id = window.requestIdleCallback(run, { timeout: 2500 });
+      return () => window.cancelIdleCallback?.(id);
+    }
+    const t = setTimeout(run, 800);
+    return () => clearTimeout(t);
   }, [reconcileContacts]);
 
-  const importedFileCount = useMemo(
-    () => countFileImportedContacts(contacts),
+  /** Full token index only when filtering/searching, else idle after first paint. */
+  useEffect(() => {
+    let cancelled = false;
+    const build = () => {
+      if (cancelled) return;
+      setSearchIndex(buildContactSearchIndex(contacts));
+    };
+
+    if (hasActiveFilters) {
+      build();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (typeof window !== 'undefined' && window.requestIdleCallback) {
+      const id = window.requestIdleCallback(build, { timeout: 2000 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback?.(id);
+      };
+    }
+    const t = setTimeout(build, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [contacts, hasActiveFilters]);
+
+  const lightOptions = useMemo(
+    () => buildContactFilterOptionsLight(contacts),
     [contacts],
   );
+  const departmentOptions =
+    searchIndex?.departmentOptions ?? lightOptions.departmentOptions;
+  const categoryOptions = searchIndex?.categoryOptions ?? lightOptions.categoryOptions;
+  const catalogTotal = searchIndex?.orderedIds?.length ?? lightOptions.total;
 
-  const previewContacts = useMemo(() => {
-    if (importType === 'json') return jsonContacts;
-    if (parseColumnIndex(columnMap.name) === null) return [];
-    return rowsToContacts(csvRows, columnMap);
-  }, [importType, jsonContacts, csvRows, columnMap]);
-
-  const mappedPreviewRows = useMemo(() => {
-    if (!csvRows.length || parseColumnIndex(columnMap.name) === null) return [];
-    return previewMappedContactRows(csvRows, columnMap, 3);
-  }, [csvRows, columnMap]);
-
-  const searchIndex = useMemo(() => buildContactSearchIndex(contacts), [contacts]);
-  const departmentOptions = searchIndex.departmentOptions;
-  const categoryOptions = searchIndex.categoryOptions;
-  const departmentContactIds = useMemo(
-    () => getContactIdsForDepartment(searchIndex, selectedDepartmentId),
-    [searchIndex, selectedDepartmentId],
-  );
-  const categoryContactIds = useMemo(
-    () => getContactIdsForCategory(searchIndex, selectedCategoryId),
-    [searchIndex, selectedCategoryId],
-  );
-  const scopedContactIds = useMemo(() => {
-    if (selectedCategoryId === ALL_CATEGORIES_ID) return departmentContactIds;
+  const filtered = useMemo(() => {
+    if (!searchIndex) {
+      return filterContactsLight(contacts, {
+        search,
+        departmentId: selectedDepartmentId,
+        categoryId: selectedCategoryId,
+      });
+    }
+    const departmentContactIds = getContactIdsForDepartment(
+      searchIndex,
+      selectedDepartmentId,
+    );
+    const categoryContactIds = getContactIdsForCategory(searchIndex, selectedCategoryId);
     const categorySet = new Set(categoryContactIds);
-    return departmentContactIds.filter((id) => categorySet.has(id));
-  }, [departmentContactIds, categoryContactIds, selectedCategoryId]);
-
-  const filtered = useMemo(
-    () => searchContactsIndex(searchIndex, search, { candidateIds: scopedContactIds }),
-    [searchIndex, search, scopedContactIds],
-  );
-  const hasActiveFilters =
-    search.trim() ||
-    selectedDepartmentId !== ALL_DEPARTMENTS_ID ||
-    selectedCategoryId !== ALL_CATEGORIES_ID;
+    const scopedContactIds =
+      selectedCategoryId === ALL_CATEGORIES_ID
+        ? departmentContactIds
+        : departmentContactIds.filter((id) => categorySet.has(id));
+    return searchContactsIndex(searchIndex, search, { candidateIds: scopedContactIds });
+  }, [
+    searchIndex,
+    contacts,
+    search,
+    selectedDepartmentId,
+    selectedCategoryId,
+  ]);
   const filterResetKey = `${search.trim()}|${selectedDepartmentId}|${selectedCategoryId}`;
   const {
     page,
@@ -301,6 +313,10 @@ export default function ContactDatabase() {
   };
 
   const startEdit = (contact) => {
+    const locked =
+      contact.categorySource === 'manual' ||
+      contact.categorySource === 'ai' ||
+      contact.categorySource === 'suggested';
     setEditingId(contact.id);
     setForm({
       name: contact.name || '',
@@ -311,7 +327,8 @@ export default function ContactDatabase() {
       contactNo: formatContactNosForForm(contact),
       website: contact.website || '',
       address: contact.address || '',
-      category: contact.categorySource === 'manual' ? contact.category || '' : '',
+      category: locked ? contact.category || '' : '',
+      categorySource: locked ? contact.categorySource : 'auto',
     });
     setErrors({});
     setFormOpen(true);
@@ -354,9 +371,14 @@ export default function ContactDatabase() {
       address: form.address.trim(),
     };
 
-    if (form.category) {
+    const lockedCategory =
+      form.category &&
+      (form.categorySource === 'manual' ||
+        form.categorySource === 'ai' ||
+        form.categorySource === 'suggested');
+    if (lockedCategory) {
       payload.category = form.category;
-      payload.categorySource = 'manual';
+      payload.categorySource = form.categorySource;
     } else {
       payload.categorySource = 'auto';
       payload.category = undefined;
@@ -439,80 +461,6 @@ export default function ContactDatabase() {
     }
   };
 
-  const handleImportFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImportBusy(true);
-    setImportMessage('');
-    try {
-      const result = await readContactImportFile(file);
-      setImportFileName(file.name);
-      setImportType(result.type);
-      if (result.type === 'json') {
-        setJsonContacts(result.contacts);
-        setCsvHeaders([]);
-        setCsvRows([]);
-        setImportMessage(`${result.contacts.length} contacts JSON se load — Import dabayein`);
-      } else {
-        setJsonContacts([]);
-        setCsvHeaders(result.headers);
-        setCsvRows(result.rows);
-        const guessed = guessContactColumnMap(result.headers);
-        setColumnMap(uiColumnMapFromIndexMapping(guessed));
-        setImportMessage(`${result.rows.length} rows load ho gayi — neeche columns confirm karein`);
-      }
-      setImportOpen(true);
-    } catch (err) {
-      setImportMessage(err.message || 'File read failed');
-      setImportFileName('');
-      setCsvHeaders([]);
-      setCsvRows([]);
-      setJsonContacts([]);
-      setImportType('');
-    } finally {
-      setImportBusy(false);
-      e.target.value = '';
-    }
-  };
-
-  const handleImportToApp = () => {
-    if (!previewContacts.length) {
-      setImportMessage('Import ke liye valid contacts nahi — Naam column + phone/email zaroori');
-      return;
-    }
-    const label =
-      importMode === 'merge'
-        ? `${previewContacts.length} contacts purane list ke sath jod dein?`
-        : `${previewContacts.length} contacts import karein? Purani contacts replace ho jayengi.`;
-    if (!window.confirm(label)) return;
-
-    const { saved, merged } = importContacts(previewContacts, importMode);
-    const mergeNote =
-      merged > 0 ? ` · ${merged} duplicate${merged === 1 ? '' : 's'} merged` : '';
-    setImportMessage(`Done — ${saved} unique contacts${mergeNote}. Neeche list dekhein.`);
-    setCsvHeaders([]);
-    setCsvRows([]);
-    setJsonContacts([]);
-    setImportType('');
-    setImportFileName('');
-  };
-
-  const handleCancelFileImport = () => {
-    if (!importedFileCount) {
-      setImportMessage('Koi file import mojood nahi');
-      return;
-    }
-    if (
-      !window.confirm(
-        `Cancel file import?\n\n${importedFileCount} file se import contacts delete ho jayenge.\nManual contacts reh jayenge.`,
-      )
-    ) {
-      return;
-    }
-    importContacts(withoutFileImportedContacts(contacts), 'replace');
-    setImportMessage(`Done — ${importedFileCount} imported contacts hata diye`);
-  };
-
   const handleClearAllContacts = () => {
     const activeCount = contacts.filter((c) => c.status !== 'archived').length;
     if (!activeCount) return;
@@ -527,20 +475,13 @@ export default function ContactDatabase() {
     resetForm();
     setSearch('');
     setSelectedDepartmentId(ALL_DEPARTMENTS_ID);
-    setImportMessage('');
-    setCsvHeaders([]);
-    setCsvRows([]);
-    setJsonContacts([]);
-    setImportType('');
-    setImportFileName('');
+    setSelectedCategoryId(ALL_CATEGORIES_ID);
   };
 
   const handleCaptureSync = (payload) => {
     const created = addContact(payload);
     return Boolean(created);
   };
-
-  const colOpts = COL_OPTIONS(csvHeaders);
 
   return (
     <div className="space-y-6">
@@ -568,7 +509,7 @@ export default function ContactDatabase() {
             className="rounded-xl border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/40"
           >
             <option value={ALL_CATEGORIES_ID}>
-              All categories ({searchIndex.orderedIds.length})
+              All categories ({catalogTotal})
             </option>
             {categoryOptions.map((option) => (
               <option key={option.id} value={option.id}>
@@ -586,7 +527,7 @@ export default function ContactDatabase() {
             className="rounded-xl border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/40"
           >
             <option value={ALL_DEPARTMENTS_ID}>
-              All departments ({searchIndex.orderedIds.length})
+              All departments ({catalogTotal})
             </option>
             {departmentOptions.map((option) => (
               <option key={option.id} value={option.id}>
@@ -699,6 +640,8 @@ export default function ContactDatabase() {
                         </span>
                         {contact.categorySource === 'manual' ? (
                           <span className="text-[10px] text-zinc-500">manual</span>
+                        ) : contact.categorySource === 'ai' ? (
+                          <span className="text-[10px] text-indigo-300">AI</span>
                         ) : null}
                       </div>
                       {contact.department && (
@@ -800,153 +743,8 @@ export default function ContactDatabase() {
         )}
       </GlassCard>
 
-      <ContactCaptureLoop contacts={contacts} onSaveContact={handleCaptureSync} />
-
-      {/* File import */}
-      <CollapsibleSection
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        defaultOpen={false}
-        className="border-violet-500/20 bg-violet-500/5 p-5 sm:p-6"
-        icon={<Upload className="h-5 w-5 text-violet-300" />}
-        title="File se Import"
-        subtitle="CSV / JSON — zaroorat par kholein"
-        badge={importedFileCount > 0 ? String(importedFileCount) : undefined}
-      >
-        <div className="mb-4 flex flex-wrap gap-2">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-2.5 text-sm font-medium text-violet-200 hover:bg-violet-500/20">
-            {importBusy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4" />
-            )}
-            CSV / JSON file choose karein
-            <input
-              type="file"
-              accept=".csv,.json,text/csv,application/json"
-              className="sr-only"
-              disabled={importBusy}
-              onChange={handleImportFile}
-            />
-          </label>
-          {importedFileCount > 0 && (
-            <button
-              type="button"
-              onClick={handleCancelFileImport}
-              className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-200 hover:bg-rose-500/20"
-            >
-              <Undo2 className="h-4 w-4" />
-              Cancel file import ({importedFileCount})
-            </button>
-          )}
-        </div>
-
-        {importFileName && (
-          <p className="mb-3 text-xs text-zinc-400">
-            File: <span className="text-zinc-200">{importFileName}</span>
-            {importType === 'csv' && csvRows.length > 0 && ` · ${csvRows.length} rows`}
-            {importType === 'json' && jsonContacts.length > 0 && ` · ${jsonContacts.length} contacts`}
-          </p>
-        )}
-
-        {csvHeaders.length > 0 && (
-          <div className="mb-4 space-y-3 rounded-xl border border-white/10 bg-black/20 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-              Robot ko batayein — kaun column kya hai
-            </p>
-            <p className="text-xs text-zinc-500">
-              Har dropdown = aapki CSV file ka column. Import usi index se value lega.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {CONTACT_IMPORT_FIELDS.map(({ key, label, required }) => (
-                <label key={key} className="text-xs text-zinc-400">
-                  {label}
-                  {required ? ' *' : ' (optional)'}
-                  <select
-                    value={columnMap[key]}
-                    onChange={(e) =>
-                      setColumnMap((p) => ({ ...p, [key]: e.target.value }))
-                    }
-                    className="mt-1 block w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-zinc-100"
-                  >
-                    {colOpts.map((opt) => (
-                      <option key={`${key}-${opt.value || 'empty'}`} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ))}
-            </div>
-
-            {mappedPreviewRows.length > 0 && (
-              <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
-                <p className="mb-2 text-xs font-medium text-violet-200">
-                  Mapping preview (file se pehli rows)
-                </p>
-                <ul className="space-y-2 text-xs text-zinc-400">
-                  {mappedPreviewRows.map((row, i) => (
-                    <li key={i} className="rounded border border-white/5 bg-black/20 px-2 py-1.5">
-                      <span className="font-medium text-zinc-200">{row.name}</span>
-                      {row.department && ` · ${row.department}`}
-                      {row.designation && ` · ${row.designation}`}
-                      {row.phone && ` · ${row.phone}`}
-                      {row.email && ` · ${row.email}`}
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-2 text-xs text-emerald-300/90">
-                  Ready: {previewContacts.length} contacts import ke liye
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {(csvHeaders.length > 0 || jsonContacts.length > 0) && (
-          <div className="mb-4 flex flex-wrap gap-4 text-sm text-zinc-400">
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="radio"
-                name="contact-import-mode"
-                checked={importMode === 'merge'}
-                onChange={() => setImportMode('merge')}
-              />
-              Merge (purani + nayi)
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="radio"
-                name="contact-import-mode"
-                checked={importMode === 'replace'}
-                onChange={() => setImportMode('replace')}
-              />
-              Replace (sirf file wale)
-            </label>
-          </div>
-        )}
-
-        {(csvHeaders.length > 0 || jsonContacts.length > 0) && (
-          <button
-            type="button"
-            onClick={handleImportToApp}
-            disabled={!previewContacts.length}
-            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Upload className="h-4 w-4" />
-            Import to App ({previewContacts.length})
-          </button>
-        )}
-
-        {importMessage && (
-          <p className="mt-3 text-sm text-zinc-400">{importMessage}</p>
-        )}
-
-        <p className="mt-4 text-xs text-zinc-600">
-          CSV columns: Naam, Phone, Email, Department, Designation, Contact No, Address — ya
-          JSON / app backup file jisme <code className="text-zinc-500">contacts</code> array ho.
-        </p>
-      </CollapsibleSection>
+      <LazyContactCaptureLoop contacts={contacts} onSaveContact={handleCaptureSync} />
+      <LazyContactImportPanel contacts={contacts} importContacts={importContacts} />
 
       <Modal
         isOpen={formOpen}
@@ -981,29 +779,36 @@ export default function ContactDatabase() {
               <select
                 id="contact-category"
                 value={form.category}
-                onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setForm((p) => ({
+                    ...p,
+                    category: next,
+                    categorySource: next ? 'manual' : 'auto',
+                  }));
+                }}
                 className="w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/40"
               >
-                <option value="">
-                  {`Auto — ${getContactCategoryLabel(
-                    inferContactCategory({
-                      name: form.name,
-                      department: form.department,
-                      designation: form.designation,
-                      email: form.email,
-                      website: form.website,
-                      address: form.address,
-                    }),
-                  )}`}
-                </option>
-                {CONTACT_CATEGORIES.filter((c) => c.id !== CONTACT_CATEGORY_UNASSIGNED).map(
-                  (cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.label}
-                    </option>
-                  ),
-                )}
-                <option value={CONTACT_CATEGORY_UNASSIGNED}>Other Stakeholder</option>
+                  <option value="">
+                    {`Auto — ${getContactCategoryLabel(
+                      inferContactCategory({
+                        name: form.name,
+                        department: form.department,
+                        designation: form.designation,
+                        email: form.email,
+                        website: form.website,
+                        address: form.address,
+                      }),
+                    )}`}
+                  </option>
+                  {CONTACT_CATEGORIES.filter((c) => c.id !== CONTACT_CATEGORY_UNASSIGNED).map(
+                    (cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.label}
+                      </option>
+                    ),
+                  )}
+                  <option value={CONTACT_CATEGORY_UNASSIGNED}>Other Stakeholder</option>
               </select>
             </FormField>
             <FormField label="Designation" id="contact-designation">
