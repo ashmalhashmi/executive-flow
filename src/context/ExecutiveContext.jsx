@@ -801,10 +801,13 @@ export function ExecutiveProvider({ children }) {
 
   const addCaptureEntry = useCallback((payload) => {
     let created;
+    const text = String(payload?.text ?? '').trim();
+    if (!text) return null;
     const entry = {
       id: `capture-${Date.now()}`,
-      text: payload.text.trim(),
-      bucket: payload.bucket === 'now' ? 'now' : 'captured',
+      title: String(payload?.title ?? '').trim(),
+      text,
+      bucket: payload?.bucket === 'now' ? 'now' : 'captured',
       status: 'active',
       completedAt: null,
       createdAt: new Date().toISOString(),
@@ -815,6 +818,29 @@ export function ExecutiveProvider({ children }) {
       return [entry, ...prev];
     });
     return created;
+  }, []);
+
+  const updateCaptureEntry = useCallback((captureId, payload) => {
+    const text = String(payload?.text ?? '').trim();
+    if (!captureId || !text) return null;
+    const title = String(payload?.title ?? '').trim();
+    const now = new Date().toISOString();
+    let updated = null;
+    setCaptureEntries((prev) =>
+      prev.map((entry) => {
+        if (entry.id !== captureId) return entry;
+        updated = {
+          ...entry,
+          title,
+          text,
+          status: 'active',
+          completedAt: null,
+          updatedAt: now,
+        };
+        return updated;
+      }),
+    );
+    return updated;
   }, []);
 
   const completeCaptureEntry = useCallback((captureId) => {
@@ -1451,6 +1477,7 @@ export function ExecutiveProvider({ children }) {
     () => ({
       captureEntries,
       addCaptureEntry,
+      updateCaptureEntry,
       completeCaptureEntry,
       moveCaptureEntry,
       removeCaptureEntry,
@@ -1459,6 +1486,7 @@ export function ExecutiveProvider({ children }) {
     [
       captureEntries,
       addCaptureEntry,
+      updateCaptureEntry,
       completeCaptureEntry,
       moveCaptureEntry,
       removeCaptureEntry,

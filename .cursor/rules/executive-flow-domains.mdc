@@ -21,7 +21,7 @@ Before coding, identify the **domain** and touch only that pile. Full map: `ARCH
 | Orders | `pages/OrderLog.jsx`, `utils/order*.js` |
 | Dak | `pages/DakIssuanceLog.jsx`, `utils/dak*.js` |
 | Tasks | `pages/TaskLog.jsx`, `utils/task*.js` |
-| Capture | `pages/CaptureInbox.jsx`, `utils/captureEntries.js` |
+| Capture (Important Notes) | `pages/CaptureInbox.jsx`, `utils/captureEntries.js` |
 | Contacts | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `utils/contactCategories.js`, `api/extract-contact.js` |
 | Sync | `pages/SyncBackup.jsx`, `context/CloudSync*.jsx`, `context/GoogleSheets*`, `utils/cloudSync*.js`, `api/sheets-sync.js`, `docs/CLOUD_SYNC.md` |
 | Compose | `pages/ComposeDesk.jsx`, `constants/composePurposes.js`, `utils/compose*.js`, `api/compose-draft.js` |

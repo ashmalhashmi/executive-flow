@@ -38,8 +38,8 @@ Detail: [docs/CLOUD_SYNC.md](./docs/CLOUD_SYNC.md)
 | Step | Who | Action | Click |
 |------|-----|--------|-------|
 | 1 | You | See the day | **Dashboard** (overview) or **My Calendar** |
-| 2 | You | Capture loose thoughts | **Capture** → type → add |
-| 3 | You | Turn thoughts into work | Move items into **Task Log** / **My Calendar** / **Dak** as needed |
+| 2 | You | Save important info | **Important Notes** → title (optional) + note → **Save note** |
+| 3 | You | Keep records tidy | Edit / Archive / Delete from the saved list |
 
 ---
 
@@ -202,7 +202,7 @@ Empty overwrite is blocked: a blank device will not wipe cloud; Pulse restores f
 | Box / file labels | File Labels |
 | Official dispatch log | Dak Issuance Log |
 | To-dos | Task Log |
-| Quick notes | Capture |
+| Important info / notes | Important Notes |
 | People | Contact Database |
 | Login / Save / Load | Sync & Backup |
 

@@ -7,7 +7,7 @@ import {
   Package,
   FileText,
   CheckSquare,
-  Sparkles,
+  StickyNote,
   BookUser,
   CloudUpload,
   PenLine,
@@ -78,9 +78,9 @@ export const NAV_ITEMS = [
   },
   {
     id: 'capture',
-    label: 'Capture',
-    description: 'Brain dump · inbox',
-    icon: Sparkles,
+    label: 'Important Notes',
+    description: 'Zaroori baatein · save · edit · delete',
+    icon: StickyNote,
   },
   {
     id: 'contacts',

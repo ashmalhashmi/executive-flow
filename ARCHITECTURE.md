@@ -6,7 +6,7 @@
 
 ## What this product is
 
-Premium executive assistant for office ops: meetings, souvenirs, money, orders, dak, tasks, capture inbox, contacts, and laptop↔mobile cloud sync.
+Premium executive assistant for office ops: meetings, souvenirs, money, orders, dak, tasks, important notes, contacts, and laptop↔mobile cloud sync.
 
 **Stack:** React 19 + Vite 6 · Tailwind 4 · localStorage + Supabase · Vercel API · Capacitor (mobile)
 
@@ -24,7 +24,7 @@ Premium executive assistant for office ops: meetings, souvenirs, money, orders, 
 | **Orders** | `orders` | Vendor orders · Receiving Note PDF/Word/Email (+ AI statement, signature image) | `pages/OrderLog.jsx`, `utils/orderNumber.js`, `utils/orderWhatsApp.js`, `utils/orderHistoryPdf.js`, `utils/orderReceivingNotePdf.js`, `utils/orderReceivingNoteDoc.js`, `utils/orderReceivingNoteAi.js`, `utils/orderReceivingNoteEmail.js`, `api/receiving-note-statement.js`, `api/receiving-note-email.js` |
 | **Dak** | `dak` | Dispatch / issuance log · register scan → cloud photo URL + AI fields (verify before save) | `pages/DakIssuanceLog.jsx`, `components/dak/DakScanCapture.jsx`, `utils/dakEntries.js`, `utils/dakAiExtract.js`, `utils/dakIssuancePdf.js`, `utils/dakWhatsApp.js`, `api/extract-dak.js`, `api/_lib/dakScanStorage.js` |
 | **Tasks** | `tasks` | Task list + done | `pages/TaskLog.jsx`, `utils/taskEntries.js`, `utils/taskLogPdf.js` |
-| **Capture** | `capture` | Brain-dump inbox | `pages/CaptureInbox.jsx`, `utils/captureEntries.js` |
+| **Capture** | `capture` | **Important Notes** — save / edit / delete / archive personal records | `pages/CaptureInbox.jsx`, `utils/captureEntries.js` |
 | **Contacts** | `contacts` | External visitor DB · PAFDA Agriculture/Food/Drug (+ Govt, Lab, Trade, Other) · AI card extract · Apply AI on each saved card → closest PAFDA pillar | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `utils/contactCategories.js`, `utils/contactAiCategorize.js`, `api/extract-contact.js` (`/api/categorize-contact` rewrite), `api/_lib/contactCategorizeRoute.js` |
 | **Sync** | `sync` | Auth, Pulse cloud, Sheets mirror backup | `pages/SyncBackup.jsx`, `context/CloudSyncContext.jsx`, `context/GoogleSheetsSyncContext.jsx`, `utils/cloudSync*.js`, `utils/googleSheetsSync.js`, `api/sheets-sync.js`, `api/_lib/sheetsMirror.js`, `docs/CLOUD_SYNC.md` |
 | **Dashboard** | `dashboard` | Overview only — composes other domains | `pages/DashboardOverview.jsx`, `components/dashboard/` |
