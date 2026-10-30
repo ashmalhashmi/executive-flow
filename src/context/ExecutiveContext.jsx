@@ -553,6 +553,46 @@ export function ExecutiveProvider({ children }) {
     );
   }, []);
 
+  /** Souvenir Log row edit — single entry ya presentation batch */
+  const updateSouvenirLogEntry = useCallback(
+    (rowId, { meetingTitle, date, detail }) => {
+      const text = String(detail ?? '').trim();
+      if (!rowId || !text) return null;
+      const title = String(meetingTitle ?? '').trim() || 'Walk-in / Quick log';
+      const nextDate = date || undefined;
+      let updated = null;
+      setSouvenirs((prev) => {
+        const isBatch = prev.some((s) => s.presentationBatchId === rowId);
+        if (isBatch) {
+          return prev.map((s) => {
+            if (s.presentationBatchId !== rowId) return s;
+            const next = {
+              ...s,
+              meetingTitle: title,
+              dateDistributed: nextDate,
+              rawPresentationText: text,
+            };
+            updated = next;
+            return next;
+          });
+        }
+        return prev.map((s) => {
+          if (s.id !== rowId) return s;
+          const next = {
+            ...s,
+            meetingTitle: title,
+            dateDistributed: nextDate,
+            detail: text,
+          };
+          updated = next;
+          return next;
+        });
+      });
+      return updated;
+    },
+    [],
+  );
+
   const addOrder = useCallback(({ item, quantity, vendor, placedDate }) => {
     let created;
     setOrders((prev) => {
@@ -1490,6 +1530,7 @@ export function ExecutiveProvider({ children }) {
       addSouvenir,
       addSouvenirLogEntry,
       addSouvenirsFromPresentation,
+      updateSouvenirLogEntry,
       removeSouvenirLogEntry,
       monthlySouvenirSummary,
     }),
@@ -1498,6 +1539,7 @@ export function ExecutiveProvider({ children }) {
       addSouvenir,
       addSouvenirLogEntry,
       addSouvenirsFromPresentation,
+      updateSouvenirLogEntry,
       removeSouvenirLogEntry,
       monthlySouvenirSummary,
     ],

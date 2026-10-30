@@ -7,10 +7,16 @@ import QuickSouvenirLogForm from '../components/souvenirs/QuickSouvenirLogForm';
 import { normalizeSouvenirLogEntries } from '../utils/souvenirLog';
 
 export default function SouvenirLog() {
-  const { souvenirs, removeSouvenirLogEntry, addSouvenirLogEntry } = useSouvenirsExecutive();
+  const {
+    souvenirs,
+    removeSouvenirLogEntry,
+    addSouvenirLogEntry,
+    updateSouvenirLogEntry,
+  } = useSouvenirsExecutive();
   const rows = normalizeSouvenirLogEntries(souvenirs);
   const hasRecords = rows.length > 0;
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
 
   const handleQuickSave = ({ meetingTitle, date, detail }) =>
     addSouvenirLogEntry({
@@ -19,6 +25,14 @@ export default function SouvenirLog() {
       detail,
       source: 'quick-log',
     });
+
+  const handleUpdate = (id, { meetingTitle, date, detail }) =>
+    updateSouvenirLogEntry(id, { meetingTitle, date, detail });
+
+  const handleDelete = (id) => {
+    if (editingEntry?.id === id) setEditingEntry(null);
+    removeSouvenirLogEntry(id);
+  };
 
   const handleDownloadPdf = async () => {
     if (!hasRecords) return;
@@ -33,7 +47,12 @@ export default function SouvenirLog() {
 
   return (
     <div className="space-y-6">
-      <QuickSouvenirLogForm onSave={handleQuickSave} />
+      <QuickSouvenirLogForm
+        onSave={handleQuickSave}
+        onUpdate={handleUpdate}
+        editingEntry={editingEntry}
+        onCancelEdit={() => setEditingEntry(null)}
+      />
 
       <GlassCard className="p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -60,7 +79,9 @@ export default function SouvenirLog() {
       {hasRecords ? (
         <SouvenirLogTable
           souvenirs={souvenirs}
-          onDeleteEntry={removeSouvenirLogEntry}
+          onDeleteEntry={handleDelete}
+          onEditEntry={setEditingEntry}
+          editingId={editingEntry?.id || ''}
         />
       ) : (
         <GlassCard className="flex flex-col items-center justify-center px-6 py-12 text-center">
