@@ -175,7 +175,7 @@ export default function PettyCashRecord() {
   const handleInvoiceScan = async (file, mode = 'replace') => {
     if (!file) return;
     setScanBusy(true);
-    setMessage('');
+    showMessage('');
     try {
       const { fields, invoicePhotoUrl: url, storageWarning } = await extractPettyInvoiceWithAi({
         imageFile: file,
@@ -201,13 +201,21 @@ export default function PettyCashRecord() {
         items: satisfactoryItemsFromPurchase({ items: mergedItems }),
       }));
 
-      const pageCountHint =
-        mode === 'append'
-          ? `Page add ho gayi — ab ${mergedItems.filter((r) => String(r.description || '').trim()).length} items. Zarurat ho to phir Scan next page.`
-          : 'Invoice scan complete — lambi bill ho to Scan next page dabayein; warna verify karke Save case.';
-      setMessage(storageWarning || pageCountHint);
+      const filledCount = mergedItems.filter((r) => String(r.description || '').trim()).length;
+      if (!filledCount) {
+        showMessage(
+          storageWarning || 'Scan hua lekin koi line item nahi mili — clear JPG photo dubara try karein',
+          'error',
+        );
+      } else {
+        const pageCountHint =
+          mode === 'append'
+            ? `Page add ho gayi — ab ${filledCount} items. Zarurat ho to phir Scan next page.`
+            : 'Invoice scan complete — lambi bill ho to Scan next page dabayein; warna verify karke Save case.';
+        showMessage(storageWarning || pageCountHint, storageWarning ? 'error' : 'info');
+      }
     } catch (err) {
-      setMessage(err.message || 'Scan fail');
+      showMessage(err.message || 'Scan fail', 'error');
     } finally {
       setScanBusy(false);
       invoiceScanModeRef.current = 'replace';

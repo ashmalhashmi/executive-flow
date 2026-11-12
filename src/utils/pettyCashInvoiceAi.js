@@ -18,11 +18,17 @@ async function prepareImagePayload(imageFile) {
     const compressed = await compressDataUrlToJpeg(dataUrl, 1200, 0.82);
     uploadDataUrl = compressed.dataUrl;
   } catch {
-    /* use original */
+    const mime = String(imageFile?.type || '').toLowerCase();
+    if (mime && !/^image\/(jpeg|jpg|png|webp)$/.test(mime)) {
+      throw new Error('Yeh photo format read nahi hua — JPG ya PNG save karke dubara import karein');
+    }
   }
 
   const match = uploadDataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) throw new Error('Invoice format theek nahi — JPG try karein');
+  if (!/^image\/(jpeg|jpg|png|webp)$/.test(match[1])) {
+    throw new Error('Yeh photo format read nahi hua — JPG ya PNG save karke dubara import karein');
+  }
   if (match[2].length > MAX_UPLOAD_BASE64_CHARS) {
     throw new Error('Photo bahut bari hai — dubara scan karein');
   }
