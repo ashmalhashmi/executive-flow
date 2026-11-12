@@ -1,11 +1,15 @@
 import { Sparkles, X } from 'lucide-react';
 import { NAV_ITEMS } from '../../constants/navigation';
 import { prefetchTab } from '../../utils/tabImports';
+import { useCloudSyncContext } from '../../context/CloudSyncContext';
 
 /**
  * Sticky glassmorphism sidebar — desktop always visible, mobile as slide-over drawer.
  */
 export default function Sidebar({ activeTab, onTabChange, isOpen, onClose }) {
+  const cloud = useCloudSyncContext();
+  const navItems = NAV_ITEMS.filter((item) => !item.adminOnly || cloud?.user);
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -55,7 +59,7 @@ export default function Sidebar({ activeTab, onTabChange, isOpen, onClose }) {
             Workspace
           </p>
           <ul className="space-y-1">
-            {NAV_ITEMS.map(({ id, label, description, icon: Icon }) => {
+            {navItems.map(({ id, label, description, icon: Icon }) => {
               const isActive = activeTab === id;
               return (
                 <li key={id}>

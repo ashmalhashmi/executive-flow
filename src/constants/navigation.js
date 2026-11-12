@@ -12,6 +12,7 @@ import {
   CloudUpload,
   PenLine,
   Tag,
+  Receipt,
 } from 'lucide-react';
 
 /** Sidebar navigation tabs — id maps to active view in App */
@@ -93,5 +94,12 @@ export const NAV_ITEMS = [
     label: 'Sync & Backup',
     description: 'Laptop ↔ mobile · cloud',
     icon: CloudUpload,
+  },
+  {
+    id: 'aiUsage',
+    label: 'AI Usage & Spend',
+    description: 'Admin ledger · OpenAI receipts',
+    icon: Receipt,
+    adminOnly: true,
   },
 ];

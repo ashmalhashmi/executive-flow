@@ -14,6 +14,7 @@ export const TAB_IMPORTS = {
   capture: () => import('../pages/CaptureInbox'),
   contacts: () => import('../pages/ContactDatabase'),
   sync: () => import('../pages/SyncBackup'),
+  aiUsage: () => import('../pages/AiUsageSpend'),
 };
 
 export function prefetchTab(tabId) {

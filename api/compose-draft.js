@@ -12,6 +12,7 @@ import {
   buildMuhasabaUserPrompt,
   parseMuhasabaEvaluationJson,
 } from './_lib/muhasabaEvaluate.js';
+import { handleAiUsage, isAiUsageRequest } from './_lib/aiUsageRoute.js';
 
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite';
 
@@ -62,6 +63,8 @@ async function callGemini({ apiKey, systemAndUser, imageBase64, imageMimeType, t
 }
 
 export default async function handler(req, res) {
+  if (isAiUsageRequest(req)) return handleAiUsage(req, res);
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

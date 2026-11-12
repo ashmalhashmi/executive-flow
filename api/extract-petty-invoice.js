@@ -5,6 +5,7 @@ import {
   extractGeminiText,
 } from './_lib/pettyInvoiceExtract.js';
 import { uploadPettyInvoicePhoto } from './_lib/pettyInvoiceStorage.js';
+import { parseOpenAIUsage, recordAiUsage } from './_lib/aiUsage.js';
 
 const DEFAULT_OPENAI_MODEL = 'gpt-4.1-mini';
 const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
@@ -63,7 +64,7 @@ async function callOpenAI({ apiKey, imageBase64, imageMimeType, textHint }) {
   if (!fields) {
     throw new Error('AI response valid JSON nahi thi — dubara scan karein');
   }
-  return { fields, model };
+  return { fields, model, usage: parseOpenAIUsage(data) };
 }
 
 async function callGemini({ apiKey, imageBase64, imageMimeType, textHint }) {
@@ -166,6 +167,15 @@ export default async function handler(req, res) {
         textHint: String(textHint || '').trim(),
       });
 
+    if (openAiKey) {
+      void recordAiUsage({
+        feature: 'petty_cash_invoice',
+        model: extracted.model,
+        status: 'success',
+        usage: extracted.usage,
+      });
+    }
+
     return res.status(200).json({
       ok: true,
       via: 'ai',
@@ -175,6 +185,14 @@ export default async function handler(req, res) {
       ...(storageWarning ? { storageWarning } : {}),
     });
   } catch (err) {
+    if (openAiKey) {
+      void recordAiUsage({
+        feature: 'petty_cash_invoice',
+        model: getOpenAIModel(),
+        status: 'failed',
+        errorKind: 'http',
+      });
+    }
     return res.status(500).json({ error: err.message || 'Extraction failed' });
   }
 }
