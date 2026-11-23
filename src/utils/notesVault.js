@@ -1,5 +1,3 @@
-import { kvGet, kvSet } from './browserKv';
-
 /** Client-side vault for Important Notes. The passphrase never leaves this device. */
 
 const STORAGE_KEY = 'executive_flow_notes_vault';
@@ -52,7 +50,7 @@ export function normalizeNoteVaultBlob(raw) {
 
 export function loadNotesVaultMeta() {
   try {
-    const raw = kvGet(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return normalizeNotesVaultMeta(JSON.parse(raw));
   } catch {
@@ -63,7 +61,11 @@ export function loadNotesVaultMeta() {
 export function saveNotesVaultMeta(meta) {
   const next = normalizeNotesVaultMeta(meta);
   if (!next) return null;
-  kvSet(STORAGE_KEY, JSON.stringify(next));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    /* quota or private mode */
+  }
   return next;
 }
 
