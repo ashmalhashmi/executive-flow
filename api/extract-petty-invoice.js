@@ -1,3 +1,4 @@
+import { handleExtractMeeting } from './_lib/meetingExtractRoute.js';
 import {
   PETTY_INVOICE_SYSTEM_PROMPT,
   buildPettyInvoiceUserPrompt,
@@ -120,7 +121,25 @@ async function callGemini({ apiKey, imageBase64, imageMimeType, textHint }) {
   return { fields, model };
 }
 
+function requestBody(req) {
+  if (typeof req.body === 'string') {
+    try {
+      return req.body ? JSON.parse(req.body) : {};
+    } catch {
+      return {};
+    }
+  }
+  return req.body && typeof req.body === 'object' ? req.body : {};
+}
+
 export default async function handler(req, res) {
+  const body = requestBody(req);
+  const path = String(req.url || req.headers?.['x-invoke-path'] || '');
+  if (body.purpose === 'meeting' || path.includes('extract-meeting')) {
+    req.body = body;
+    return handleExtractMeeting(req, res);
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

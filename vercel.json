@@ -13,6 +13,7 @@
     }
   ],
   "rewrites": [
+    { "source": "/api/extract-meeting", "destination": "/api/extract-petty-invoice" },
     { "source": "/api/ai-usage", "destination": "/api/compose-draft" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/restore", "destination": "/restore.html" },
@@ -20,10 +21,6 @@
   ],
   "functions": {
     "api/extract-dak.js": {
-      "maxDuration": 60,
-      "memory": 1024
-    },
-    "api/extract-meeting.js": {
       "maxDuration": 60,
       "memory": 1024
     },

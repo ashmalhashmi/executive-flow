@@ -2,16 +2,16 @@ import {
   MEETING_EXTRACT_SYSTEM_PROMPT,
   buildMeetingExtractUserPrompt,
   parseMeetingExtractJson,
-} from './_lib/meetingExtract.js';
-import { uploadMeetingInvite } from './_lib/meetingInviteStorage.js';
-import { guardPost } from './_lib/httpGuard.js';
-import { assertImagePayload } from './_lib/imageGuard.js';
+} from './meetingExtract.js';
+import { uploadMeetingInvite } from './meetingInviteStorage.js';
+import { guardPost } from './httpGuard.js';
+import { assertImagePayload } from './imageGuard.js';
 import {
   requestOpenAI,
   hasOpenAIKey,
   objectSchema,
   stringField as str,
-} from './_lib/openai.js';
+} from './openai.js';
 
 const schema = objectSchema({
   title: str,
@@ -40,7 +40,8 @@ async function generate({ brief, todayISO, imageBase64, imageMimeType, userId })
   return fields;
 }
 
-export default async function handler(req, res) {
+/** Served from extract-petty-invoice so production stays within 12 serverless functions. */
+export async function handleExtractMeeting(req, res) {
   const gate = await guardPost(req, res, { maxBytes: 6_000_000, bucket: 'extract-meeting' });
   if (!gate) return;
 

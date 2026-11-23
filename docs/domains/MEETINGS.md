@@ -9,7 +9,7 @@ Calendar appointments, reminders, morning meeting board email/PDF.
 | UI | `src/pages/ExecutiveCalendar.jsx`, `src/components/calendar/`, dashboard meeting widgets |
 | State | `MeetingsContext` via `useMeetingsExecutive` |
 | Logic | `src/utils/calendar.js`, `dates.js`, `reminders.js`, `morningBoardSettings.js`, `meetingBoardPdf.js`, `monthlyMeetingLogPdf.js`, `googleCalendar.js`, `outlookCalendar.js`, `meetingAiExtract.js`, `diaryImport.js` |
-| API | `api/morning-meeting-board.js`, `api/extract-meeting.js`, `api/_lib/meetingExtract.js`, `api/_lib/meetingInviteStorage.js`, `api/_lib/meetingBoardPdf.js`, `sendMeetingBoardEmail.js`, `loadMorningBoardJobs.js`, `karachiDate.js` |
+| API | `api/morning-meeting-board.js`, `api/_lib/meetingExtractRoute.js` (route `/api/extract-meeting` rewrites to `api/extract-petty-invoice.js`), `api/_lib/meetingExtract.js`, `api/_lib/meetingInviteStorage.js`, `api/_lib/meetingBoardPdf.js`, `sendMeetingBoardEmail.js`, `loadMorningBoardJobs.js`, `karachiDate.js` |
 
 ## Storage
 

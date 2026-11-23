@@ -15,7 +15,7 @@ Before coding, identify the **domain** and touch only that pile. Full map: `ARCH
 | Domain | Prefer |
 |--------|--------|
 | Shell / nav | `App.jsx`, `components/layout/`, `constants/navigation.js`, `utils/tabImports.js` |
-| Meetings | `pages/ExecutiveCalendar.jsx`, `components/calendar/`, `utils/calendar.js`, `utils/meetingAiExtract.js`, `utils/reminders.js`, `utils/morningBoardSettings.js`, `api/morning-meeting-board.js`, `api/extract-meeting.js` |
+| Meetings | `pages/ExecutiveCalendar.jsx`, `components/calendar/`, `utils/calendar.js`, `utils/meetingAiExtract.js`, `utils/reminders.js`, `utils/morningBoardSettings.js`, `api/morning-meeting-board.js`, `api/_lib/meetingExtractRoute.js` |
 | Souvenirs | `pages/SouvenirLog.jsx`, `utils/souvenirLog*.js`, `components/souvenirs/` |
 | Expenditure | `pages/ExpenditureLog.jsx`, `utils/expenditure*.js`, `api/categorize-expenditure.js`, `api/weekly-expenditure-summary.js` |
 | Orders | `pages/OrderLog.jsx`, `utils/order*.js` |

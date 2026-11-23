@@ -55,7 +55,7 @@ async function postExtract(body) {
     res = await fetch('/api/extract-meeting', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ ...body, todayISO: getTodayISO() }),
+      body: JSON.stringify({ ...body, todayISO: getTodayISO(), purpose: 'meeting' }),
     });
     rawText = await res.text();
   } catch {
