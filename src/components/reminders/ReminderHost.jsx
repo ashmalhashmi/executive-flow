@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import { ReminderContext } from '../../context/ReminderContext';
 import { useMeetingReminders } from '../../hooks/useMeetingReminders';
+import { useTaskReminders } from '../../hooks/useTaskReminders';
+import TaskReminderAlert from '../tasks/TaskReminderAlert';
 import { playAlarmSound, unlockAudio } from '../../utils/alarmSound';
 import { clearReminderFired } from '../../utils/reminders';
 import { formatDisplayTime } from '../../utils/dates';
@@ -27,6 +29,7 @@ function showBrowserNotification(meeting) {
 /** App-wide 1hr calendar reminders — mount inside ExecutiveProvider */
 export default function ReminderHost({ children }) {
   const { activeReminder, dismissReminder, retriggerReminder } = useMeetingReminders();
+  const taskReminder = useTaskReminders();
   const [testMeeting, setTestMeeting] = useState(null);
 
   const dismissAll = useCallback(() => {
@@ -60,6 +63,9 @@ export default function ReminderHost({ children }) {
       {showing && (
         <ReminderAlert meeting={activeReminder || testMeeting} onDismiss={dismissAll} />
       )}
+      {taskReminder.active ? (
+        <TaskReminderAlert task={taskReminder.active} onDismiss={taskReminder.dismiss} />
+      ) : null}
     </ReminderContext.Provider>
   );
 }

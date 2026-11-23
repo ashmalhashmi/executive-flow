@@ -74,7 +74,7 @@ export const NAV_ITEMS = [
   {
     id: 'tasks',
     label: 'Task Log',
-    description: 'Tasks · date & time · done',
+    description: 'Pending · overdue · done',
     icon: CheckSquare,
   },
   {

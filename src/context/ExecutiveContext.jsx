@@ -32,6 +32,7 @@ import {
   saveDakClearedAt,
 } from '../utils/dakEntries';
 import { normalizeTaskList } from '../utils/taskEntries';
+import { clearTaskReminderFired } from '../utils/taskReminders';
 import { normalizeCaptureList } from '../utils/captureEntries';
 import { loadNotesVaultMeta, normalizeNotesVaultMeta, saveNotesVaultMeta } from '../utils/notesVault';
 import {
@@ -746,16 +747,20 @@ export function ExecutiveProvider({ children }) {
 
   const addTaskEntry = useCallback((payload) => {
     let created;
+    const now = new Date().toISOString();
     const entry = {
-      id: `task-${Date.now()}`,
-      title: payload.title.trim(),
+      id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      title: String(payload.title || '').trim(),
       date: payload.date,
       time: payload.time,
       status: 'active',
+      remind: Boolean(payload.remind),
       completedAt: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      trashedAt: null,
+      createdAt: now,
+      updatedAt: now,
     };
+    if (!entry.title || !entry.date || !entry.time) return null;
     setTaskEntries((prev) => {
       created = entry;
       return [entry, ...prev];
@@ -764,16 +769,19 @@ export function ExecutiveProvider({ children }) {
   }, []);
 
   const updateTaskEntry = useCallback((taskId, payload) => {
+    const now = new Date().toISOString();
+    clearTaskReminderFired(taskId);
     setTaskEntries((prev) =>
       prev.map((t) =>
         t.id !== taskId
           ? t
           : {
               ...t,
-              title: payload.title.trim(),
-              date: payload.date,
-              time: payload.time,
-              updatedAt: new Date().toISOString(),
+              title: String(payload.title || '').trim() || t.title,
+              date: payload.date || t.date,
+              time: payload.time || t.time,
+              remind: payload.remind == null ? Boolean(t.remind) : Boolean(payload.remind),
+              updatedAt: now,
             },
       ),
     );
@@ -781,24 +789,60 @@ export function ExecutiveProvider({ children }) {
 
   const completeTaskEntry = useCallback((taskId) => {
     const now = new Date().toISOString();
+    clearTaskReminderFired(taskId);
     setTaskEntries((prev) =>
       prev.map((t) =>
         t.id === taskId
-          ? { ...t, status: 'done', completedAt: now, updatedAt: now }
+          ? { ...t, status: 'done', completedAt: now, trashedAt: null, updatedAt: now }
           : t,
       ),
     );
   }, []);
 
-  const cancelTaskEntry = useCallback((taskId) => {
+  const reopenTaskEntry = useCallback((taskId) => {
+    const now = new Date().toISOString();
+    clearTaskReminderFired(taskId);
     setTaskEntries((prev) =>
       prev.map((t) =>
         t.id === taskId
-          ? { ...t, status: 'cancelled', updatedAt: new Date().toISOString() }
+          ? { ...t, status: 'active', completedAt: null, trashedAt: null, updatedAt: now }
           : t,
       ),
     );
   }, []);
+
+  const trashTaskEntry = useCallback((taskId) => {
+    const now = new Date().toISOString();
+    clearTaskReminderFired(taskId);
+    setTaskEntries((prev) =>
+      prev.map((t) =>
+        t.id === taskId ? { ...t, status: 'trash', trashedAt: now, updatedAt: now } : t,
+      ),
+    );
+  }, []);
+
+  const restoreTaskEntry = useCallback((taskId) => {
+    const now = new Date().toISOString();
+    setTaskEntries((prev) =>
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
+        const done = Boolean(t.completedAt);
+        return {
+          ...t,
+          status: done ? 'done' : 'active',
+          trashedAt: null,
+          updatedAt: now,
+        };
+      }),
+    );
+  }, []);
+
+  const removeTaskEntry = useCallback((taskId) => {
+    clearTaskReminderFired(taskId);
+    setTaskEntries((prev) => prev.filter((t) => t.id !== taskId));
+  }, []);
+
+  const cancelTaskEntry = trashTaskEntry;
 
   const addCaptureEntry = useCallback((payload) => {
     let created;
@@ -1522,9 +1566,23 @@ export function ExecutiveProvider({ children }) {
       addTaskEntry,
       updateTaskEntry,
       completeTaskEntry,
+      reopenTaskEntry,
+      trashTaskEntry,
+      restoreTaskEntry,
+      removeTaskEntry,
       cancelTaskEntry,
     }),
-    [taskEntries, addTaskEntry, updateTaskEntry, completeTaskEntry, cancelTaskEntry],
+    [
+      taskEntries,
+      addTaskEntry,
+      updateTaskEntry,
+      completeTaskEntry,
+      reopenTaskEntry,
+      trashTaskEntry,
+      restoreTaskEntry,
+      removeTaskEntry,
+      cancelTaskEntry,
+    ],
   );
 
   const captureValue = useMemo(

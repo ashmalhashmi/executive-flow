@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDisplayDate, formatDisplayTime } from './dates';
-import { taskStatusLabel } from './taskEntries';
+import { sortTaskEntries, taskDisplayStatus, taskStatus } from './taskEntries';
 
 const PAGE = {
   width: 210,
@@ -10,14 +10,7 @@ const PAGE = {
 };
 
 function sortTasks(entries) {
-  return [...(entries || [])]
-    .filter((t) => t.status !== 'cancelled')
-    .sort((a, b) => {
-      const statusOrder = (s) => (s === 'active' ? 0 : 1);
-      const byStatus = statusOrder(a.status) - statusOrder(b.status);
-      if (byStatus !== 0) return byStatus;
-      return `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`);
-    });
+  return sortTaskEntries(entries).filter((t) => taskStatus(t.status) !== 'trash');
 }
 
 export function downloadTaskLogPdf(taskEntries) {
@@ -47,7 +40,7 @@ export function downloadTaskLogPdf(taskEntries) {
       t.title || '—',
       t.date ? formatDisplayDate(t.date) : '—',
       t.time ? formatDisplayTime(t.time) : '—',
-      taskStatusLabel(t.status),
+      taskDisplayStatus(t),
     ]),
     theme: 'grid',
     styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5, overflow: 'linebreak' },
@@ -81,7 +74,7 @@ export function downloadSingleTaskPdf(entry) {
     ['Task', entry.title || '—'],
     ['Date', entry.date ? formatDisplayDate(entry.date) : '—'],
     ['Time', entry.time ? formatDisplayTime(entry.time) : '—'],
-    ['Status', taskStatusLabel(entry.status)],
+    ['Status', taskDisplayStatus(entry)],
   ];
 
   doc.setFontSize(11);

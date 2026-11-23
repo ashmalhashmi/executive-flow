@@ -1,58 +1,136 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  CheckSquare,
-  Plus,
-  Pencil,
-  XCircle,
-  Save,
-  FileDown,
+  Bell,
   CheckCircle2,
+  CheckSquare,
+  FileDown,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Save,
+  Search,
+  Trash2,
 } from 'lucide-react';
 import { useTasksExecutive } from '../context/ExecutiveContext';
+import { useCloudSyncContext } from '../context/CloudSyncContext';
 import GlassCard from '../components/ui/GlassCard';
 import FormField, { TextInput } from '../components/ui/FormField';
 import ListPager from '../components/ui/ListPager';
 import { usePagedList } from '../hooks/usePagedList';
 import { formatDisplayDate, formatDisplayTime, getTodayISO } from '../utils/dates';
-import { taskStatusLabel } from '../utils/taskEntries';
+import {
+  isTaskOverdue,
+  isTaskToday,
+  sortTaskEntries,
+  taskDisplayStatus,
+  taskMatchesQuery,
+  taskStatus,
+} from '../utils/taskEntries';
 
 const emptyForm = () => ({
   title: '',
   date: getTodayISO(),
   time: '09:00',
+  remind: false,
 });
 
+function formatCompleted(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+const actionClass =
+  'inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium';
+
 export default function TaskLog() {
-  const { taskEntries, addTaskEntry, updateTaskEntry, completeTaskEntry, cancelTaskEntry } =
-    useTasksExecutive();
+  const {
+    taskEntries,
+    addTaskEntry,
+    updateTaskEntry,
+    completeTaskEntry,
+    reopenTaskEntry,
+    trashTaskEntry,
+    restoreTaskEntry,
+    removeTaskEntry,
+  } = useTasksExecutive();
+  const cloud = useCloudSyncContext();
 
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
   const [editingId, setEditingId] = useState('');
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
   const [pdfBusy, setPdfBusy] = useState(false);
   const [rowPdfId, setRowPdfId] = useState('');
+  const [now, setNow] = useState(() => new Date());
+  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
 
-  const listEntries = useMemo(
-    () =>
-      [...taskEntries]
-        .filter((t) => t.status !== 'cancelled')
-        .sort((a, b) => {
-          const statusOrder = (s) => (s === 'active' ? 0 : 1);
-          const byStatus = statusOrder(a.status) - statusOrder(b.status);
-          if (byStatus !== 0) return byStatus;
-          return `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`);
-        }),
-    [taskEntries],
-  );
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+
+  const todayISO = getTodayISO();
+
+  const counts = useMemo(() => {
+    let today = 0;
+    let pending = 0;
+    let overdue = 0;
+    let done = 0;
+    let trash = 0;
+    for (const entry of taskEntries) {
+      const status = taskStatus(entry.status);
+      if (status === 'trash') {
+        trash += 1;
+        continue;
+      }
+      if (isTaskToday(entry, todayISO)) today += 1;
+      if (status === 'done') done += 1;
+      else {
+        pending += 1;
+        if (isTaskOverdue(entry, now)) overdue += 1;
+      }
+    }
+    return { today, pending, overdue, done, trash, all: taskEntries.length - trash };
+  }, [taskEntries, todayISO, now]);
+
+  const visible = useMemo(() => {
+    return sortTaskEntries(taskEntries, now).filter((entry) => {
+      const status = taskStatus(entry.status);
+      if (filter === 'trash') return status === 'trash';
+      if (status === 'trash') return false;
+      if (filter === 'pending' && status !== 'active') return false;
+      if (filter === 'done' && status !== 'done') return false;
+      return taskMatchesQuery(entry, query);
+    });
+  }, [taskEntries, now, filter, query]);
 
   const {
-    page: taskPage,
-    setPage: setTaskPage,
-    totalPages: taskTotalPages,
-    pageItems: taskPageItems,
-    total: taskTotal,
-    showingLabel: taskShowingLabel,
-  } = usePagedList(listEntries, { pageSize: 50 });
+    page,
+    setPage,
+    totalPages,
+    pageItems,
+    total,
+    showingLabel,
+  } = usePagedList(visible, { pageSize: 30 });
 
   const resetForm = () => {
     setForm(emptyForm());
@@ -66,47 +144,56 @@ export default function TaskLog() {
       title: entry.title,
       date: entry.date,
       time: entry.time,
+      remind: Boolean(entry.remind),
     });
     setErrors({});
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const validateForm = () => {
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const title = form.title.trim();
     const next = {};
-    if (!form.title.trim()) next.title = 'Task likhein';
+    if (!title) next.title = 'Task likhein';
     if (!form.date) next.date = 'Date select karein';
     if (!form.time) next.time = 'Time select karein';
     if (Object.keys(next).length) {
       setErrors(next);
-      return null;
+      return;
     }
-    setErrors({});
-    return {
-      title: form.title.trim(),
-      date: form.date,
-      time: form.time,
-    };
+    const payload = { title, date: form.date, time: form.time, remind: form.remind };
+    if (editingId) updateTaskEntry(editingId, payload);
+    else addTaskEntry(payload);
+    resetForm();
+    setFilter(filter === 'trash' ? 'pending' : filter);
+    setPage(1);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const payload = validateForm();
-    if (!payload) return;
-
-    if (editingId) {
-      updateTaskEntry(editingId, payload);
-    } else {
-      addTaskEntry(payload);
+  const handleDelete = (entry) => {
+    if (
+      !window.confirm(
+        `"${entry.title}" trash mein move karein?\n\nList se hat jayega. Trash se restore kar sakte hain.`,
+      )
+    ) {
+      return;
     }
-    resetForm();
+    trashTaskEntry(entry.id);
+    if (editingId === entry.id) resetForm();
+  };
+
+  const handlePurge = (entry) => {
+    if (!window.confirm(`"${entry.title}" hamesha delete karein?\n\nYe wapas nahi aayega.`)) return;
+    removeTaskEntry(entry.id);
+    if (editingId === entry.id) resetForm();
   };
 
   const handleDownloadAllPdf = async () => {
-    if (!listEntries.length) return;
+    const rows = sortTaskEntries(taskEntries, now).filter((entry) => taskStatus(entry.status) !== 'trash');
+    if (!rows.length) return;
     setPdfBusy(true);
     try {
       const { downloadTaskLogPdf } = await import('../utils/taskLogPdf');
-      downloadTaskLogPdf(listEntries);
+      downloadTaskLogPdf(rows);
     } finally {
       setPdfBusy(false);
     }
@@ -122,66 +209,62 @@ export default function TaskLog() {
     }
   };
 
-  const handleMarkDone = (entry) => {
-    if (
-      !window.confirm(
-        `"${entry.title}" complete ho gaya?\n\nOK karein to status Done mark ho jayega.`,
-      )
-    ) {
-      return;
-    }
-    completeTaskEntry(entry.id);
-    if (editingId === entry.id) resetForm();
-  };
-
-  const handleCancelEntry = (entry) => {
-    if (
-      !window.confirm(`"${entry.title}" cancel karein? Ye task list se hat jayega.`)
-    ) {
-      return;
-    }
-    cancelTaskEntry(entry.id);
-    if (editingId === entry.id) resetForm();
-  };
+  const syncLine = !online
+    ? 'Offline. Tasks is device par save hain aur connection aate hi account ke sath sync ho jayengi.'
+    : cloud?.user
+      ? 'Is device par save, aur aap ke account ke sath sync hoti hain.'
+      : 'Is device par save. Laptop aur mobile par sync ke liye Sync & Backup se sign in karein.';
 
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        {[
+          { label: "Today's Tasks", value: counts.today, tone: 'text-zinc-100' },
+          { label: 'Pending', value: counts.pending, tone: 'text-amber-200' },
+          { label: 'Overdue', value: counts.overdue, tone: counts.overdue ? 'text-red-300' : 'text-zinc-100' },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 sm:px-4"
+          >
+            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">{item.label}</p>
+            <p className={`mt-1 text-2xl font-semibold ${item.tone}`}>{item.value}</p>
+          </div>
+        ))}
+      </div>
+
       <GlassCard className="border-amber-500/20 bg-amber-500/5 p-5 sm:p-6">
-        <div className="mb-4 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/15">
+        <div className="mb-4 flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/15">
             <CheckSquare className="h-5 w-5 text-amber-300" strokeWidth={1.75} />
           </span>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-amber-400/90">
-              {editingId ? 'Edit Task' : 'New Task'}
+            <h2 className="text-sm font-semibold text-white">{editingId ? 'Edit Task' : 'New Task'}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+              Date aur time ke sath kaam likhein. My Notes se alag — yahan sirf woh kaam jo karna hai.
             </p>
-            <p className="text-sm text-zinc-500">Date aur time ke sath task log karein</p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <FormField label="Task *" id="task-title" error={errors.title}>
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <FormField label="Task Title *" id="task-title" error={errors.title}>
             <TextInput
               id="task-title"
               value={form.title}
               onChange={(e) => {
-                setForm((p) => ({ ...p, title: e.target.value }));
-                setErrors((p) => ({ ...p, title: undefined }));
+                setForm((prev) => ({ ...prev, title: e.target.value }));
+                setErrors((prev) => ({ ...prev, title: undefined }));
               }}
               placeholder="Kya karna hai — short title"
             />
           </FormField>
-
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Date *" id="task-date" error={errors.date}>
               <TextInput
                 id="task-date"
                 type="date"
                 value={form.date}
-                onChange={(e) => {
-                  setForm((p) => ({ ...p, date: e.target.value }));
-                  setErrors((p) => ({ ...p, date: undefined }));
-                }}
+                onChange={(e) => setForm((prev) => ({ ...prev, date: e.target.value }))}
               />
             </FormField>
             <FormField label="Time *" id="task-time" error={errors.time}>
@@ -189,18 +272,28 @@ export default function TaskLog() {
                 id="task-time"
                 type="time"
                 value={form.time}
-                onChange={(e) => {
-                  setForm((p) => ({ ...p, time: e.target.value }));
-                  setErrors((p) => ({ ...p, time: undefined }));
-                }}
+                onChange={(e) => setForm((prev) => ({ ...prev, time: e.target.value }))}
               />
             </FormField>
           </div>
-
+          <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-zinc-300">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-amber-500"
+              checked={form.remind}
+              onChange={(e) => setForm((prev) => ({ ...prev, remind: e.target.checked }))}
+            />
+            <span>
+              <span className="font-medium text-zinc-100">Remind me</span>
+              <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
+                Scheduled time se 15 minutes pehle notification. Optional.
+              </span>
+            </span>
+          </label>
           <div className="flex flex-wrap gap-2">
             <button
               type="submit"
-              className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-amber-500"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-amber-500"
             >
               {editingId ? (
                 <>
@@ -214,141 +307,213 @@ export default function TaskLog() {
                 </>
               )}
             </button>
-            {editingId && (
+            {editingId ? (
               <button
                 type="button"
                 onClick={resetForm}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/15 px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5"
               >
                 Cancel edit
               </button>
-            )}
+            ) : null}
           </div>
         </form>
+        <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">{syncLine}</p>
       </GlassCard>
 
       <GlassCard className="p-5 sm:p-6">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
-              Task Log — All entries
-            </h3>
-            <p className="mt-1 text-xs text-zinc-500">
-              <strong className="text-zinc-300">{listEntries.length}</strong> task
-              {listEntries.length === 1 ? '' : 's'} · pending pehle, phir done · {taskShowingLabel}
-            </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: 'all', label: `All Tasks (${counts.all})` },
+              { id: 'pending', label: `Pending (${counts.pending})` },
+              { id: 'done', label: `Done (${counts.done})` },
+              { id: 'trash', label: `Trash (${counts.trash})` },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setFilter(tab.id);
+                  setPage(1);
+                }}
+                className={`rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                  filter === tab.id
+                    ? 'border-amber-400/50 bg-amber-500/20 text-amber-100'
+                    : 'border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
           <button
             type="button"
-            disabled={!listEntries.length || pdfBusy}
+            disabled={!counts.all || pdfBusy}
             onClick={handleDownloadAllPdf}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2.5 text-sm font-medium text-amber-100 hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-sm font-medium text-amber-100 hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <FileDown className={`h-4 w-4 ${pdfBusy ? 'animate-pulse' : ''}`} />
-            {pdfBusy ? 'PDF…' : 'Download all PDF'}
+            {pdfBusy ? 'PDF…' : 'Download All PDF'}
           </button>
         </div>
 
-        {listEntries.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-zinc-500">
-            Abhi koi task nahi — upar se add karein
+        <div className="relative mt-4">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+          <TextInput
+            id="task-search"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search tasks…"
+            aria-label="Search tasks"
+            className="pl-9"
+          />
+        </div>
+        <p className="mt-3 text-xs text-zinc-500">{showingLabel}</p>
+
+        {total === 0 ? (
+          <p className="mt-6 rounded-xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-zinc-500">
+            {query.trim()
+              ? 'Koi task match nahi hua'
+              : filter === 'done'
+                ? 'Abhi koi done task nahi'
+                : filter === 'trash'
+                  ? 'Trash khali hai'
+                  : 'Abhi koi task nahi — upar se add karein'}
           </p>
         ) : (
           <>
-            <ListPager
-              page={taskPage}
-              totalPages={taskTotalPages}
-              total={taskTotal}
-              showingLabel={taskShowingLabel}
-              onPageChange={setTaskPage}
-              className="mb-3"
-            />
-            <ul className="space-y-3">
-              {taskPageItems.map((entry) => {
-              const isDone = entry.status === 'done';
-              return (
-                <li
-                  key={entry.id}
-                  className={`rounded-xl border p-4 ${
-                    isDone
-                      ? 'border-emerald-500/25 bg-emerald-500/5'
-                      : 'border-white/10 bg-black/25'
-                  }`}
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 flex-1">
+            <ul className="mt-4 space-y-3">
+              {pageItems.map((entry) => {
+                const status = taskStatus(entry.status);
+                const overdue = isTaskOverdue(entry, now);
+                const label = taskDisplayStatus(entry, now);
+                const done = status === 'done';
+                return (
+                  <li
+                    key={entry.id}
+                    className={`rounded-xl border p-4 ${
+                      overdue
+                        ? 'border-red-500/30 bg-red-500/[0.06]'
+                        : done
+                          ? 'border-emerald-500/25 bg-emerald-500/5'
+                          : 'border-white/10 bg-black/25'
+                    }`}
+                  >
+                    <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p
                           className={`text-sm font-semibold ${
-                            isDone ? 'text-emerald-200 line-through decoration-emerald-500/50' : 'text-zinc-100'
+                            done ? 'text-emerald-200 line-through decoration-emerald-500/50' : 'text-zinc-100'
                           }`}
                         >
                           {entry.title}
                         </p>
                         <span
                           className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                            isDone
-                              ? 'bg-emerald-500/20 text-emerald-300'
-                              : 'bg-amber-500/20 text-amber-300'
+                            overdue
+                              ? 'bg-red-500/20 text-red-300'
+                              : done
+                                ? 'bg-emerald-500/20 text-emerald-300'
+                                : 'bg-amber-500/20 text-amber-300'
                           }`}
                         >
-                          {taskStatusLabel(entry.status)}
+                          {label}
                         </span>
+                        {entry.remind && status === 'active' ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                            <Bell className="h-3 w-3" />
+                            Reminder
+                          </span>
+                        ) : null}
                       </div>
                       <p className="mt-1 text-xs text-zinc-500">
                         {formatDisplayDate(entry.date)} · {formatDisplayTime(entry.time)}
+                        {done && entry.completedAt ? ` · Done ${formatCompleted(entry.completedAt)}` : ''}
                       </p>
                     </div>
-                    <div className="flex shrink-0 flex-wrap gap-2">
-                      {!isDone && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {status === 'active' ? (
                         <button
                           type="button"
-                          onClick={() => handleMarkDone(entry)}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-500"
+                          onClick={() => completeTaskEntry(entry.id)}
+                          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-500"
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" />
-                          OK
+                          Mark Done
+                        </button>
+                      ) : null}
+                      {status === 'done' ? (
+                        <button
+                          type="button"
+                          onClick={() => reopenTaskEntry(entry.id)}
+                          className={`${actionClass} border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20`}
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          Reopen
+                        </button>
+                      ) : null}
+                      {status === 'trash' ? (
+                        <button
+                          type="button"
+                          onClick={() => restoreTaskEntry(entry.id)}
+                          className={`${actionClass} border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20`}
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          Restore
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startEdit(entry)}
+                          className={`${actionClass} border-white/15 bg-white/5 text-zinc-200 hover:bg-white/10`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit
                         </button>
                       )}
                       <button
                         type="button"
-                        disabled={rowPdfId === entry.id}
+                        disabled={rowPdfId === entry.id || status === 'trash'}
                         onClick={() => handleDownloadRowPdf(entry)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs text-amber-100 hover:bg-amber-500/20 disabled:opacity-50"
+                        className={`${actionClass} border-amber-500/35 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20 disabled:opacity-40`}
                       >
                         <FileDown className="h-3.5 w-3.5" />
                         PDF
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => startEdit(entry)}
-                        disabled={isDone}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-2 text-xs text-zinc-200 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleCancelEntry(entry)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-2 text-xs text-red-300 hover:bg-red-500/10"
-                      >
-                        <XCircle className="h-3.5 w-3.5" />
-                        Cancel
-                      </button>
+                      {status === 'trash' ? (
+                        <button
+                          type="button"
+                          onClick={() => handlePurge(entry)}
+                          className={`${actionClass} border-red-500/30 text-red-300 hover:bg-red-500/10`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete forever
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(entry)}
+                          className={`${actionClass} border-red-500/30 text-red-300 hover:bg-red-500/10`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete
+                        </button>
+                      )}
                     </div>
-                  </div>
-                </li>
-              );
-            })}
+                  </li>
+                );
+              })}
             </ul>
             <ListPager
-              page={taskPage}
-              totalPages={taskTotalPages}
-              total={taskTotal}
-              showingLabel={taskShowingLabel}
-              onPageChange={setTaskPage}
-              className="mt-3"
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              showingLabel={showingLabel}
+              className="mt-4"
             />
           </>
         )}

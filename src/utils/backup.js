@@ -163,7 +163,7 @@ export function summarizeBackup(data) {
     openingBalance: data.expenditure?.openingBalance ?? 0,
     orders: data.orders?.length ?? 0,
     dak: (data.dak ?? []).filter((d) => d.status !== 'cancelled').length,
-    tasks: (data.tasks ?? []).filter((t) => t.status !== 'cancelled').length,
+    tasks: (data.tasks ?? []).filter((t) => t.status !== 'cancelled' && t.status !== 'trash').length,
     captures: (data.captures ?? []).filter((c) => c.status === 'active').length,
     contacts: (data.contacts ?? []).filter((c) => c.status !== 'archived').length,
     pettyCash:

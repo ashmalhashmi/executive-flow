@@ -6,7 +6,7 @@
 import { formatDisplayDate, formatDisplayTime, getTodayISO, addDaysISO } from './dates';
 import { formatPKR } from './currency';
 import { getContactPhones, getContactEmails, getContactContactNos } from './contactEntries';
-import { taskStatusLabel } from './taskEntries';
+import { taskDisplayStatus, taskStatusLabel } from './taskEntries';
 import { parseMathIntent, tryExpenditureMath } from './askMath';
 import {
   formatNotebooksScanned,
@@ -297,12 +297,13 @@ export function buildAskCorpus({
   }
 
   for (const t of tasks) {
+    if (t.status === 'trash' || t.status === 'cancelled') continue;
     pushHit(hits, {
       id: t.id,
       tab: 'tasks',
       domain: 'Tasks',
       title: t.title,
-      snippet: [formatDisplayDate(t.date), t.time ? formatDisplayTime(t.time) : '', taskStatusLabel(t.status)]
+      snippet: [formatDisplayDate(t.date), t.time ? formatDisplayTime(t.time) : '', taskDisplayStatus(t)]
         .filter(Boolean)
         .join(' · '),
       answerLine: `Task “${t.title}” is ${taskStatusLabel(t.status).toLowerCase()} — ${formatDisplayDate(t.date)} ${

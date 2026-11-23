@@ -117,7 +117,7 @@ Invoice photo uploads to cloud — only URL kept on device.
 |------|-----|------|-------|
 | 1 | You | Open tasks | **Task Log** |
 | 2 | You | Add task + date/time | Form → **Add Task** |
-| 3 | You | Finish | Row → mark **Done** (or edit / cancel) |
+| 3 | You | Finish or tidy | Row → **Mark Done**, **Edit**, **Delete** (Trash), or **Reopen** |
 
 ---
 
