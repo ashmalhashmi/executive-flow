@@ -79,7 +79,7 @@ export const NAV_ITEMS = [
   },
   {
     id: 'capture',
-    label: 'Important Notes',
+    label: 'My Notes',
     description: 'Personal notes · pin · archive · vault',
     icon: StickyNote,
   },

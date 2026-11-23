@@ -1,4 +1,4 @@
-/** Important Notes — personal records, independent of Tasks, Dak, and Contacts. */
+/** My Notes — personal records, independent of Tasks, Dak, and Contacts. */
 
 import { normalizeNoteVaultBlob } from './notesVault';
 

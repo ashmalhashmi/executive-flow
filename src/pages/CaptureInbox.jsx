@@ -431,7 +431,7 @@ export default function CaptureInbox() {
               <StickyNote className="h-5 w-5 text-violet-300" strokeWidth={1.75} />
             </span>
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-white">Important Notes</h2>
+              <h2 className="text-sm font-semibold text-white">My Notes</h2>
               <p className="mt-1 text-xs leading-relaxed text-zinc-500">
                 Meeting points, reminders, references, aur personal notes — Task Log, Dak, aur
                 Contacts se alag.

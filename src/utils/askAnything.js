@@ -446,7 +446,7 @@ export function buildAskCorpus({
       domain: 'Capture',
       title,
       snippet: archived ? 'Archived' : 'Active',
-      answerLine: `Important note: “${String(c.text || c.title || '').slice(0, 120)}”.`,
+      answerLine: `My note: “${String(c.text || c.title || '').slice(0, 120)}”.`,
       searchText: [c.title, c.text].join(' '),
       date: c.createdAt || '',
       status: archived ? 'done' : 'pending',

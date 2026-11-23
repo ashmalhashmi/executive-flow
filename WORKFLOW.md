@@ -38,7 +38,7 @@ Detail: [docs/CLOUD_SYNC.md](./docs/CLOUD_SYNC.md)
 | Step | Who | Action | Click |
 |------|-----|--------|-------|
 | 1 | You | See the day | **Dashboard** (overview) or **My Calendar** |
-| 2 | You | Save important info | **Important Notes** → **New Note** → title (optional) + note → **Save note** |
+| 2 | You | Save important info | **My Notes** → **New Note** → title (optional) + note → **Save note** |
 | 3 | You | Keep records tidy | Edit / Archive / Delete from the saved list |
 
 ---
@@ -214,7 +214,7 @@ First time: run `supabase/migrations/20261105133000_ai_usage_events.sql` in Supa
 | Box / file labels | File Labels |
 | Official dispatch log | Dak Issuance Log |
 | To-dos | Task Log |
-| Important info / notes | Important Notes |
+| Important info / notes | My Notes |
 | People | Contact Database |
 | Login / Save / Load | Sync & Backup |
 | OpenAI receipts / estimated spend | AI Usage & Spend (admin, after login) |

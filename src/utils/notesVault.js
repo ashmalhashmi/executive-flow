@@ -1,4 +1,4 @@
-/** Client-side vault for Important Notes. The passphrase never leaves this device. */
+/** Client-side vault for My Notes. The passphrase never leaves this device. */
 
 const STORAGE_KEY = 'executive_flow_notes_vault';
 const CHECK_TEXT = 'executive-flow-notes-vault-ok';
