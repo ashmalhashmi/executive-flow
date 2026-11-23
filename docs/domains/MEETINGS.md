@@ -19,9 +19,9 @@ Calendar appointments, reminders, morning meeting board email/PDF.
 
 ## Outlook (one-way)
 
-**Works now (no Azure):** save / edit opens Outlook web compose + downloads `.ics`. Each appointment has an **Outlook** button.
+**On save:** the operator is asked whether to schedule on Outlook. **Haan** opens Outlook web compose with the appointment filled in. **Nahi** saves only in My Calendar. Each saved appointment still has an **Outlook** button.
 
-**Silent Graph push (optional):** set `VITE_MSAL_CLIENT_ID` via `scripts/setup-outlook-env.ps1`, redeploy, then **Connect Outlook**. Create / update / delete sync to primary calendar (`Asia/Karachi`, 1 hour).
+**Silent Graph push (optional, not used on save):** set `VITE_MSAL_CLIENT_ID` via `scripts/setup-outlook-env.ps1`, redeploy, then **Connect Outlook**. Cancel of a linked event can still remove it from Outlook (`Asia/Karachi`, 1 hour).
 
 ## Related (not this domain)
 

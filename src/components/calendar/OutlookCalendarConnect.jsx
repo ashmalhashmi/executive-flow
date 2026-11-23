@@ -19,9 +19,7 @@ export default function OutlookCalendarConnect({
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold text-white">Outlook Calendar</h3>
           <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-            Abhi save / edit par Outlook web + .ics file open hoti hai (bina Azure ke).
-            Auto silent push ke liye Connect Outlook — Azure SPA Client ID chahiye (
-            <code className="text-zinc-400">scripts/setup-outlook-env.ps1</code>).
+            Appointment save karte waqt poocha jayega: Outlook par bhi schedule karein? Haan par Outlook ka compose screen khul jata hai.
           </p>
         </div>
       </div>

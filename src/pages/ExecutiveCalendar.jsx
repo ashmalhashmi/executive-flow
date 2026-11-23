@@ -10,7 +10,7 @@ import GlassCard from '../components/ui/GlassCard';
 import { formatDisplayDate, getTodayISO } from '../utils/dates';
 import { parseISO } from '../utils/calendar';
 import { useOutlookCalendar } from '../hooks/useOutlookCalendar';
-import { addMeetingToOutlookWithoutApi } from '../utils/outlookCalendar';
+import { openInOutlookCalendar } from '../utils/outlookCalendar';
 
 export default function ExecutiveCalendar() {
   const {
@@ -18,7 +18,6 @@ export default function ExecutiveCalendar() {
     addMeeting,
     updateMeeting,
     cancelMeeting,
-    setMeetingOutlookEventId,
   } = useMeetingsExecutive();
   const { addSouvenirsFromPresentation } = useSouvenirsExecutive();
   const outlook = useOutlookCalendar();
@@ -131,33 +130,23 @@ export default function ExecutiveCalendar() {
     setEditingMeeting(null);
   };
 
-  const handleSchedule = async (payload) => {
-    const { meetingId, ...data } = payload;
+  const handleSchedule = (payload) => {
+    const { meetingId, scheduleOnOutlook, ...data } = payload;
+    let saved = null;
     if (meetingId) {
       const existing = meetings.find((m) => m.id === meetingId);
       updateMeeting(meetingId, data);
-      const merged = {
+      saved = {
         ...existing,
         ...data,
         id: meetingId,
         outlookEventId: existing?.outlookEventId,
       };
-      if (outlook.connected) {
-        const eventId = await outlook.pushMeeting(merged);
-        if (eventId && eventId !== existing?.outlookEventId) {
-          setMeetingOutlookEventId(meetingId, eventId);
-        }
-      } else {
-        addMeetingToOutlookWithoutApi(merged);
-      }
     } else {
-      const meeting = addMeeting({ ...data, scheduledViaCalendar: true });
-      if (outlook.connected && meeting) {
-        const eventId = await outlook.pushMeeting(meeting);
-        if (eventId) setMeetingOutlookEventId(meeting.id, eventId);
-      } else if (meeting) {
-        addMeetingToOutlookWithoutApi(meeting);
-      }
+      saved = addMeeting({ ...data, scheduledViaCalendar: true });
+    }
+    if (scheduleOnOutlook && saved) {
+      openInOutlookCalendar(saved);
     }
     setSelectedDate(data.date);
     const viewParts = parseISO(data.date);

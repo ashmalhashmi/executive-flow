@@ -42,6 +42,7 @@ export default function ScheduleAppointmentModal({
   const isEdit = Boolean(meeting?.id);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
+  const [ready, setReady] = useState(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -51,11 +52,13 @@ export default function ScheduleAppointmentModal({
       setForm({ ...EMPTY, date: dateISO });
     }
     setErrors({});
+    setReady(null);
   }, [isOpen, dateISO, meeting]);
 
   const update = (field, value) => {
     setForm((p) => ({ ...p, [field]: value }));
     setErrors((p) => ({ ...p, [field]: undefined, time: undefined }));
+    setReady(null);
   };
 
   const handleSubmit = (e) => {
@@ -80,7 +83,7 @@ export default function ScheduleAppointmentModal({
       return;
     }
 
-    onSchedule({
+    setReady({
       meetingId: meeting?.id,
       title: form.title,
       date: meetingDate,
@@ -94,6 +97,11 @@ export default function ScheduleAppointmentModal({
       automateReminders: true,
       scheduledViaCalendar: true,
     });
+  };
+
+  const finish = (scheduleOnOutlook) => {
+    if (!ready) return;
+    onSchedule({ ...ready, scheduleOnOutlook });
     onClose();
   };
 
@@ -225,31 +233,56 @@ export default function ScheduleAppointmentModal({
           />
         </FormField>
 
-        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-zinc-400 hover:bg-white/5"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-400"
-          >
-            {isEdit ? (
-              <>
-                <Save className="h-4 w-4" />
-                Save Changes
-              </>
-            ) : (
-              <>
-                <CalendarPlus className="h-4 w-4" />
-                Calendar par Save
-              </>
-            )}
-          </button>
-        </div>
+        {ready ? (
+          <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-4">
+            <p className="text-sm font-medium text-white">Outlook par bhi schedule kar dein?</p>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+              Haan par Outlook ka compose screen khulega, details ke sath. Nahi par appointment sirf My Calendar mein save hogi.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => finish(true)}
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-zinc-950 hover:bg-sky-400"
+              >
+                Haan, Outlook kholo
+              </button>
+              <button
+                type="button"
+                onClick={() => finish(false)}
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-white/15 px-4 py-2.5 text-sm font-medium text-zinc-200 hover:bg-white/5"
+              >
+                Nahi, sirf yahan
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-zinc-400 hover:bg-white/5"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-400"
+            >
+              {isEdit ? (
+                <>
+                  <Save className="h-4 w-4" />
+                  Save Changes
+                </>
+              ) : (
+                <>
+                  <CalendarPlus className="h-4 w-4" />
+                  Calendar par Save
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </form>
     </Modal>
   );
