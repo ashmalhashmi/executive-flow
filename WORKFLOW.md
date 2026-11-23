@@ -214,7 +214,7 @@ First time: run `supabase/migrations/20261105133000_ai_usage_events.sql` in Supa
 | Official letter from ideas | Compose Desk |
 | Box / file labels | File Labels |
 | Official dispatch log | Dak Issuance Log |
-| Letter / summary snap | Letter Review |
+| Letter / summary snap | Correspondence |
 | To-dos | Task Log |
 | Important info / notes | My Notes |
 | People | Contact Database |

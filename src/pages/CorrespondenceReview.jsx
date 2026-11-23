@@ -207,7 +207,7 @@ export default function CorrespondenceReview() {
     <div className="space-y-6">
       <GlassCard className="p-5 sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-indigo-300">CLEAR-7</p>
-        <h2 className="mt-1 text-xl font-semibold text-white">Letter Review</h2>
+        <h2 className="mt-1 text-xl font-semibold text-white">Correspondence</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
           Correspondence, letter, ya summary ki photo lagayein. Photo save hoti hai, phir AI usay
           CLEAR-7 formula se examine karti hai. Jo letter par nahi likha, woh system nahi ghadta.
@@ -298,7 +298,7 @@ export default function CorrespondenceReview() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!window.confirm('Yeh letter review delete karein?')) return;
+                    if (!window.confirm('Yeh correspondence delete karein?')) return;
                     removeCorrespondenceEntry(selected.id);
                     setSelectedId('');
                   }}

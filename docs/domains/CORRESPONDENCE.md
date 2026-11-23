@@ -1,6 +1,6 @@
 # Domain: Correspondence
 
-Letter Review. The operator snaps a letter, notification, office memorandum, or summary. The photo is saved, then CLEAR-7 examines it.
+Correspondence. The operator snaps a letter, notification, office memorandum, or summary. The photo is saved, then CLEAR-7 examines it.
 
 ## Touch first
 

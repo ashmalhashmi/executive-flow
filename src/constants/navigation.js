@@ -74,8 +74,8 @@ export const NAV_ITEMS = [
   },
   {
     id: 'correspondence',
-    label: 'Letter Review',
-    description: 'Correspondence snap · CLEAR-7',
+    label: 'Correspondence',
+    description: 'Letter snap · CLEAR-7',
     icon: FileSearch,
   },
   {
