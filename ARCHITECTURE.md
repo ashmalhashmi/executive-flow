@@ -24,12 +24,13 @@ Premium executive assistant for office ops: meetings, souvenirs, money, orders, 
 | **Orders** | `orders` | Vendor orders · Receiving Note PDF/Word/Email (+ AI statement, signature image) | `pages/OrderLog.jsx`, `utils/orderNumber.js`, `utils/orderWhatsApp.js`, `utils/orderHistoryPdf.js`, `utils/orderReceivingNotePdf.js`, `utils/orderReceivingNoteDoc.js`, `utils/orderReceivingNoteAi.js`, `utils/orderReceivingNoteEmail.js`, `api/receiving-note-statement.js`, `api/receiving-note-email.js` |
 | **Dak** | `dak` | Dispatch / issuance log · register scan → cloud photo URL + AI fields (verify before save) | `pages/DakIssuanceLog.jsx`, `components/dak/DakScanCapture.jsx`, `utils/dakEntries.js`, `utils/dakAiExtract.js`, `utils/dakIssuancePdf.js`, `utils/dakWhatsApp.js`, `api/extract-dak.js`, `api/_lib/dakScanStorage.js` |
 | **Tasks** | `tasks` | Task list + done | `pages/TaskLog.jsx`, `utils/taskEntries.js`, `utils/taskLogPdf.js` |
-| **Capture** | `capture` | **Important Notes** — save / edit / delete / archive personal records | `pages/CaptureInbox.jsx`, `utils/captureEntries.js` |
+| **Capture** | `capture` | **Important Notes** — personal notes (pin, archive, recoverable trash, client-side encrypted vault). Independent of Tasks, Dak, and Contacts. Syncs with the account snapshot; offline edits stay on the device until the connection returns. | `pages/CaptureInbox.jsx`, `utils/captureEntries.js`, `utils/notesVault.js` |
 | **Contacts** | `contacts` | External visitor DB · PAFDA Agriculture/Food/Drug (+ Govt, Lab, Trade, Other) · AI card extract · Apply AI on each saved card → closest PAFDA pillar | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `utils/contactCategories.js`, `utils/contactAiCategorize.js`, `api/extract-contact.js` (`/api/categorize-contact` rewrite), `api/_lib/contactCategorizeRoute.js` |
 | **Sync** | `sync` | Auth, Pulse cloud, Sheets mirror backup | `pages/SyncBackup.jsx`, `context/CloudSyncContext.jsx`, `context/GoogleSheetsSyncContext.jsx`, `utils/cloudSync*.js`, `utils/googleSheetsSync.js`, `api/sheets-sync.js`, `api/_lib/sheetsMirror.js`, `docs/CLOUD_SYNC.md` |
 | **Dashboard** | `dashboard` | Overview only — composes other domains | `pages/DashboardOverview.jsx`, `components/dashboard/` |
 | **Compose** | `compose` | Intent → blueprint slots (AI/local) → assembler → editor · Copy/PDF/Word/Email | `pages/ComposeDesk.jsx`, `constants/composePurposes.js`, `constants/composeBlueprints.js`, `utils/composeBlueprintAssemble.js`, `utils/composeDraft.js`, `utils/composeAiDraft.js`, `utils/composeLetterPdf.js`, `utils/composeLetterDoc.js`, `utils/composeLetterEmail.js`, `api/compose-draft.js`, `api/compose-letter-email.js` |
 | **Labels** | `labels` | Official PAFDA plate labels · designation → PDF/Word/Email · Pulse cloud | `pages/LabelGenerator.jsx`, `constants/labelTemplates.js`, `utils/fileLabel*.js`, `utils/labelPdf.js`, `api/compose-letter-email.js` (`file_label`), `docs/domains/LABELS.md` |
+| **AI Usage** | `aiUsage` | Admin-only OpenAI receipts · wallet fills · PKT dates · USD + PKR vs reported spend | `pages/AiUsageSpend.jsx`, `utils/aiUsage.js`, `api/_lib/aiUsage.js`, `api/_lib/aiUsageRoute.js`, `api/_lib/usdPkr.js`, `api/_lib/openai.js`, `docs/domains/AI_USAGE.md` |
 
 > **Removed from nav (code retained for sync/backup):** Ask Anything (`ask`), Muhasaba (`muhasaba`).
 
@@ -86,6 +87,7 @@ UI page  →  domain Context hooks  →  utils/*Entries (normalize)  →  localS
 | Compose blueprint assemble | `composeBlueprints.js`, `composeBlueprintAssemble.js` | `compose-draft.js` returns **slots** only |
 | AI categorize spend | `expenditureAiCategorize.js` | `categorize-expenditure.js` |
 | AI muhasaba coach | `muhasabaAi.js` | `compose-draft.js` (`action: muhasaba`) + `_lib/muhasabaEvaluate.js` |
+| AI usage ledger | `aiUsage.js` (no model call) | `compose-draft.js` rewrite `/api/ai-usage` + `_lib/aiUsage*` |
 | AI contact extract | `contactAiExtract.js` | `extract-contact.js` |
 | AI dak register scan | `dakAiExtract.js`, `DakScanCapture.jsx` | `extract-dak.js` + `_lib/dakExtract.js` + private image ref via `_lib/cloudImageStorage.js` |
 | Private photos | `utils/signedImage.js`, `components/ui/PrivateFileLink.jsx` | `image-url.js` (signed URL or short-lived same-origin link) |
@@ -147,6 +149,7 @@ docs/CLOUD_SYNC.md        Sync user/ops story
 | Meetings | [docs/domains/MEETINGS.md](./docs/domains/MEETINGS.md) |
 | Expenditure | [docs/domains/EXPENDITURE.md](./docs/domains/EXPENDITURE.md) |
 | Compose | [docs/domains/COMPOSE.md](./docs/domains/COMPOSE.md) |
+| AI Usage | [docs/domains/AI_USAGE.md](./docs/domains/AI_USAGE.md) |
 | Labels | [docs/domains/LABELS.md](./docs/domains/LABELS.md) |
 | Orders | [docs/domains/ORDERS.md](./docs/domains/ORDERS.md) |
 

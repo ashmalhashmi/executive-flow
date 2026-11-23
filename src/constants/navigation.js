@@ -80,7 +80,7 @@ export const NAV_ITEMS = [
   {
     id: 'capture',
     label: 'Important Notes',
-    description: 'Zaroori baatein · save · edit · delete',
+    description: 'Personal notes · pin · archive · vault',
     icon: StickyNote,
   },
   {

@@ -437,19 +437,19 @@ export function buildAskCorpus({
   }
 
   for (const c of captures) {
-    if (c.status === 'done') {
-      /* still searchable */
-    }
+    if (c.vault || c.status === 'trash') continue;
+    const title = String(c.title || c.text || '').trim().slice(0, 60) || 'Note';
+    const archived = c.status === 'archived' || c.status === 'done';
     pushHit(hits, {
       id: c.id,
       tab: 'capture',
       domain: 'Capture',
-      title: (c.text || '').slice(0, 60) || 'Capture note',
-      snippet: [c.bucket, c.status].filter(Boolean).join(' · '),
-      answerLine: `Capture note: “${(c.text || '').slice(0, 120)}”.`,
-      searchText: [c.text, c.bucket, c.status].join(' '),
-      date: '',
-      status: c.status === 'done' ? 'done' : 'pending',
+      title,
+      snippet: archived ? 'Archived' : 'Active',
+      answerLine: `Important note: “${String(c.text || c.title || '').slice(0, 120)}”.`,
+      searchText: [c.title, c.text].join(' '),
+      date: c.createdAt || '',
+      status: archived ? 'done' : 'pending',
     });
   }
 

@@ -21,11 +21,12 @@ Before coding, identify the **domain** and touch only that pile. Full map: `ARCH
 | Orders | `pages/OrderLog.jsx`, `utils/order*.js` |
 | Dak | `pages/DakIssuanceLog.jsx`, `utils/dak*.js` |
 | Tasks | `pages/TaskLog.jsx`, `utils/task*.js` |
-| Capture (Important Notes) | `pages/CaptureInbox.jsx`, `utils/captureEntries.js` |
+| Capture (Important Notes) | `pages/CaptureInbox.jsx`, `utils/captureEntries.js`, `utils/notesVault.js` |
 | Contacts | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `utils/contactCategories.js`, `api/extract-contact.js` |
 | Sync | `pages/SyncBackup.jsx`, `context/CloudSync*.jsx`, `context/GoogleSheets*`, `utils/cloudSync*.js`, `api/sheets-sync.js`, `docs/CLOUD_SYNC.md` |
 | Compose | `pages/ComposeDesk.jsx`, `constants/composePurposes.js`, `utils/compose*.js`, `api/compose-draft.js` |
 | Labels | `pages/LabelGenerator.jsx`, `utils/fileLabel*.js`, `utils/labelPdf.js`, `utils/pafdaLogoImage.js` |
+| AI Usage | `pages/AiUsageSpend.jsx`, `utils/aiUsage.js`, `api/_lib/aiUsage.js`, `api/_lib/openai.js` |
 | Dashboard | `pages/DashboardOverview.jsx`, `components/dashboard/` — compose other domains; don’t own their data |
 
 Ask Anything / Muhasaba are **removed from nav** (`navigation.js` / `tabImports.js`); do not re-add without product ask.

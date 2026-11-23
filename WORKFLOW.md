@@ -38,7 +38,7 @@ Detail: [docs/CLOUD_SYNC.md](./docs/CLOUD_SYNC.md)
 | Step | Who | Action | Click |
 |------|-----|--------|-------|
 | 1 | You | See the day | **Dashboard** (overview) or **My Calendar** |
-| 2 | You | Save important info | **Important Notes** → title (optional) + note → **Save note** |
+| 2 | You | Save important info | **Important Notes** → **New Note** → title (optional) + note → **Save note** |
 | 3 | You | Keep records tidy | Edit / Archive / Delete from the saved list |
 
 ---
@@ -168,6 +168,18 @@ Empty overwrite is blocked: a blank device will not wipe cloud; Pulse restores f
 
 ---
 
+### L. Check AI usage & spend (admin)
+
+| Step | Who | What | Where to click |
+|------|-----|------|----------------|
+| 1 | You | Sign in | **Sync & Backup** |
+| 2 | You | Open the private ledger | Sidebar → **AI Usage & Spend** |
+| 3 | You | Read today’s spend, today’s wallet fill, month total, credits left, runway date | Record each OpenAI API top-up with **date + USD**. Filters: date / feature / success-fail. Refresh does **not** call OpenAI. Exact remaining on OpenAI: billing dashboard |
+
+First time: run `supabase/migrations/20261105133000_ai_usage_events.sql` in Supabase SQL Editor.
+
+---
+
 ## Who does what (roles)
 
 | Role | Starts when… | Does |
@@ -205,9 +217,10 @@ Empty overwrite is blocked: a blank device will not wipe cloud; Pulse restores f
 | Important info / notes | Important Notes |
 | People | Contact Database |
 | Login / Save / Load | Sync & Backup |
+| OpenAI receipts / estimated spend | AI Usage & Spend (admin, after login) |
 
 ---
 
-When someone is tired of guessing: open **this file**, pick the letter (A–J), do only Steps 1–2–3.
+When someone is tired of guessing: open **this file**, pick the letter (A–L), do only Steps 1–2–3.
 
 **First time using this guide?** Run the 20‑minute pilot → [docs/WORKFLOW_PILOT.md](./docs/WORKFLOW_PILOT.md)

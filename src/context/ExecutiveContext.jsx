@@ -33,6 +33,7 @@ import {
 } from '../utils/dakEntries';
 import { normalizeTaskList } from '../utils/taskEntries';
 import { normalizeCaptureList } from '../utils/captureEntries';
+import { loadNotesVaultMeta, normalizeNotesVaultMeta, saveNotesVaultMeta } from '../utils/notesVault';
 import {
   dedupeContactList,
   findDuplicateContact,
@@ -801,17 +802,25 @@ export function ExecutiveProvider({ children }) {
 
   const addCaptureEntry = useCallback((payload) => {
     let created;
-    const text = String(payload?.text ?? '').trim();
-    if (!text) return null;
+    const vault = payload?.vault || null;
+    const text = vault ? '' : String(payload?.text ?? '').trim();
+    const title = vault ? '' : String(payload?.title ?? '').trim();
+    if (!vault && !text) return null;
+    if (vault && !vault.cipher) return null;
+    const now = new Date().toISOString();
     const entry = {
-      id: `capture-${Date.now()}`,
-      title: String(payload?.title ?? '').trim(),
+      id: `capture-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      title,
       text,
-      bucket: payload?.bucket === 'now' ? 'now' : 'captured',
+      bucket: 'captured',
       status: 'active',
+      pinned: false,
+      pinnedAt: null,
+      vault,
       completedAt: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      trashedAt: null,
+      createdAt: now,
+      updatedAt: now,
     };
     setCaptureEntries((prev) => {
       created = entry;
@@ -821,20 +830,21 @@ export function ExecutiveProvider({ children }) {
   }, []);
 
   const updateCaptureEntry = useCallback((captureId, payload) => {
-    const text = String(payload?.text ?? '').trim();
-    if (!captureId || !text) return null;
-    const title = String(payload?.title ?? '').trim();
+    if (!captureId) return null;
     const now = new Date().toISOString();
     let updated = null;
     setCaptureEntries((prev) =>
       prev.map((entry) => {
         if (entry.id !== captureId) return entry;
+        const nextVault = payload?.vault === undefined ? entry.vault : payload.vault || null;
+        const text = nextVault ? '' : String(payload?.text ?? '').trim();
+        const title = nextVault ? '' : String(payload?.title ?? '').trim();
+        if (!nextVault && !text) return entry;
         updated = {
           ...entry,
           title,
           text,
-          status: 'active',
-          completedAt: null,
+          vault: nextVault,
           updatedAt: now,
         };
         return updated;
@@ -843,12 +853,50 @@ export function ExecutiveProvider({ children }) {
     return updated;
   }, []);
 
+  const setCapturePinned = useCallback((captureId, pinned) => {
+    const now = new Date().toISOString();
+    setCaptureEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === captureId
+          ? {
+              ...entry,
+              pinned: Boolean(pinned),
+              pinnedAt: pinned ? now : null,
+              updatedAt: now,
+            }
+          : entry,
+      ),
+    );
+  }, []);
+
   const completeCaptureEntry = useCallback((captureId) => {
     const now = new Date().toISOString();
     setCaptureEntries((prev) =>
       prev.map((entry) =>
         entry.id === captureId
-          ? { ...entry, status: 'done', completedAt: now, updatedAt: now }
+          ? { ...entry, status: 'archived', completedAt: now, trashedAt: null, updatedAt: now }
+          : entry,
+      ),
+    );
+  }, []);
+
+  const trashCaptureEntry = useCallback((captureId) => {
+    const now = new Date().toISOString();
+    setCaptureEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === captureId
+          ? { ...entry, status: 'trash', trashedAt: now, completedAt: null, updatedAt: now }
+          : entry,
+      ),
+    );
+  }, []);
+
+  const restoreCaptureEntry = useCallback((captureId) => {
+    const now = new Date().toISOString();
+    setCaptureEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === captureId
+          ? { ...entry, status: 'active', completedAt: null, trashedAt: null, updatedAt: now }
           : entry,
       ),
     );
@@ -873,7 +921,9 @@ export function ExecutiveProvider({ children }) {
   }, []);
 
   const clearDoneCaptures = useCallback(() => {
-    setCaptureEntries((prev) => prev.filter((entry) => entry.status !== 'done'));
+    setCaptureEntries((prev) =>
+      prev.filter((entry) => entry.status !== 'done' && entry.status !== 'archived'),
+    );
   }, []);
 
   const addContact = useCallback((payload) => {
@@ -1347,31 +1397,35 @@ export function ExecutiveProvider({ children }) {
     if (data.settings?.pettyCashSignatures) {
       setPettyCashSignaturesState(savePettyCashSignatures(data.settings.pettyCashSignatures));
     }
+    const incomingVault = normalizeNotesVaultMeta(data.settings?.notesVault);
+    if (incomingVault && !loadNotesVaultMeta()) {
+      saveNotesVaultMeta(incomingVault);
+    }
   }, []);
 
-  const getAppSnapshot = useCallback(
-    () =>
-      buildAppSnapshot({
-        meetings,
-        souvenirs,
-        expenditureState,
-        orders,
-        dakEntries,
-        taskEntries,
-        captureEntries,
-        contacts,
-        pettyCashState,
-        fileLabels,
-        muhasabaEntries,
-        settings: {
-          morningMeetingBoard: loadMorningBoardSettings(),
-          weeklyExpenditureEmail: loadWeeklyExpenditureEmailSettings(),
-          pettyCashSignatures: loadPettyCashSignatures(),
-          ...(dakClearedAt ? { dakClearedAt } : {}),
-        },
-      }),
-    [meetings, souvenirs, expenditureState, orders, dakEntries, dakClearedAt, taskEntries, captureEntries, contacts, pettyCashState, fileLabels, muhasabaEntries],
-  );
+  const getAppSnapshot = useCallback(() => {
+    const notesVault = loadNotesVaultMeta();
+    return buildAppSnapshot({
+      meetings,
+      souvenirs,
+      expenditureState,
+      orders,
+      dakEntries,
+      taskEntries,
+      captureEntries,
+      contacts,
+      pettyCashState,
+      fileLabels,
+      muhasabaEntries,
+      settings: {
+        morningMeetingBoard: loadMorningBoardSettings(),
+        weeklyExpenditureEmail: loadWeeklyExpenditureEmailSettings(),
+        pettyCashSignatures: loadPettyCashSignatures(),
+        ...(dakClearedAt ? { dakClearedAt } : {}),
+        ...(notesVault ? { notesVault } : {}),
+      },
+    });
+  }, [meetings, souvenirs, expenditureState, orders, dakEntries, dakClearedAt, taskEntries, captureEntries, contacts, pettyCashState, fileLabels, muhasabaEntries]);
 
   const appMetaValue = useMemo(
     () => ({
@@ -1478,7 +1532,10 @@ export function ExecutiveProvider({ children }) {
       captureEntries,
       addCaptureEntry,
       updateCaptureEntry,
+      setCapturePinned,
       completeCaptureEntry,
+      trashCaptureEntry,
+      restoreCaptureEntry,
       moveCaptureEntry,
       removeCaptureEntry,
       clearDoneCaptures,
@@ -1487,7 +1544,10 @@ export function ExecutiveProvider({ children }) {
       captureEntries,
       addCaptureEntry,
       updateCaptureEntry,
+      setCapturePinned,
       completeCaptureEntry,
+      trashCaptureEntry,
+      restoreCaptureEntry,
       moveCaptureEntry,
       removeCaptureEntry,
       clearDoneCaptures,
