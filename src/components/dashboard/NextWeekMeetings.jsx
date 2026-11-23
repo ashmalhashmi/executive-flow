@@ -51,7 +51,9 @@ export default function NextWeekMeetings({ meetings, onNavigate }) {
                 {getRelativeDayLabel(meeting.date)} · {formatDisplayTime(meeting.time)}
               </p>
               {meeting.agenda && (
-                <p className="mt-2 line-clamp-2 text-xs text-zinc-600">{meeting.agenda}</p>
+                <p className="mt-2 whitespace-normal break-words text-xs leading-relaxed text-zinc-400">
+                  {meeting.agenda}
+                </p>
               )}
             </li>
           ))}

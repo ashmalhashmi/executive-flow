@@ -34,7 +34,7 @@ export default function UpcomingMeetingsPreview({ meetings, onNavigate }) {
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-zinc-100">
+                  <p className="whitespace-normal break-words text-sm font-medium leading-snug text-zinc-100">
                     {meeting.title}
                   </p>
                   <p className="mt-1 text-xs text-zinc-500">

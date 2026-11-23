@@ -65,6 +65,12 @@ export default function AppLayout({ activeTab, onTabChange, children }) {
             </div>
           </header>
 
+          {activeItem?.description && (
+            <p className="mb-4 text-sm leading-relaxed text-zinc-400 lg:hidden">
+              {activeItem.description}
+            </p>
+          )}
+
           <div className="tab-panel-enter">
             {children}
           </div>

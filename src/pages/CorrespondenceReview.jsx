@@ -278,7 +278,7 @@ export default function CorrespondenceReview() {
                         : 'border-white/10 bg-white/[0.03] hover:bg-white/5'
                     }`}
                   >
-                    <p className="truncate text-sm font-medium text-zinc-100">
+                    <p className="whitespace-normal break-words text-sm font-medium leading-snug text-zinc-100">
                       {entry.subject || 'Subject nahi mila'}
                     </p>
                     <p className="mt-1 text-xs text-zinc-500">

@@ -97,7 +97,7 @@ export default function Sidebar({ activeTab, onTabChange, isOpen, onClose }) {
                       >
                         {label}
                       </span>
-                      <span className="mt-0.5 block truncate text-xs text-zinc-500">
+                      <span className="mt-0.5 block whitespace-normal break-words text-xs leading-snug text-zinc-500">
                         {description}
                       </span>
                     </span>

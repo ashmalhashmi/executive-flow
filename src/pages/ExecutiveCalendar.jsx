@@ -217,7 +217,7 @@ export default function ExecutiveCalendar() {
                   onClick={() => jumpToMeetingDate(m.date)}
                   className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-left text-sm hover:border-indigo-500/30 hover:bg-indigo-500/10"
                 >
-                  <span className="min-w-0 truncate font-medium text-zinc-100">{m.title}</span>
+                  <span className="min-w-0 whitespace-normal break-words font-medium leading-snug text-zinc-100">{m.title}</span>
                   <span className="shrink-0 text-xs text-zinc-500">
                     {formatDisplayDate(m.date)}
                   </span>
