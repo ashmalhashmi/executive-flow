@@ -8,14 +8,23 @@ Calendar appointments, reminders, morning meeting board email/PDF.
 |-------|--------|
 | UI | `src/pages/ExecutiveCalendar.jsx`, `src/components/calendar/`, dashboard meeting widgets |
 | State | `MeetingsContext` via `useMeetingsExecutive` |
-| Logic | `src/utils/calendar.js`, `dates.js`, `reminders.js`, `morningBoardSettings.js`, `meetingBoardPdf.js`, `monthlyMeetingLogPdf.js`, `googleCalendar.js`, `outlookCalendar.js`, `diaryImport.js` |
-| API | `api/morning-meeting-board.js`, `api/_lib/meetingBoardPdf.js`, `sendMeetingBoardEmail.js`, `loadMorningBoardJobs.js`, `karachiDate.js` |
+| Logic | `src/utils/calendar.js`, `dates.js`, `reminders.js`, `morningBoardSettings.js`, `meetingBoardPdf.js`, `monthlyMeetingLogPdf.js`, `googleCalendar.js`, `outlookCalendar.js`, `meetingAiExtract.js`, `diaryImport.js` |
+| API | `api/morning-meeting-board.js`, `api/extract-meeting.js`, `api/_lib/meetingExtract.js`, `api/_lib/meetingInviteStorage.js`, `api/_lib/meetingBoardPdf.js`, `sendMeetingBoardEmail.js`, `loadMorningBoardJobs.js`, `karachiDate.js` |
 
 ## Storage
 
 - Key: `executive_flow_meetings`
 - Normalize with helpers in `dates.js` (`normalizeMeetingForCalendar`, etc.)
 - Optional `outlookEventId` — Microsoft Graph event id after one-way Outlook push
+- Optional `invitationImageRef` — link to the invitation photo (`meeting-invites/`). The photo is not stored as base64 on the meeting.
+
+## AI fill
+
+On **Nayi Appointment**, the operator can skip field-by-field typing.
+
+- **Short brief:** place, time, and topic. `POST /api/extract-meeting` fills title, date, time, location, agenda, and attendees. The operator checks the form, then saves.
+- **Invitation snap:** a JPG, PNG, or WebP photo is stored privately and sent to the same route. If the model fails after upload, the photo ref still comes back so it can be saved with the appointment.
+- Login is required (`guardPost`), same as Dak scan. A signed-out operator is told to sign in from Sync & Backup.
 
 ## Outlook (one-way)
 

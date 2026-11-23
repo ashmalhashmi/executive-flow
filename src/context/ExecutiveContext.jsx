@@ -426,6 +426,7 @@ export function ExecutiveProvider({ children }) {
       status: 'Scheduled',
       scheduledViaCalendar: Boolean(payload.scheduledViaCalendar),
       outlookEventId: String(payload.outlookEventId || '').trim() || undefined,
+      invitationImageRef: String(payload.invitationImageRef || '').trim() || undefined,
     };
     setMeetings((prev) => [...prev, meeting]);
     return meeting;
@@ -459,6 +460,10 @@ export function ExecutiveProvider({ children }) {
                 payload.outlookEventId !== undefined
                   ? String(payload.outlookEventId || '').trim() || undefined
                   : m.outlookEventId,
+              invitationImageRef:
+                payload.invitationImageRef !== undefined
+                  ? String(payload.invitationImageRef || '').trim() || undefined
+                  : m.invitationImageRef,
             },
       ),
     );

@@ -23,6 +23,10 @@
       "maxDuration": 60,
       "memory": 1024
     },
+    "api/extract-meeting.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
     "api/extract-petty-invoice.js": {
       "maxDuration": 60,
       "memory": 1024

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Plus, Clock, X, ClipboardList, FileDown, MessageCircle, Pencil } from 'lucide-react';
+import { Plus, Clock, X, ClipboardList, FileDown, MessageCircle, Pencil, Image } from 'lucide-react';
 import GlassCard from '../ui/GlassCard';
 import StatusBadge from '../ui/StatusBadge';
 import {
@@ -137,6 +137,18 @@ export default function DayAppointmentsPanel({
                 {apt.agenda && (
                   <p className="mt-2 break-safe text-xs text-zinc-500">{apt.agenda}</p>
                 )}
+                {apt.invitationImageRef ? (
+                  <a
+                    href={apt.invitationImageRef}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex items-center gap-1 text-xs text-sky-300 hover:text-sky-200"
+                    title="Invitation photo"
+                  >
+                    <Image className="h-3.5 w-3.5" />
+                    Invitation
+                  </a>
+                ) : null}
               </li>
             ))}
           </ul>

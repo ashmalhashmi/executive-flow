@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { CalendarPlus, Save } from 'lucide-react';
 import Modal from '../ui/Modal';
 import FormField, { TextInput, TextArea, SelectInput } from '../ui/FormField';
-import { formatDisplayDate, fromTime24, toTime24 } from '../../utils/dates';
+import { fromTime24, toTime24 } from '../../utils/dates';
+import MeetingAiAssist from './MeetingAiAssist';
 
 const EMPTY = {
   title: '',
@@ -43,6 +44,7 @@ export default function ScheduleAppointmentModal({
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [ready, setReady] = useState(null);
+  const [invitationImageRef, setInvitationImageRef] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -53,6 +55,7 @@ export default function ScheduleAppointmentModal({
     }
     setErrors({});
     setReady(null);
+    setInvitationImageRef(String(meeting?.invitationImageRef || ''));
   }, [isOpen, dateISO, meeting]);
 
   const update = (field, value) => {
@@ -70,7 +73,7 @@ export default function ScheduleAppointmentModal({
     if (form.period !== 'AM' && form.period !== 'PM') {
       next.period = 'AM ya PM select karein — subah hai ya sham?';
     }
-    const meetingDate = isEdit ? form.date : dateISO;
+    const meetingDate = form.date || dateISO;
     if (!meetingDate) next.date = 'Date select karein';
     if (Object.keys(next).length) {
       setErrors(next);
@@ -96,7 +99,28 @@ export default function ScheduleAppointmentModal({
         .filter(Boolean),
       automateReminders: true,
       scheduledViaCalendar: true,
+      invitationImageRef,
     });
+  };
+
+  const applyAiFields = (fields, imageRef) => {
+    setForm((prev) => {
+      const next = { ...prev };
+      if (fields.title) next.title = fields.title;
+      if (fields.location) next.location = fields.location;
+      if (fields.agenda) next.agenda = fields.agenda;
+      if (fields.attendees) next.attendees = fields.attendees;
+      if (fields.date) next.date = fields.date;
+      if (fields.time) {
+        const parts = fromTime24(fields.time);
+        next.hour = parts.hour;
+        next.minute = parts.minute;
+        next.period = parts.period;
+      }
+      return next;
+    });
+    if (imageRef) setInvitationImageRef(imageRef);
+    setReady(null);
   };
 
   const finish = (scheduleOnOutlook) => {
@@ -120,23 +144,23 @@ export default function ScheduleAppointmentModal({
       title={isEdit ? 'Appointment Edit Karein' : 'Appointment Schedule Karein'}
       size="lg"
     >
-      {isEdit ? (
-        <FormField label="Date" id="apt-date" error={errors.date} className="-mt-2 mb-4">
-          <TextInput
-            id="apt-date"
-            type="date"
-            value={form.date}
-            onChange={(e) => update('date', e.target.value)}
-          />
-        </FormField>
-      ) : (
-        <p className="-mt-2 mb-4 text-sm text-zinc-500">
-          <span className="font-medium text-zinc-400">Date:</span>{' '}
-          {formatDisplayDate(dateISO)}
-        </p>
-      )}
+      <FormField label="Date" id="apt-date" error={errors.date} className="-mt-2 mb-4">
+        <TextInput
+          id="apt-date"
+          type="date"
+          value={form.date || dateISO}
+          onChange={(e) => update('date', e.target.value)}
+        />
+      </FormField>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        <MeetingAiAssist
+          onApply={applyAiFields}
+          onImageKept={(ref) => setInvitationImageRef(ref)}
+        />
+        {invitationImageRef ? (
+          <p className="text-xs text-sky-300">Invitation photo is attached. Save par yeh appointment ke sath rahegi.</p>
+        ) : null}
         <FormField label="Appointment / Meeting Title" id="apt-title" error={errors.title}>
           <TextInput
             id="apt-title"

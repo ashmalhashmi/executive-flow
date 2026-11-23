@@ -49,7 +49,7 @@ Detail: [docs/CLOUD_SYNC.md](./docs/CLOUD_SYNC.md)
 |------|-----|------|-------|
 | 1 | You | Open calendar | **My Calendar** |
 | 2 | Optional | Connect Outlook (one-way push) | **Connect Outlook** → Microsoft login (needs `VITE_MSAL_CLIENT_ID`) |
-| 3 | You | Pick day → create appointment | Day cell / schedule controls → fill form → **Calendar par Save** |
+| 3 | You | Pick day → create appointment | Day cell → **Nayi Appointment**. Optional: short brief (**Text se fields bharo**) or **Invitation snap**, then check the fields → **Calendar par Save** |
 | 4 | You | Outlook? | **Haan, Outlook kholo** opens Outlook compose · **Nahi, sirf yahan** keeps it in My Calendar |
 | 5 | System | Reminder when due | No click — alert appears in-app when time comes |
 
