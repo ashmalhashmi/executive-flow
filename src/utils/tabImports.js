@@ -10,6 +10,7 @@ export const TAB_IMPORTS = {
   pettyCash: () => import('../pages/PettyCashRecord'),
   orders: () => import('../pages/OrderLog'),
   dak: () => import('../pages/DakIssuanceLog'),
+  correspondence: () => import('../pages/CorrespondenceReview'),
   tasks: () => import('../pages/TaskLog'),
   capture: () => import('../pages/CaptureInbox'),
   contacts: () => import('../pages/ContactDatabase'),

@@ -6,6 +6,7 @@ import {
   Banknote,
   Package,
   FileText,
+  FileSearch,
   CheckSquare,
   StickyNote,
   BookUser,
@@ -70,6 +71,12 @@ export const NAV_ITEMS = [
     label: 'Dak Issuance Log',
     description: 'Subject · date · marked to — system assigns dispatch no.',
     icon: FileText,
+  },
+  {
+    id: 'correspondence',
+    label: 'Letter Review',
+    description: 'Correspondence snap · CLEAR-7',
+    icon: FileSearch,
   },
   {
     id: 'tasks',

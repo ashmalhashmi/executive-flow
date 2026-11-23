@@ -36,6 +36,7 @@ function validateBackup(raw) {
       dak: d.dak ?? [],
       tasks: d.tasks ?? [],
       captures: d.captures ?? [],
+      correspondence: d.correspondence ?? [],
       contacts: d.contacts ?? [],
       pettyCash: d.pettyCash ?? { cases: [], refreshmentNotes: [] },
       fileLabels: d.fileLabels ?? [],
@@ -53,6 +54,7 @@ function writeSnapshot(data) {
   localStorage.setItem('executive_flow_dak', JSON.stringify(data.dak ?? []));
   localStorage.setItem('executive_flow_tasks', JSON.stringify(data.tasks ?? []));
   localStorage.setItem('executive_flow_captures', JSON.stringify(data.captures ?? []));
+  localStorage.setItem('executive_flow_correspondence', JSON.stringify(data.correspondence ?? []));
   localStorage.setItem('executive_flow_contacts', JSON.stringify(data.contacts ?? []));
   localStorage.setItem(
     'executive_flow_petty_cash',

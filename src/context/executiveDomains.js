@@ -4,6 +4,7 @@ export const MeetingsContext = createContext(null);
 export const ExpenditureContext = createContext(null);
 export const OrdersContext = createContext(null);
 export const DakContext = createContext(null);
+export const CorrespondenceContext = createContext(null);
 export const TasksContext = createContext(null);
 export const CaptureContext = createContext(null);
 export const ContactsContext = createContext(null);

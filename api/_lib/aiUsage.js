@@ -18,6 +18,7 @@ export const AI_USAGE_FEATURES = {
   reference_extraction: 'Reference Extraction',
   dak_scan: 'Dak Scan',
   meeting_invite: 'Meeting Invite',
+  correspondence_clear7: 'CLEAR-7 Letter',
   contact_extraction: 'Contact Extraction',
   contact_categorization: 'Contact Categorization',
   expenditure_categorization: 'Expenditure Categorization',

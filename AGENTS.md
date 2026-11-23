@@ -5,7 +5,7 @@ For *user* click-paths (how operators play), see **[WORKFLOW.md](./WORKFLOW.md)*
 
 ## Default workflow
 
-1. Name the domain (Meetings, Souvenirs, Expenditure, Orders, Dak, Tasks, Capture, Contacts, Sync, Dashboard, Compose, Labels, or Shell). Ask / Muhasaba are removed from nav.
+1. Name the domain (Meetings, Souvenirs, Expenditure, Orders, Dak, Correspondence, Tasks, Capture, Contacts, Sync, Dashboard, Compose, Labels, AI Usage, or Shell). Ask / Muhasaba are removed from nav.
 2. Open the matching domain guide under `docs/domains/` when one exists.
 3. Prefer that domain’s page → utils → context/API. Do not wander across unrelated tabs.
 4. If you invent a new pile of bricks, update `ARCHITECTURE.md` in the same change.
@@ -19,6 +19,7 @@ For *user* click-paths (how operators play), see **[WORKFLOW.md](./WORKFLOW.md)*
 | Expenditure | `useExpenditureExecutive` |
 | Orders | `useOrdersExecutive` |
 | Dak | `useDakExecutive` |
+| Correspondence | `useCorrespondenceExecutive` |
 | Tasks | `useTasksExecutive` |
 | Capture | `useCaptureExecutive` |
 | Contacts | `useContactsExecutive` |

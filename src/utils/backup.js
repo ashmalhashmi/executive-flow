@@ -9,6 +9,7 @@ export function buildAppSnapshot({
   dakEntries,
   taskEntries,
   captureEntries,
+  correspondenceEntries,
   contacts,
   pettyCashState,
   fileLabels,
@@ -33,6 +34,7 @@ export function buildAppSnapshot({
       dak: Array.isArray(dakEntries) ? dakEntries : [],
       tasks: Array.isArray(taskEntries) ? taskEntries : [],
       captures: Array.isArray(captureEntries) ? captureEntries : [],
+      correspondence: Array.isArray(correspondenceEntries) ? correspondenceEntries : [],
       contacts: Array.isArray(contacts) ? contacts : [],
       pettyCash: {
         cases: Array.isArray(pettyCashState?.cases) ? pettyCashState.cases : [],
@@ -66,6 +68,7 @@ export function validateBackup(raw) {
     dak,
     tasks,
     captures,
+    correspondence,
     contacts,
     settings,
     pettyCash,
@@ -94,6 +97,9 @@ export function validateBackup(raw) {
   if (captures != null && !Array.isArray(captures)) {
     return { ok: false, error: 'Captures data invalid hai' };
   }
+  if (correspondence != null && !Array.isArray(correspondence)) {
+    return { ok: false, error: 'Correspondence data invalid hai' };
+  }
   if (contacts != null && !Array.isArray(contacts)) {
     return { ok: false, error: 'Contacts data invalid hai' };
   }
@@ -118,6 +124,7 @@ export function validateBackup(raw) {
       dak: dak ?? [],
       tasks: tasks ?? [],
       captures: captures ?? [],
+      correspondence: correspondence ?? [],
       contacts: contacts ?? [],
       pettyCash: pettyCash ?? { cases: [], refreshmentNotes: [] },
       fileLabels: fileLabels ?? [],
@@ -165,6 +172,7 @@ export function summarizeBackup(data) {
     dak: (data.dak ?? []).filter((d) => d.status !== 'cancelled').length,
     tasks: (data.tasks ?? []).filter((t) => t.status !== 'cancelled' && t.status !== 'trash').length,
     captures: (data.captures ?? []).filter((c) => c.status === 'active').length,
+    correspondence: (data.correspondence ?? []).length,
     contacts: (data.contacts ?? []).filter((c) => c.status !== 'archived').length,
     pettyCash:
       (data.pettyCash?.cases?.length ?? 0) + (data.pettyCash?.refreshmentNotes?.length ?? 0),

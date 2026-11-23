@@ -20,6 +20,7 @@ Before coding, identify the **domain** and touch only that pile. Full map: `ARCH
 | Expenditure | `pages/ExpenditureLog.jsx`, `utils/expenditure*.js`, `api/categorize-expenditure.js`, `api/weekly-expenditure-summary.js` |
 | Orders | `pages/OrderLog.jsx`, `utils/order*.js` |
 | Dak | `pages/DakIssuanceLog.jsx`, `utils/dak*.js` |
+| Correspondence | `pages/CorrespondenceReview.jsx`, `utils/correspondence*.js`, `api/_lib/correspondenceRoute.js` |
 | Tasks | `pages/TaskLog.jsx`, `utils/task*.js` |
 | Capture (My Notes) | `pages/CaptureInbox.jsx`, `utils/captureEntries.js`, `utils/notesVault.js` |
 | Contacts | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `utils/contactCategories.js`, `api/extract-contact.js` |

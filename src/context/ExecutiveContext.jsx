@@ -34,6 +34,7 @@ import {
 import { normalizeTaskList } from '../utils/taskEntries';
 import { clearTaskReminderFired } from '../utils/taskReminders';
 import { normalizeCaptureList } from '../utils/captureEntries';
+import { normalizeCorrespondenceList } from '../utils/correspondenceEntries';
 import { loadNotesVaultMeta, normalizeNotesVaultMeta, saveNotesVaultMeta } from '../utils/notesVault';
 import {
   dedupeContactList,
@@ -66,6 +67,7 @@ import {
   AppMetaContext,
   ContactsContext,
   DakContext,
+  CorrespondenceContext,
   ExpenditureContext,
   MeetingsContext,
   OrdersContext,
@@ -82,6 +84,7 @@ const SOUVENIRS_STORAGE_KEY = 'executive_flow_souvenirs';
 const EXPENDITURE_STORAGE_KEY = 'executive_flow_expenditure';
 const ORDERS_STORAGE_KEY = 'executive_flow_orders';
 const DAK_STORAGE_KEY = 'executive_flow_dak';
+const CORRESPONDENCE_STORAGE_KEY = 'executive_flow_correspondence';
 const TASKS_STORAGE_KEY = 'executive_flow_tasks';
 const CAPTURE_STORAGE_KEY = 'executive_flow_captures';
 const CONTACTS_STORAGE_KEY = 'executive_flow_contacts';
@@ -138,6 +141,16 @@ function loadMuhasabaEntries() {
       const parsed = JSON.parse(raw);
       return normalizeMuhasabaList(parsed);
     }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+function loadCorrespondenceEntries() {
+  try {
+    const raw = localStorage.getItem(CORRESPONDENCE_STORAGE_KEY);
+    if (raw) return normalizeCorrespondenceList(JSON.parse(raw));
   } catch {
     /* ignore */
   }
@@ -269,6 +282,7 @@ export function ExecutiveProvider({ children }) {
   }, [orders]);
 
   const [dakEntries, setDakEntries] = useState(loadDakEntries);
+  const [correspondenceEntries, setCorrespondenceEntries] = useState(loadCorrespondenceEntries);
   const [dakClearedAt, setDakClearedAt] = useState(loadDakClearedAt);
   const dakClearedAtRef = useRef(dakClearedAt);
   dakClearedAtRef.current = dakClearedAt;
@@ -276,6 +290,10 @@ export function ExecutiveProvider({ children }) {
   useEffect(() => {
     schedulePersist(DAK_STORAGE_KEY, dakEntries);
   }, [dakEntries]);
+
+  useEffect(() => {
+    schedulePersist(CORRESPONDENCE_STORAGE_KEY, correspondenceEntries);
+  }, [correspondenceEntries]);
 
   useEffect(() => {
     saveDakClearedAt(dakClearedAt);
@@ -1344,6 +1362,23 @@ export function ExecutiveProvider({ children }) {
     [expenditureState],
   );
 
+  const addCorrespondenceEntry = useCallback((payload) => {
+    const entry = normalizeCorrespondenceList([
+      {
+        ...payload,
+        id: payload?.id || `clr-${Date.now()}`,
+        createdAt: payload?.createdAt || new Date().toISOString(),
+      },
+    ])[0];
+    if (!entry) return null;
+    setCorrespondenceEntries((prev) => [entry, ...prev.filter((item) => item.id !== entry.id)]);
+    return entry;
+  }, []);
+
+  const removeCorrespondenceEntry = useCallback((entryId) => {
+    setCorrespondenceEntries((prev) => prev.filter((item) => item.id !== entryId));
+  }, []);
+
   const importAppData = useCallback((data) => {
     // Safety guards on EVERY domain: refuse empty cloud wipe when other domains
     // in the same snapshot still have data (stale / partial Pulse).
@@ -1387,6 +1422,14 @@ export function ExecutiveProvider({ children }) {
       }
       return applyDakClearedAt(mergeDakLists(prev, incoming), dakClearedAtMerged);
     });
+    setCorrespondenceEntries((prev) =>
+      preferLocalListIfIncomingEmpty(
+        prev,
+        normalizeCorrespondenceList(data.correspondence),
+        data,
+        'correspondence',
+      ),
+    );
     setTaskEntries((prev) =>
       preferLocalListIfIncomingEmpty(prev, normalizeTaskList(data.tasks), data, 'tasks'),
     );
@@ -1460,6 +1503,7 @@ export function ExecutiveProvider({ children }) {
       expenditureState,
       orders,
       dakEntries,
+      correspondenceEntries,
       taskEntries,
       captureEntries,
       contacts,
@@ -1474,7 +1518,7 @@ export function ExecutiveProvider({ children }) {
         ...(notesVault ? { notesVault } : {}),
       },
     });
-  }, [meetings, souvenirs, expenditureState, orders, dakEntries, dakClearedAt, taskEntries, captureEntries, contacts, pettyCashState, fileLabels, muhasabaEntries]);
+  }, [meetings, souvenirs, expenditureState, orders, dakEntries, correspondenceEntries, dakClearedAt, taskEntries, captureEntries, contacts, pettyCashState, fileLabels, muhasabaEntries]);
 
   const appMetaValue = useMemo(
     () => ({
@@ -1563,6 +1607,15 @@ export function ExecutiveProvider({ children }) {
       eraseAllDakEntries,
     }),
     [dakEntries, addDakEntry, addDakEntriesBulk, updateDakEntry, cancelDakEntry, eraseDakEntry, eraseAllDakEntries],
+  );
+
+  const correspondenceValue = useMemo(
+    () => ({
+      correspondenceEntries,
+      addCorrespondenceEntry,
+      removeCorrespondenceEntry,
+    }),
+    [correspondenceEntries, addCorrespondenceEntry, removeCorrespondenceEntry],
   );
 
   const tasksValue = useMemo(
@@ -1702,6 +1755,7 @@ export function ExecutiveProvider({ children }) {
       ...expenditureValue,
       ...ordersValue,
       ...dakValue,
+      ...correspondenceValue,
       ...tasksValue,
       ...captureValue,
       ...contactsValue,
@@ -1716,6 +1770,7 @@ export function ExecutiveProvider({ children }) {
       expenditureValue,
       ordersValue,
       dakValue,
+      correspondenceValue,
       tasksValue,
       captureValue,
       contactsValue,
@@ -1733,6 +1788,7 @@ export function ExecutiveProvider({ children }) {
         <ExpenditureContext.Provider value={expenditureValue}>
           <OrdersContext.Provider value={ordersValue}>
             <DakContext.Provider value={dakValue}>
+              <CorrespondenceContext.Provider value={correspondenceValue}>
               <TasksContext.Provider value={tasksValue}>
                 <CaptureContext.Provider value={captureValue}>
                   <ContactsContext.Provider value={contactsValue}>
@@ -1750,6 +1806,7 @@ export function ExecutiveProvider({ children }) {
                   </ContactsContext.Provider>
                 </CaptureContext.Provider>
               </TasksContext.Provider>
+              </CorrespondenceContext.Provider>
             </DakContext.Provider>
           </OrdersContext.Provider>
         </ExpenditureContext.Provider>
@@ -1779,6 +1836,8 @@ export const useExpenditureExecutive = () =>
   useDomainContext(ExpenditureContext, 'useExpenditureExecutive');
 export const useOrdersExecutive = () => useDomainContext(OrdersContext, 'useOrdersExecutive');
 export const useDakExecutive = () => useDomainContext(DakContext, 'useDakExecutive');
+export const useCorrespondenceExecutive = () =>
+  useDomainContext(CorrespondenceContext, 'useCorrespondenceExecutive');
 export const useTasksExecutive = () => useDomainContext(TasksContext, 'useTasksExecutive');
 export const useCaptureExecutive = () => useDomainContext(CaptureContext, 'useCaptureExecutive');
 export const useContactsExecutive = () => useDomainContext(ContactsContext, 'useContactsExecutive');

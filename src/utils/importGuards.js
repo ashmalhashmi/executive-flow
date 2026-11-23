@@ -11,6 +11,7 @@ export function snapshotHasOtherDomainData(data, skipKey = '') {
     dak: Array.isArray(data?.dak) && data.dak.length > 0,
     tasks: Array.isArray(data?.tasks) && data.tasks.length > 0,
     captures: Array.isArray(data?.captures) && data.captures.length > 0,
+    correspondence: Array.isArray(data?.correspondence) && data.correspondence.length > 0,
     contacts: Array.isArray(data?.contacts) && data.contacts.length > 0,
     pettyCash:
       (Array.isArray(data?.pettyCash?.cases) && data.pettyCash.cases.length > 0) ||
