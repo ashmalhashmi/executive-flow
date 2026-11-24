@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Camera, Copy, Search, Trash2 } from 'lucide-react';
+import { Camera, Copy, Search, Trash2, X } from 'lucide-react';
 import { useCorrespondenceExecutive } from '../context/ExecutiveContext';
 import GlassCard from '../components/ui/GlassCard';
 import { examineCorrespondence } from '../utils/correspondenceAi';
@@ -131,15 +131,20 @@ function ReviewCard({ entry }) {
         </p>
       </section>
 
-      {entry.imageRef ? (
-        <a
-          href={entry.imageRef}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex text-sm text-sky-300 hover:text-sky-200"
-        >
-          Saved letter photo
-        </a>
+      {entry.imageRefs?.length ? (
+        <div className="flex flex-wrap gap-3">
+          {entry.imageRefs.map((href, index) => (
+            <a
+              key={`${href}-${index}`}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex text-sm text-sky-300 hover:text-sky-200"
+            >
+              {entry.imageRefs.length > 1 ? `Saved page ${index + 1}` : 'Saved letter photo'}
+            </a>
+          ))}
+        </div>
       ) : null}
     </div>
   );
@@ -149,8 +154,8 @@ export default function CorrespondenceReview() {
   const { correspondenceEntries, addCorrespondenceEntry, removeCorrespondenceEntry } =
     useCorrespondenceExecutive();
   const fileRef = useRef(null);
-  const [file, setFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState('');
+  const snapModeRef = useRef('start');
+  const [pages, setPages] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -164,34 +169,61 @@ export default function CorrespondenceReview() {
   const visible = sorted.filter((entry) => correspondenceMatchesQuery(entry, query));
   const selected = sorted.find((entry) => entry.id === selectedId) || visible[0] || null;
 
+  const dropPages = (list) => {
+    list.forEach((page) => URL.revokeObjectURL(page.previewUrl));
+  };
+
   const onPick = (event) => {
     const next = event.target.files?.[0];
     event.target.value = '';
     if (!next) return;
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setFile(next);
-    setPreviewUrl(URL.createObjectURL(next));
+    const page = {
+      id: `page-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      file: next,
+      previewUrl: URL.createObjectURL(next),
+    };
     setError('');
+    setPages((prev) => {
+      if (snapModeRef.current === 'append') {
+        if (prev.length >= 6) return prev;
+        return [...prev, page];
+      }
+      dropPages(prev);
+      return [page];
+    });
+  };
+
+  const removePage = (id) => {
+    setPages((prev) => {
+      const target = prev.find((page) => page.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((page) => page.id !== id);
+    });
+  };
+
+  const openSnap = (mode) => {
+    snapModeRef.current = mode;
+    fileRef.current?.click();
   };
 
   const examine = async () => {
-    if (!file) {
+    if (!pages.length) {
       setError('Pehle letter ki photo lagayein');
       return;
     }
     setBusy(true);
     setError('');
     try {
-      const data = await examineCorrespondence(file);
+      const data = await examineCorrespondence(pages.map((page) => page.file));
       const saved = addCorrespondenceEntry({ ...data, examineError: '' });
       setSelectedId(saved.id);
-      setFile(null);
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl('');
+      dropPages(pages);
+      setPages([]);
     } catch (err) {
-      if (err?.imageRef) {
+      if (err?.imageRef || err?.imageRefs?.length) {
         const saved = addCorrespondenceEntry({
-          imageRef: err.imageRef,
+          imageRef: err.imageRef || '',
+          imageRefs: err.imageRefs || [],
           storageWarning: err.storageWarning || '',
           examineError: err.message || 'CLEAR-7 examine nahi hui',
         });
@@ -209,13 +241,14 @@ export default function CorrespondenceReview() {
         <p className="text-xs font-semibold uppercase tracking-wide text-indigo-300">CLEAR-7</p>
         <h2 className="mt-1 text-xl font-semibold text-white">Correspondence</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
-          Correspondence, letter, ya summary ki photo lagayein. Photo save hoti hai, phir AI usay
-          CLEAR-7 formula se examine karti hai. Jo letter par nahi likha, woh system nahi ghadta.
+          Correspondence, letter, ya summary ki photo lagayein. Kai pages hon to Next page snap
+          se agla page lagayein, phir ek dafa Save aur examine. AI saari pages ko ek letter samajh
+          kar CLEAR-7 karti hai. Jo letter par nahi likha, woh system nahi ghadta.
         </p>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <button
             type="button"
-            onClick={() => fileRef.current?.click()}
+            onClick={() => openSnap('start')}
             disabled={busy}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-medium text-zinc-100 hover:bg-white/5 disabled:opacity-50"
           >
@@ -224,8 +257,17 @@ export default function CorrespondenceReview() {
           </button>
           <button
             type="button"
+            onClick={() => openSnap('append')}
+            disabled={busy || pages.length === 0 || pages.length >= 6}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-medium text-zinc-100 hover:bg-white/5 disabled:opacity-50"
+          >
+            <Camera className="h-4 w-4" />
+            Next page snap
+          </button>
+          <button
+            type="button"
             onClick={examine}
-            disabled={busy || !file}
+            disabled={busy || pages.length === 0}
             className="inline-flex min-h-11 items-center justify-center rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 disabled:opacity-50"
           >
             {busy ? 'Save aur examine ho raha hai…' : 'Save aur examine'}
@@ -239,12 +281,35 @@ export default function CorrespondenceReview() {
             onChange={onPick}
           />
         </div>
-        {previewUrl ? (
-          <img
-            src={previewUrl}
-            alt="Letter preview"
-            className="mt-4 max-h-56 rounded-xl border border-white/10 object-contain"
-          />
+        {pages.length ? (
+          <div className="mt-4">
+            <p className="text-xs text-zinc-400">
+              {pages.length} {pages.length === 1 ? 'page' : 'pages'} — 6 tak. Letter snap nayi letter shuru karta hai.
+            </p>
+            <ul className="mt-3 flex gap-3 overflow-x-auto pb-1">
+              {pages.map((page, index) => (
+                <li key={page.id} className="relative shrink-0">
+                  <img
+                    src={page.previewUrl}
+                    alt={`Letter page ${index + 1}`}
+                    className="h-28 w-20 rounded-lg border border-white/10 object-cover"
+                  />
+                  <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
+                    {index + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removePage(page.id)}
+                    disabled={busy}
+                    aria-label={`Page ${index + 1} hataein`}
+                    className="absolute -right-1 -top-1 rounded-full border border-white/20 bg-zinc-900 p-1 text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
         {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
         <p className="mt-3 text-xs text-zinc-500">

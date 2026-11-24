@@ -1,6 +1,6 @@
 # Domain: Correspondence
 
-Correspondence. The operator snaps a letter, notification, office memorandum, or summary. The photo is saved, then CLEAR-7 examines it.
+Correspondence. The operator snaps a letter, notification, office memorandum, or summary. Extra pages of the same letter can be snapped before one CLEAR-7 examine. Each photo is saved.
 
 ## Touch first
 
@@ -17,7 +17,7 @@ The handler runs inside `api/extract-petty-invoice.js` when `purpose` is `clear7
 
 - Key: `executive_flow_correspondence`
 - Snapshot field: `data.correspondence`
-- `imageRef` is the saved photo link. The image bytes are not stored on the review.
+- `imageRef` is the first saved photo link. `imageRefs` lists every page. The image bytes are not stored on the review. Up to 6 pages per letter.
 - Login is required for the AI call. A signed-out operator is told to sign in from Sync & Backup.
 
 ## CLEAR-7

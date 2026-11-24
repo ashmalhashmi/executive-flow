@@ -8,10 +8,16 @@ export function normalizeCorrespondenceEntry(entry) {
   if (!entry || typeof entry !== 'object') return null;
   const kind = text(entry.letterKind);
   const clear = entry.clear7 && typeof entry.clear7 === 'object' ? entry.clear7 : {};
+  const imageRefs = Array.isArray(entry.imageRefs)
+    ? entry.imageRefs.map(text).filter(Boolean)
+    : [];
+  const imageRef = text(entry.imageRef) || imageRefs[0] || '';
+  if (imageRef && !imageRefs.includes(imageRef)) imageRefs.unshift(imageRef);
   return {
     id: text(entry.id) || `clr-${Date.now()}`,
     createdAt: text(entry.createdAt) || new Date().toISOString(),
-    imageRef: text(entry.imageRef),
+    imageRef,
+    imageRefs,
     storageWarning: text(entry.storageWarning),
     examineError: text(entry.examineError),
     subject: text(entry.subject),

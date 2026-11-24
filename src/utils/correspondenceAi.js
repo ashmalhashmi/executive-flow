@@ -44,9 +44,20 @@ function formatApiError(res, data, rawText) {
   return `CLEAR-7 examine fail (HTTP ${res.status})`;
 }
 
-export async function examineCorrespondence(imageFile) {
-  if (!imageFile) throw new Error('Letter ki photo attach karein');
-  const image = await prepareImagePayload(imageFile);
+const MAX_PAGES = 6;
+
+export async function examineCorrespondence(imageFiles) {
+  const files = (Array.isArray(imageFiles) ? imageFiles : [imageFiles]).filter(Boolean);
+  if (!files.length) throw new Error('Letter ki photo attach karein');
+  if (files.length > MAX_PAGES) {
+    throw new Error(`Ek letter ki ${MAX_PAGES} pages tak snap ho sakti hain`);
+  }
+  const pages = [];
+  for (const file of files) pages.push(await prepareImagePayload(file));
+  const totalChars = pages.reduce((sum, page) => sum + page.imageBase64.length, 0);
+  if (totalChars > 5_200_000) {
+    throw new Error('Pages mil kar bahut bari hain — kam pages ya chhoti photo try karein');
+  }
   const { headers, token } = await authorizedJsonHeaders();
   if (!token) throw Object.assign(new Error(LOGIN_REQUIRED), { code: 'LOGIN_REQUIRED' });
 
@@ -56,7 +67,7 @@ export async function examineCorrespondence(imageFile) {
     res = await fetch('/api/extract-petty-invoice', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ ...image, purpose: 'clear7' }),
+      body: JSON.stringify({ pages, purpose: 'clear7' }),
     });
     rawText = await res.text();
   } catch {
@@ -74,6 +85,7 @@ export async function examineCorrespondence(imageFile) {
     if (authError) throw authError;
     const err = new Error(formatApiError(res, data, rawText));
     err.imageRef = String(data.imageRef || '').trim();
+    err.imageRefs = Array.isArray(data.imageRefs) ? data.imageRefs : [];
     err.storageWarning = String(data.storageWarning || '').trim();
     throw err;
   }

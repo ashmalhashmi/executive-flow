@@ -47,16 +47,36 @@ function hasReading(fields) {
   );
 }
 
-async function generate({ imageBase64, imageMimeType, userId }) {
+const MAX_PAGES = 6;
+
+function readPages(body) {
+  const incoming = Array.isArray(body?.pages) ? body.pages : [];
+  const pages = incoming
+    .map((page) => ({
+      imageBase64: String(page?.imageBase64 || ''),
+      imageMimeType: String(page?.imageMimeType || 'image/jpeg'),
+    }))
+    .filter((page) => page.imageBase64);
+  if (pages.length) return pages;
+  if (body?.imageBase64) {
+    return [{
+      imageBase64: String(body.imageBase64),
+      imageMimeType: String(body.imageMimeType || 'image/jpeg'),
+    }];
+  }
+  return [];
+}
+
+async function generate({ pages, userId }) {
   const rawText = await requestOpenAI({
     instructions: CLEAR7_SYSTEM_PROMPT,
-    text: buildClear7UserPrompt(),
-    imageBase64,
-    imageMimeType,
+    text: buildClear7UserPrompt(pages.length),
+    images: pages,
     name: 'clear7_letter',
     schema,
     usageFeature: 'correspondence_clear7',
     userId,
+    timeoutMs: pages.length > 1 ? 50_000 : 25_000,
   });
   const fields = parseClear7Json(rawText);
   if (!hasReading(fields)) {
@@ -78,38 +98,48 @@ export async function handleCorrespondence(req, res) {
   }
 
   try {
-    const imageBase64 = String(gate.body.imageBase64 || '');
-    const imageMimeType = String(gate.body.imageMimeType || 'image/jpeg');
-    if (!imageBase64) {
+    const pages = readPages(gate.body);
+    if (!pages.length) {
       return res.status(400).json({ error: 'Letter, correspondence, ya summary ki photo required' });
     }
-
-    const safeImage = assertImagePayload(imageBase64, imageMimeType);
-    if (!safeImage.ok) {
-      return res.status(400).json({ error: safeImage.error, code: 'PAYLOAD_TOO_LARGE' });
+    if (pages.length > MAX_PAGES) {
+      return res.status(400).json({ error: `Ek letter ki ${MAX_PAGES} pages tak snap ho sakti hain` });
     }
 
-    const uploadResult = await uploadCorrespondencePhoto({
-      imageBase64: safeImage.imageBase64,
-      imageMimeType: safeImage.imageMimeType,
-      userId: gate.userId,
-    });
-    const imageRef = uploadResult.ok ? uploadResult.imageRef : '';
-    const storageWarning = uploadResult.ok
-      ? ''
-      : uploadResult.error || 'Letter photo cloud par save nahi hui';
-
-    try {
-      const fields = await generate({
+    const safePages = [];
+    for (const page of pages) {
+      const safeImage = assertImagePayload(page.imageBase64, page.imageMimeType);
+      if (!safeImage.ok) {
+        return res.status(400).json({ error: safeImage.error, code: 'PAYLOAD_TOO_LARGE' });
+      }
+      safePages.push({
         imageBase64: safeImage.imageBase64,
         imageMimeType: safeImage.imageMimeType,
+      });
+    }
+
+    const imageRefs = [];
+    let storageWarning = '';
+    for (const page of safePages) {
+      const uploadResult = await uploadCorrespondencePhoto({
+        imageBase64: page.imageBase64,
+        imageMimeType: page.imageMimeType,
         userId: gate.userId,
       });
-      return res.status(200).json({ ...fields, imageRef, storageWarning, via: 'ai' });
+      if (uploadResult.ok && uploadResult.imageRef) imageRefs.push(uploadResult.imageRef);
+      else if (!storageWarning) {
+        storageWarning = uploadResult.error || 'Letter photo cloud par save nahi hui';
+      }
+    }
+    const imageRef = imageRefs[0] || '';
+
+    try {
+      const fields = await generate({ pages: safePages, userId: gate.userId });
+      return res.status(200).json({ ...fields, imageRef, imageRefs, storageWarning, via: 'ai' });
     } catch (err) {
       const message = err?.message || 'CLEAR-7 examine fail';
       const status = /timed out/i.test(message) ? 504 : 422;
-      return res.status(status).json({ error: message, imageRef, storageWarning });
+      return res.status(status).json({ error: message, imageRef, imageRefs, storageWarning });
     }
   } catch (err) {
     return res.status(400).json({ error: err?.message || 'CLEAR-7 examine fail' });

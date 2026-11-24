@@ -35,24 +35,29 @@ function classifyError(err, signal, fallback) {
 }
 
 export async function requestOpenAI({
-  instructions, text, imageBase64, imageMimeType = 'image/jpeg', name, schema,
+  instructions, text, imageBase64, imageMimeType = 'image/jpeg', images, name, schema,
   usageFeature = 'unknown',
   userId = null,
+  timeoutMs = REQUEST_TIMEOUT_MS,
 }) {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error('AI not configured — set OPENAI_API_KEY');
 
   const model = getOpenAIModel();
   const content = [{ type: 'input_text', text }];
-  if (imageBase64) {
+  const shots = Array.isArray(images) && images.length
+    ? images
+    : (imageBase64 ? [{ imageBase64, imageMimeType }] : []);
+  for (const shot of shots) {
+    if (!shot?.imageBase64) continue;
     content.push({
       type: 'input_image',
-      image_url: `data:${imageMimeType};base64,${imageBase64}`,
+      image_url: `data:${shot.imageMimeType || 'image/jpeg'};base64,${shot.imageBase64}`,
       detail: 'high',
     });
   }
 
-  const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const signal = AbortSignal.timeout(timeoutMs);
   let response;
   let data;
   let status = 'failed';

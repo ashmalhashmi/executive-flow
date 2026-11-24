@@ -29,11 +29,16 @@ Rules:
 - Distinguish an information-only letter from an action-required letter.
 - Highlight instructions, references, and deadlines that are actually written.
 - Never invent a missing fact, deadline, rule, authority, officer, or reference.
-- If a field is not on the page, return an empty string.
+- If several images are attached, they are consecutive pages of one letter, in order. Read every page before you answer.
+- If a field is not on any page, return an empty string.
 - Keep clear7.action as a recommendation. Do not present that recommendation as something the letter already ordered.
 - Stay concise and suitable for a government office.`;
 
-export function buildClear7UserPrompt() {
+export function buildClear7UserPrompt(pageCount = 1) {
+  const count = Number(pageCount) || 1;
+  if (count > 1) {
+    return `The attached images are page 1 through page ${count} of ONE letter, in order. Read every page, then fill CLEAR-7 plus the office output. Do not invent anything that is not printed.`;
+  }
   return 'Read the attached correspondence image and fill CLEAR-7 plus the office output. Do not invent anything that is not printed.';
 }
 
