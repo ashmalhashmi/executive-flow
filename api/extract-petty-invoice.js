@@ -1,5 +1,6 @@
 import { handleExtractMeeting } from './_lib/meetingExtractRoute.js';
 import { handleCorrespondence } from './_lib/correspondenceRoute.js';
+import { handleTargetSuggest } from './_lib/targetSuggest.js';
 import {
   PETTY_INVOICE_SYSTEM_PROMPT,
   buildPettyInvoiceUserPrompt,
@@ -136,6 +137,10 @@ function requestBody(req) {
 export default async function handler(req, res) {
   const body = requestBody(req);
   const path = String(req.url || req.headers?.['x-invoke-path'] || '');
+  if (body.purpose === 'target-suggest') {
+    req.body = body;
+    return handleTargetSuggest(req, res);
+  }
   if (body.purpose === 'clear7' || path.includes('examine-correspondence')) {
     req.body = body;
     return handleCorrespondence(req, res);

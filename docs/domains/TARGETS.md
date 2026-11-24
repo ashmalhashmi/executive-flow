@@ -16,7 +16,7 @@ This follows identity-based habits: each completed action is a vote for the iden
 
 - Key: `executive_flow_targets`
 - Snapshot field: `data.targets`
-- No server route. Saving a target does not call a model.
+- The operator writes the target and the deadline. **AI se likhain** asks the existing invoice function (`purpose: target-suggest`) for the identity sentence and 3 favorable actions. The operator can edit them before **Save target**. Login is required for that call.
 
 ## Do / don't
 

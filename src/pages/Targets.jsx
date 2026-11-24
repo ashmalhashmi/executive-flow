@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Check, Plus, Target, Trash2 } from 'lucide-react';
+import { Check, Plus, Sparkles, Target, Trash2 } from 'lucide-react';
 import { useTargetsExecutive } from '../context/ExecutiveContext';
 import GlassCard from '../components/ui/GlassCard';
 import FormField, { TextArea, TextInput } from '../components/ui/FormField';
 import { formatDisplayDate, getTodayISO } from '../utils/dates';
 import { deadlineLabel, targetDaysLeft } from '../utils/targetEntries';
+import { suggestTargetPractice } from '../utils/targetAi';
 
 const EMPTY_FORM = {
   title: '',
@@ -41,6 +42,7 @@ export default function Targets() {
   } = useTargetsExecutive();
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState('');
+  const [suggesting, setSuggesting] = useState(false);
   const [filter, setFilter] = useState('active');
   const [editingId, setEditingId] = useState('');
   const [actionDrafts, setActionDrafts] = useState({});
@@ -75,12 +77,8 @@ export default function Targets() {
       setError('Deadline specify karein');
       return;
     }
-    if (!identity) {
-      setError('Identity statement likhein');
-      return;
-    }
-    if (!actions.length) {
-      setError('Kam az kam aik favorable action likhein');
+    if (!identity || !actions.length) {
+      setError('Pehle AI se identity aur actions likhwayein');
       return;
     }
     addTarget({
@@ -94,6 +92,32 @@ export default function Targets() {
     setFilter('active');
   };
 
+  const writeWithAi = async () => {
+    if (!form.title.trim()) {
+      setError('Target likhein');
+      return;
+    }
+    if (!form.deadline) {
+      setError('Deadline specify karein');
+      return;
+    }
+    setSuggesting(true);
+    setError('');
+    try {
+      const data = await suggestTargetPractice({ title: form.title, deadline: form.deadline });
+      setForm((prev) => ({
+        ...prev,
+        identity: data.identity,
+        actions: data.actions,
+        actionDraft: '',
+      }));
+    } catch (err) {
+      setError(err?.message || 'AI ne identity nahi likhi');
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <GlassCard className="p-5 sm:p-6">
@@ -103,10 +127,9 @@ export default function Targets() {
           Targets
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
-          Target woh natija hai jo aap chahte hain, deadline aap khud rakhte hain. Identity statement
-          batati hai aap kis shakhs ban rahe hain. Favorable actions chhoti repeats hain: har dafa
-          karna us identity ka aik vote hai, aur wahi repeat rasta mazboot karta hai, jab tak target
-          achieve na ho jaye.
+          Aap target aur deadline likhein. Identity statement aur 3 favorable actions AI likhegi.
+          Save se pehle unhein dekh kar badal sakte hain. Har **Kiya** us identity ka vote hai, jab
+          tak aap target **Achieved** na kar dein.
         </p>
         <form onSubmit={saveTarget} className="mt-5 grid gap-4">
           <FormField label="Target" id="target-title" hint="Outcome, aik jumle mein.">
@@ -126,10 +149,24 @@ export default function Targets() {
               onChange={(event) => setForm((prev) => ({ ...prev, deadline: event.target.value }))}
             />
           </FormField>
+          <div>
+            <button
+              type="button"
+              onClick={writeWithAi}
+              disabled={suggesting}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-400/40 bg-indigo-500/15 px-4 py-2 text-sm font-medium text-indigo-100 hover:bg-indigo-500/25 disabled:opacity-50"
+            >
+              <Sparkles className="h-4 w-4" />
+              {suggesting ? 'AI likh rahi hai…' : 'AI se likhain'}
+            </button>
+            <p className="mt-2 text-xs text-zinc-500">
+              AI ke liye Sync &amp; Backup se sign in hona zaroori hai.
+            </p>
+          </div>
           <FormField
             label="Identity statement"
             id="target-identity"
-            hint="Main woh shakhs hoon jo…"
+            hint="AI likhti hai. Save se pehle badal sakte hain."
           >
             <TextArea
               id="target-identity"
@@ -142,7 +179,7 @@ export default function Targets() {
           <FormField
             label="Favorable actions"
             id="target-action"
-            hint="Chhoti, dohrane layak actions. Inhein target achieve hone tak karte rahen."
+            hint="AI 3 chhoti repeats likhti hai. Hata sakte hain ya aur add kar sakte hain."
           >
             <div className="flex gap-2">
               <TextInput
@@ -192,7 +229,8 @@ export default function Targets() {
           <div>
             <button
               type="submit"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+              disabled={suggesting}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 disabled:opacity-50"
             >
               Save target
             </button>
