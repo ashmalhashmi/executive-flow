@@ -14,6 +14,7 @@ import {
   PenLine,
   Tag,
   Receipt,
+  Target,
 } from 'lucide-react';
 
 /** Sidebar navigation tabs — id maps to active view in App */
@@ -83,6 +84,12 @@ export const NAV_ITEMS = [
     label: 'Task Log',
     description: 'Pending · overdue · done',
     icon: CheckSquare,
+  },
+  {
+    id: 'targets',
+    label: 'Targets',
+    description: 'Deadline · identity · favorable actions',
+    icon: Target,
   },
   {
     id: 'capture',

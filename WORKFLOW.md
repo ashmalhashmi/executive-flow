@@ -122,6 +122,16 @@ Invoice photo uploads to cloud — only URL kept on device.
 
 ---
 
+### H2. Hold a target
+
+| Step | Who | What | Click |
+|------|-----|------|-------|
+| 1 | You | Open targets | **Targets** |
+| 2 | You | Set the outcome, your deadline, who you are becoming, and the small actions | Form → **Save target** |
+| 3 | You | Repeat an action until the outcome is real | Card → **Kiya** each time, then **Achieved** |
+
+---
+
 ### I. Add / find a contact
 
 | Step | Who | What | Click |
@@ -216,6 +226,7 @@ First time: run `supabase/migrations/20261105133000_ai_usage_events.sql` in Supa
 | Official dispatch log | Dak Issuance Log |
 | Letter / summary snap | Correspondence |
 | To-dos | Task Log |
+| Outcome, identity, repeated actions | Targets |
 | Important info / notes | My Notes |
 | People | Contact Database |
 | Login / Save / Load | Sync & Backup |

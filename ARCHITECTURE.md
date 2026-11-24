@@ -6,7 +6,7 @@
 
 ## What this product is
 
-Premium executive assistant for office ops: meetings, souvenirs, money, orders, dak, correspondence, tasks, my notes, contacts, and laptop↔mobile cloud sync.
+Premium executive assistant for office ops: meetings, souvenirs, money, orders, dak, correspondence, tasks, targets, my notes, contacts, and laptop↔mobile cloud sync.
 
 **Stack:** React 19 + Vite 6 · Tailwind 4 · localStorage + Supabase · Vercel API · Capacitor (mobile)
 
@@ -25,6 +25,7 @@ Premium executive assistant for office ops: meetings, souvenirs, money, orders, 
 | **Dak** | `dak` | Dispatch / issuance log · register scan → cloud photo URL + AI fields (verify before save) | `pages/DakIssuanceLog.jsx`, `components/dak/DakScanCapture.jsx`, `utils/dakEntries.js`, `utils/dakAiExtract.js`, `utils/dakIssuancePdf.js`, `utils/dakWhatsApp.js`, `api/extract-dak.js`, `api/_lib/dakScanStorage.js` |
 | **Correspondence** | `correspondence` | Snap a letter, notification, or summary; save the photo; CLEAR-7 analysis. Independent of Dak and Compose. | `pages/CorrespondenceReview.jsx`, `utils/correspondenceEntries.js`, `utils/correspondenceAi.js`, `api/_lib/correspondenceRoute.js` |
 | **Tasks** | `tasks` | **Task Log** — time-bound tasks (overdue, pending, done, recoverable trash, optional 15-minute reminder, PDF). Independent of My Notes. Syncs with the account snapshot. | `pages/TaskLog.jsx`, `utils/taskEntries.js`, `utils/taskReminders.js`, `utils/taskLogPdf.js` |
+| **Targets** | `targets` | Outcome with the operator's deadline, an identity statement, and favorable actions repeated until the target is achieved. | `pages/Targets.jsx`, `utils/targetEntries.js`, `docs/domains/TARGETS.md` |
 | **Capture** | `capture` | **My Notes** — personal notes (pin, archive, recoverable trash, client-side encrypted vault). Independent of Tasks, Dak, and Contacts. Syncs with the account snapshot; offline edits stay on the device until the connection returns. | `pages/CaptureInbox.jsx`, `utils/captureEntries.js`, `utils/notesVault.js` |
 | **Contacts** | `contacts` | External visitor DB · PAFDA Agriculture/Food/Drug (+ Govt, Lab, Trade, Other) · AI card extract · Apply AI on each saved card → closest PAFDA pillar | `pages/ContactDatabase.jsx`, `pages/contactDatabase/`, `utils/contact*.js`, `utils/contactCategories.js`, `utils/contactAiCategorize.js`, `api/extract-contact.js` (`/api/categorize-contact` rewrite), `api/_lib/contactCategorizeRoute.js` |
 | **Sync** | `sync` | Auth, Pulse cloud, Sheets mirror backup | `pages/SyncBackup.jsx`, `context/CloudSyncContext.jsx`, `context/GoogleSheetsSyncContext.jsx`, `utils/cloudSync*.js`, `utils/googleSheetsSync.js`, `api/sheets-sync.js`, `api/_lib/sheetsMirror.js`, `docs/CLOUD_SYNC.md` |
@@ -59,6 +60,7 @@ App
 | `DakContext` | same | Dak |
 | `CorrespondenceContext` | same | Correspondence |
 | `TasksContext` | same | Tasks |
+| `TargetsContext` | same | Targets |
 | `CaptureContext` | same | Capture |
 | `ContactsContext` | same | Contacts |
 | `LabelsContext` | same | Labels |
@@ -153,6 +155,7 @@ docs/CLOUD_SYNC.md        Sync user/ops story
 | Compose | [docs/domains/COMPOSE.md](./docs/domains/COMPOSE.md) |
 | AI Usage | [docs/domains/AI_USAGE.md](./docs/domains/AI_USAGE.md) |
 | Labels | [docs/domains/LABELS.md](./docs/domains/LABELS.md) |
+| Targets | [docs/domains/TARGETS.md](./docs/domains/TARGETS.md) |
 | Orders | [docs/domains/ORDERS.md](./docs/domains/ORDERS.md) |
 
 Agent entrypoint: **[AGENTS.md](./AGENTS.md)**

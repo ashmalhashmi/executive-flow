@@ -11,6 +11,7 @@ export const TAB_IMPORTS = {
   orders: () => import('../pages/OrderLog'),
   dak: () => import('../pages/DakIssuanceLog'),
   correspondence: () => import('../pages/CorrespondenceReview'),
+  targets: () => import('../pages/Targets'),
   tasks: () => import('../pages/TaskLog'),
   capture: () => import('../pages/CaptureInbox'),
   contacts: () => import('../pages/ContactDatabase'),

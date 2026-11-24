@@ -23,6 +23,7 @@ export function writeSnapshotToLocalStorage(snapshotData) {
   localStorage.setItem('executive_flow_dak', JSON.stringify(snapshotData.dak ?? []));
   localStorage.setItem('executive_flow_tasks', JSON.stringify(snapshotData.tasks ?? []));
   localStorage.setItem('executive_flow_captures', JSON.stringify(snapshotData.captures ?? []));
+  localStorage.setItem('executive_flow_targets', JSON.stringify(snapshotData.targets ?? []));
   localStorage.setItem('executive_flow_contacts', JSON.stringify(snapshotData.contacts ?? []));
   localStorage.setItem(
     'executive_flow_petty_cash',

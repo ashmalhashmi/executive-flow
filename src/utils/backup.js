@@ -10,6 +10,7 @@ export function buildAppSnapshot({
   taskEntries,
   captureEntries,
   correspondenceEntries,
+  targetEntries,
   contacts,
   pettyCashState,
   fileLabels,
@@ -35,6 +36,7 @@ export function buildAppSnapshot({
       tasks: Array.isArray(taskEntries) ? taskEntries : [],
       captures: Array.isArray(captureEntries) ? captureEntries : [],
       correspondence: Array.isArray(correspondenceEntries) ? correspondenceEntries : [],
+      targets: Array.isArray(targetEntries) ? targetEntries : [],
       contacts: Array.isArray(contacts) ? contacts : [],
       pettyCash: {
         cases: Array.isArray(pettyCashState?.cases) ? pettyCashState.cases : [],
@@ -69,6 +71,7 @@ export function validateBackup(raw) {
     tasks,
     captures,
     correspondence,
+    targets,
     contacts,
     settings,
     pettyCash,
@@ -100,6 +103,9 @@ export function validateBackup(raw) {
   if (correspondence != null && !Array.isArray(correspondence)) {
     return { ok: false, error: 'Correspondence data invalid hai' };
   }
+  if (targets != null && !Array.isArray(targets)) {
+    return { ok: false, error: 'Targets data invalid hai' };
+  }
   if (contacts != null && !Array.isArray(contacts)) {
     return { ok: false, error: 'Contacts data invalid hai' };
   }
@@ -125,6 +131,7 @@ export function validateBackup(raw) {
       tasks: tasks ?? [],
       captures: captures ?? [],
       correspondence: correspondence ?? [],
+      targets: targets ?? [],
       contacts: contacts ?? [],
       pettyCash: pettyCash ?? { cases: [], refreshmentNotes: [] },
       fileLabels: fileLabels ?? [],
@@ -173,6 +180,7 @@ export function summarizeBackup(data) {
     tasks: (data.tasks ?? []).filter((t) => t.status !== 'cancelled' && t.status !== 'trash').length,
     captures: (data.captures ?? []).filter((c) => c.status === 'active').length,
     correspondence: (data.correspondence ?? []).length,
+    targets: (data.targets ?? []).filter((item) => item.status !== 'achieved').length,
     contacts: (data.contacts ?? []).filter((c) => c.status !== 'archived').length,
     pettyCash:
       (data.pettyCash?.cases?.length ?? 0) + (data.pettyCash?.refreshmentNotes?.length ?? 0),
@@ -192,6 +200,7 @@ export function hasAnyAppData(summary) {
     (summary.dak ?? 0) > 0 ||
     (summary.tasks ?? 0) > 0 ||
     (summary.captures ?? 0) > 0 ||
+    (summary.targets ?? 0) > 0 ||
     (summary.contacts ?? 0) > 0 ||
     (summary.fileLabels ?? 0) > 0 ||
     (summary.muhasaba ?? 0) > 0 ||

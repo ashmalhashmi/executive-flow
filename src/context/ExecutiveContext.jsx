@@ -35,6 +35,7 @@ import { normalizeTaskList } from '../utils/taskEntries';
 import { clearTaskReminderFired } from '../utils/taskReminders';
 import { normalizeCaptureList } from '../utils/captureEntries';
 import { normalizeCorrespondenceList } from '../utils/correspondenceEntries';
+import { normalizeTarget, normalizeTargetList } from '../utils/targetEntries';
 import { loadNotesVaultMeta, normalizeNotesVaultMeta, saveNotesVaultMeta } from '../utils/notesVault';
 import {
   dedupeContactList,
@@ -76,6 +77,7 @@ import {
   MuhasabaContext,
   SouvenirsContext,
   TasksContext,
+  TargetsContext,
   CaptureContext,
 } from './executiveDomains';
 
@@ -85,6 +87,7 @@ const EXPENDITURE_STORAGE_KEY = 'executive_flow_expenditure';
 const ORDERS_STORAGE_KEY = 'executive_flow_orders';
 const DAK_STORAGE_KEY = 'executive_flow_dak';
 const CORRESPONDENCE_STORAGE_KEY = 'executive_flow_correspondence';
+const TARGETS_STORAGE_KEY = 'executive_flow_targets';
 const TASKS_STORAGE_KEY = 'executive_flow_tasks';
 const CAPTURE_STORAGE_KEY = 'executive_flow_captures';
 const CONTACTS_STORAGE_KEY = 'executive_flow_contacts';
@@ -151,6 +154,16 @@ function loadCorrespondenceEntries() {
   try {
     const raw = localStorage.getItem(CORRESPONDENCE_STORAGE_KEY);
     if (raw) return normalizeCorrespondenceList(JSON.parse(raw));
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+function loadTargetEntries() {
+  try {
+    const raw = localStorage.getItem(TARGETS_STORAGE_KEY);
+    if (raw) return normalizeTargetList(JSON.parse(raw));
   } catch {
     /* ignore */
   }
@@ -283,6 +296,7 @@ export function ExecutiveProvider({ children }) {
 
   const [dakEntries, setDakEntries] = useState(loadDakEntries);
   const [correspondenceEntries, setCorrespondenceEntries] = useState(loadCorrespondenceEntries);
+  const [targetEntries, setTargetEntries] = useState(loadTargetEntries);
   const [dakClearedAt, setDakClearedAt] = useState(loadDakClearedAt);
   const dakClearedAtRef = useRef(dakClearedAt);
   dakClearedAtRef.current = dakClearedAt;
@@ -294,6 +308,10 @@ export function ExecutiveProvider({ children }) {
   useEffect(() => {
     schedulePersist(CORRESPONDENCE_STORAGE_KEY, correspondenceEntries);
   }, [correspondenceEntries]);
+
+  useEffect(() => {
+    schedulePersist(TARGETS_STORAGE_KEY, targetEntries);
+  }, [targetEntries]);
 
   useEffect(() => {
     saveDakClearedAt(dakClearedAt);
@@ -345,7 +363,7 @@ export function ExecutiveProvider({ children }) {
       return;
     }
     setDataRevision((v) => v + 1);
-  }, [meetings, souvenirs, expenditureState, orders, dakEntries, dakClearedAt, taskEntries, captureEntries, contacts, pettyCashState, fileLabels, muhasabaEntries]);
+  }, [meetings, souvenirs, expenditureState, orders, dakEntries, dakClearedAt, taskEntries, targetEntries, captureEntries, contacts, pettyCashState, fileLabels, muhasabaEntries]);
 
   const [inventory] = useState(INVENTORY_ITEMS);
 
@@ -1379,6 +1397,122 @@ export function ExecutiveProvider({ children }) {
     setCorrespondenceEntries((prev) => prev.filter((item) => item.id !== entryId));
   }, []);
 
+  const addTarget = useCallback((payload) => {
+    const entry = normalizeTargetList([
+      {
+        ...payload,
+        id: payload?.id || `tgt-${Date.now()}`,
+        createdAt: payload?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ])[0];
+    if (!entry) return null;
+    setTargetEntries((prev) => [entry, ...prev.filter((item) => item.id !== entry.id)]);
+    return entry;
+  }, []);
+
+  const updateTarget = useCallback((id, patch) => {
+    setTargetEntries((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        return (
+          normalizeTarget({
+            ...item,
+            ...patch,
+            id: item.id,
+            createdAt: item.createdAt,
+            updatedAt: new Date().toISOString(),
+            actions: patch.actions ?? item.actions,
+          }) || item
+        );
+      }),
+    );
+  }, []);
+
+  const addTargetAction = useCallback((targetId, actionText) => {
+    setTargetEntries((prev) =>
+      prev.map((item) => {
+        if (item.id !== targetId) return item;
+        return (
+          normalizeTarget({
+            ...item,
+            updatedAt: new Date().toISOString(),
+            actions: [...item.actions, { text: actionText }],
+          }) || item
+        );
+      }),
+    );
+  }, []);
+
+  const removeTargetAction = useCallback((targetId, actionId) => {
+    setTargetEntries((prev) =>
+      prev.map((item) => {
+        if (item.id !== targetId) return item;
+        return (
+          normalizeTarget({
+            ...item,
+            updatedAt: new Date().toISOString(),
+            actions: item.actions.filter((action) => action.id !== actionId),
+          }) || item
+        );
+      }),
+    );
+  }, []);
+
+  const voteTargetAction = useCallback((targetId, actionId) => {
+    const today = new Date().toISOString().slice(0, 10);
+    setTargetEntries((prev) =>
+      prev.map((item) => {
+        if (item.id !== targetId || item.status === 'achieved') return item;
+        return (
+          normalizeTarget({
+            ...item,
+            updatedAt: new Date().toISOString(),
+            actions: item.actions.map((action) =>
+              action.id === actionId
+                ? { ...action, repetitions: action.repetitions + 1, lastDoneOn: today }
+                : action,
+            ),
+          }) || item
+        );
+      }),
+    );
+  }, []);
+
+  const achieveTarget = useCallback((id) => {
+    setTargetEntries((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? normalizeTarget({
+              ...item,
+              status: 'achieved',
+              achievedAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }) || item
+          : item,
+      ),
+    );
+  }, []);
+
+  const reopenTarget = useCallback((id) => {
+    setTargetEntries((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? normalizeTarget({
+              ...item,
+              status: 'active',
+              achievedAt: '',
+              updatedAt: new Date().toISOString(),
+            }) || item
+          : item,
+      ),
+    );
+  }, []);
+
+  const removeTarget = useCallback((id) => {
+    setTargetEntries((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
   const importAppData = useCallback((data) => {
     // Safety guards on EVERY domain: refuse empty cloud wipe when other domains
     // in the same snapshot still have data (stale / partial Pulse).
@@ -1428,6 +1562,14 @@ export function ExecutiveProvider({ children }) {
         normalizeCorrespondenceList(data.correspondence),
         data,
         'correspondence',
+      ),
+    );
+    setTargetEntries((prev) =>
+      preferLocalListIfIncomingEmpty(
+        prev,
+        normalizeTargetList(data.targets),
+        data,
+        'targets',
       ),
     );
     setTaskEntries((prev) =>
@@ -1504,6 +1646,7 @@ export function ExecutiveProvider({ children }) {
       orders,
       dakEntries,
       correspondenceEntries,
+      targetEntries,
       taskEntries,
       captureEntries,
       contacts,
@@ -1518,7 +1661,7 @@ export function ExecutiveProvider({ children }) {
         ...(notesVault ? { notesVault } : {}),
       },
     });
-  }, [meetings, souvenirs, expenditureState, orders, dakEntries, correspondenceEntries, dakClearedAt, taskEntries, captureEntries, contacts, pettyCashState, fileLabels, muhasabaEntries]);
+  }, [meetings, souvenirs, expenditureState, orders, dakEntries, correspondenceEntries, targetEntries, dakClearedAt, taskEntries, captureEntries, contacts, pettyCashState, fileLabels, muhasabaEntries]);
 
   const appMetaValue = useMemo(
     () => ({
@@ -1616,6 +1759,31 @@ export function ExecutiveProvider({ children }) {
       removeCorrespondenceEntry,
     }),
     [correspondenceEntries, addCorrespondenceEntry, removeCorrespondenceEntry],
+  );
+
+  const targetsValue = useMemo(
+    () => ({
+      targetEntries,
+      addTarget,
+      updateTarget,
+      addTargetAction,
+      removeTargetAction,
+      voteTargetAction,
+      achieveTarget,
+      reopenTarget,
+      removeTarget,
+    }),
+    [
+      targetEntries,
+      addTarget,
+      updateTarget,
+      addTargetAction,
+      removeTargetAction,
+      voteTargetAction,
+      achieveTarget,
+      reopenTarget,
+      removeTarget,
+    ],
   );
 
   const tasksValue = useMemo(
@@ -1756,6 +1924,7 @@ export function ExecutiveProvider({ children }) {
       ...ordersValue,
       ...dakValue,
       ...correspondenceValue,
+      ...targetsValue,
       ...tasksValue,
       ...captureValue,
       ...contactsValue,
@@ -1771,6 +1940,7 @@ export function ExecutiveProvider({ children }) {
       ordersValue,
       dakValue,
       correspondenceValue,
+      targetsValue,
       tasksValue,
       captureValue,
       contactsValue,
@@ -1789,6 +1959,7 @@ export function ExecutiveProvider({ children }) {
           <OrdersContext.Provider value={ordersValue}>
             <DakContext.Provider value={dakValue}>
               <CorrespondenceContext.Provider value={correspondenceValue}>
+              <TargetsContext.Provider value={targetsValue}>
               <TasksContext.Provider value={tasksValue}>
                 <CaptureContext.Provider value={captureValue}>
                   <ContactsContext.Provider value={contactsValue}>
@@ -1806,6 +1977,7 @@ export function ExecutiveProvider({ children }) {
                   </ContactsContext.Provider>
                 </CaptureContext.Provider>
               </TasksContext.Provider>
+              </TargetsContext.Provider>
               </CorrespondenceContext.Provider>
             </DakContext.Provider>
           </OrdersContext.Provider>
@@ -1838,6 +2010,7 @@ export const useOrdersExecutive = () => useDomainContext(OrdersContext, 'useOrde
 export const useDakExecutive = () => useDomainContext(DakContext, 'useDakExecutive');
 export const useCorrespondenceExecutive = () =>
   useDomainContext(CorrespondenceContext, 'useCorrespondenceExecutive');
+export const useTargetsExecutive = () => useDomainContext(TargetsContext, 'useTargetsExecutive');
 export const useTasksExecutive = () => useDomainContext(TasksContext, 'useTasksExecutive');
 export const useCaptureExecutive = () => useDomainContext(CaptureContext, 'useCaptureExecutive');
 export const useContactsExecutive = () => useDomainContext(ContactsContext, 'useContactsExecutive');

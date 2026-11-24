@@ -24,6 +24,7 @@ import {
   useOrdersExecutive,
   useSouvenirsExecutive,
   useTasksExecutive,
+  useTargetsExecutive,
   useLabelsExecutive,
   useMuhasabaExecutive,
 } from '../context/ExecutiveContext';
@@ -46,6 +47,7 @@ export default function SyncBackup() {
   const { dakEntries } = useDakExecutive();
   const { taskEntries } = useTasksExecutive();
   const { captureEntries } = useCaptureExecutive();
+  const { targetEntries } = useTargetsExecutive();
   const { contacts } = useContactsExecutive();
   const { fileLabels } = useLabelsExecutive();
   const { muhasabaEntries } = useMuhasabaExecutive();
@@ -67,6 +69,7 @@ export default function SyncBackup() {
     dak: dakEntries,
     tasks: taskEntries,
     captures: captureEntries,
+    targets: targetEntries,
     contacts,
     fileLabels,
     muhasaba: muhasabaEntries,
